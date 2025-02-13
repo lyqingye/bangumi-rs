@@ -33,7 +33,7 @@
 - Rust
 - tokio (异步运行时)
 - sea-orm (ORM)
-- SQLite (数据库)
+- MySQL (数据库)
 - actix-web (Web 框架)
 
 ### 前端 
@@ -51,7 +51,7 @@
 
 - Rust 1.75+
 - Node.js 18+
-- SQLite 3
+- MySQL 8.0+
 
 ### 后端构建
 
@@ -63,8 +63,29 @@ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 git clone https://github.com/your-username/bangumi.git
 cd bangumi
 
-# 构建
-cargo build --release
+# 创建配置文件
+cp config.example.toml config.toml
+# 修改配置文件中的数据库连接等信息
+
+# 使用 Makefile 命令进行构建和运行
+make build              # 开发模式构建
+make build-release      # 发布模式构建
+make run               # 运行开发版本
+make run-dev           # 运行开发版本(支持 tokio console)
+
+# 代码维护命令
+make fmt               # 格式化代码
+make clippy           # 运行 clippy 检查
+make test             # 运行测试
+make check            # 检查代码(不编译)
+make doc              # 生成文档
+make clean            # 清理构建文件
+
+# 数据库相关
+make gen-entity       # 生成 SeaORM entity (需要配置 .env 文件)
+
+# 运行所有检查
+make all              # 运行 fmt, clippy, test, build
 ```
 
 ### 前端构建
@@ -89,7 +110,7 @@ npm run build
 ```toml
 [server]
 listen_addr = "127.0.0.1:3001"  # 服务监听地址
-database_url = "sqlite:data.db"  # 数据库连接 URL
+database_url = "mysql://user:pass@localhost:3306/bangumi"  # 数据库连接 URL
 assets_path = "assets"          # 资源文件路径
 
 [log]
