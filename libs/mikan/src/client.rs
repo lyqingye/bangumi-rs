@@ -2,7 +2,6 @@ use std::str::FromStr;
 
 use crate::utils::smart_parse_date;
 use anyhow::Result;
-use bytesize::ByteSize;
 use chrono::NaiveDateTime;
 use reqwest::Url;
 use scraper::Selector;
@@ -167,9 +166,9 @@ impl Client {
                     break;
                 }
 
-                match ByteSize::from_str(td.inner_html().as_str()) {
+                match huby::ByteSize::from_str(td.inner_html().as_str()) {
                     Ok(size) => {
-                        item.file_size = size.0 as usize;
+                        item.file_size = size.in_bytes() as usize;
                     }
                     _ => {}
                 };
@@ -349,8 +348,15 @@ mod test {
     #[tokio::test]
     async fn test_collect_by_bangumi_id_with_info_hash() -> Result<()> {
         let mikan = create_clinet()?;
-        let result = mikan.collect_by_bangumi_id(681).await?;
+        let result = mikan.collect_by_bangumi_id(105).await?;
         println!("result: {:?}", result);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_parser_bytes() -> Result<()> {
+        let size = huby::ByteSize::from_str("992.7 MB").unwrap();
+        println!("size: {:?}", size.in_bytes());
         Ok(())
     }
 }
