@@ -1,0 +1,57 @@
+# 服务器配置
+[server]
+listen_addr = "127.0.0.1:3001"
+database_url = "sqlite:data.db"
+assets_path = "assets"
+
+# 日志配置
+[log]
+level = "debug"  # debug, info, warn, error
+
+# TMDB API 配置
+[tmdb]
+api_key = "your_tmdb_api_key"
+base_url = "https://api.themoviedb.org/3"
+image_base_url = "https://image.tmdb.org/t/p"
+language = "zh-CN"
+
+# Bangumi.tv API 配置
+[bangumi_tv]
+endpoint = "https://api.bgm.tv/v0"
+
+# Mikan 配置
+[mikan]
+endpoint = "https://mikanani.me"
+
+# 115网盘下载器配置
+[pan115]
+cookies = "your_115_cookies"
+download_dir = "/path/to/downloads"
+max_requests_per_second = 2
+
+# Telegram 通知配置
+[notify.telegram]
+enabled = false
+token = "your_bot_token"
+chat_id = "your_chat_id"
+
+# 文件名解析器配置
+# 三选一即可: siliconflow, deepseek, deepbricks
+
+[parser.siliconflow]
+enabled = false
+api_key = "your_api_key"
+base_url = "https://api.siliconflow.com"
+model = "gpt-4"
+
+[parser.deepseek]
+enabled = false
+api_key = "your_api_key"
+base_url = "https://api.deepseek.com"
+model = "deepseek-chat"
+
+[parser.deepbricks]
+enabled = false
+api_key = "your_api_key"
+base_url = "https://api.deepbricks.com"
+model = "gpt-4" 
