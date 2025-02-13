@@ -1590,6 +1590,7 @@ const groupedTorrents = (episode: Episode) => {
 
 async function handleSubscribe(params: SubscribeParams) {
   if (!anime.value) return
+  console.log('订阅参数:', params)
   try {
     // 调用订阅 API
     await subscribeBangumi(anime.value.id, params)

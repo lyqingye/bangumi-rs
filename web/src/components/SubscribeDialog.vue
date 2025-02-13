@@ -16,7 +16,7 @@ const emit = defineEmits<{
 
 const formData = ref({
   status: SubscribeStatus.Subscribed,
-  start_episode_number: 1,
+  start_episode_number: 1 as number,
   resolution_filter: [] as string[],
   language_filter: [] as string[],
   release_group_filter: [] as string[],
@@ -101,7 +101,7 @@ function unsubscribe() {
               <span>起始集数</span>
             </div>
             <v-text-field
-              v-model="formData.start_episode_number"
+              v-model.number="formData.start_episode_number"
               type="number"
               min="1"
               density="compact"
