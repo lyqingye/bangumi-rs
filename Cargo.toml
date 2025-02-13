@@ -74,7 +74,7 @@ actix-cors = "0.7.0"
 actix-ws = "0.3.0"
 tracing-actix-web = "0.7.15"
 console-subscriber = "0.4.1"
-bytesize = "1.3.0"
+huby = "0.2.0"
 
 teloxide =  {git = "https://github.com/teloxide/teloxide.git", rev = "e6c0e2cb7f1ff44742bb9a8606cb936b55852d4d"}
 
