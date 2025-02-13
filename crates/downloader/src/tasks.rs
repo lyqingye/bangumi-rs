@@ -5,7 +5,7 @@ use chrono::NaiveDateTime;
 use model::{sea_orm_active_enums::DownloadStatus, torrent_download_tasks};
 use tokio::sync::RwLock;
 
-use crate::db::Db;
+use crate::{context::Pan115Context, db::Db};
 
 /// 注意，这里只会存放待处理的任务，已失败或已结束的任务不会存放在这里
 #[derive(Clone)]
@@ -91,6 +91,7 @@ impl TaskManager {
         info_hash: &str,
         status: DownloadStatus,
         err_msg: Option<String>,
+        context: Option<Pan115Context>,
     ) -> Result<()> {
         let mut cache = self.tasks.write().await;
         let task = cache
@@ -98,7 +99,7 @@ impl TaskManager {
             .ok_or_else(|| anyhow::anyhow!("任务不存在于缓存中"))?;
 
         self.db
-            .update_task_status(info_hash, status.clone(), err_msg.clone())
+            .update_task_status(info_hash, status.clone(), err_msg.clone(), context.clone().map(|c| c.into()))
             .await?;
 
         // 如果任务已经结束，则从缓存中移除
@@ -109,6 +110,7 @@ impl TaskManager {
             _ => {
                 task.download_status = status;
                 task.err_msg = err_msg;
+                task.context = context.map(|c| c.into());
             }
         }
 

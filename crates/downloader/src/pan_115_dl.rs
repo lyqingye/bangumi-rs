@@ -10,15 +10,12 @@ use pan_115::{
     model::{OfflineTask, OfflineTaskStatus},
 };
 use std::{
-    collections::{HashMap, HashSet},
-    path::PathBuf,
-    sync::Arc,
-    time::Duration,
+    collections::{HashMap, HashSet}, ops::Deref, path::PathBuf, sync::Arc, time::Duration
 };
 use tokio::sync::{mpsc, Mutex};
 use tracing::{debug, error, info, warn};
 
-use crate::{db::Db, tasks::TaskManager, Downloader};
+use crate::{context::Pan115Context, db::Db, tasks::TaskManager, Downloader};
 
 type RetryQueue = Arc<Mutex<HashMap<String, (Model, u32)>>>;
 type TaskCache = Arc<Mutex<HashMap<String, chrono::NaiveDateTime>>>;
@@ -279,7 +276,7 @@ impl Pan115Downloader {
             Ok(_) => {
                 info!("成功添加下载任务到网盘: {}", info_hash);
                 self.tasks
-                    .update_task_status(&info_hash, DownloadStatus::Downloading, None)
+                    .update_task_status(&info_hash, DownloadStatus::Downloading, None, None)
                     .await?;
             }
             Err(e) => {
@@ -287,7 +284,7 @@ impl Pan115Downloader {
                     Pan115Error::OfflineTaskExisted => {
                         warn!("任务已在网盘中存在: {}", info_hash);
                         self.tasks
-                            .update_task_status(&info_hash, DownloadStatus::Downloading, None)
+                            .update_task_status(&info_hash, DownloadStatus::Downloading, None, None)
                             .await?;
                     }
                     Pan115Error::NotLogin
@@ -299,6 +296,7 @@ impl Pan115Downloader {
                                 &info_hash,
                                 DownloadStatus::Failed,
                                 Some(e.to_string()),
+                                None,
                             )
                             .await?;
                     }
@@ -360,6 +358,7 @@ impl Pan115Downloader {
                         &task.info_hash,
                         DownloadStatus::Failed,
                         Some("重试次数超过上限".to_string()),
+                        None,
                     )
                     .await?;
                 continue;
@@ -488,14 +487,15 @@ impl Pan115Downloader {
         for local_task in local_tasks {
             let info_hash = local_task.info_hash.clone();
 
-            let (status, err_msg) = if let Some(remote_task) = remote_task_map.get(&info_hash) {
+            let (status, err_msg, context) = if let Some(remote_task) = remote_task_map.get(&info_hash) {
                 debug!("发现远程任务: info_hash={}", info_hash);
-                (Self::map_task_status(remote_task.status()), None)
+                (Self::map_task_status(remote_task.status()), None, Some((*remote_task).into()))
             } else {
                 warn!("任务在网盘中不存在: {}", info_hash);
                 (
                     DownloadStatus::Failed,
                     Some("任务在网盘中不存在".to_string()),
+                    None,
                 )
             };
 
@@ -505,7 +505,7 @@ impl Pan115Downloader {
                     info_hash, local_task.download_status, status, err_msg
                 );
                 self.tasks
-                    .update_task_status(&info_hash, status, err_msg)
+                    .update_task_status(&info_hash, status, err_msg, context)
                     .await?;
             }
         }

@@ -83,6 +83,7 @@ impl Db {
         info_hash: &str,
         status: DownloadStatus,
         err_msg: Option<String>,
+        context: Option<String>,
     ) -> Result<()> {
         let now = Local::now().naive_utc();
 
@@ -90,6 +91,7 @@ impl Db {
             .col_expr(Column::DownloadStatus, SimpleExpr::from(status))
             .col_expr(Column::UpdatedAt, SimpleExpr::from(now))
             .col_expr(Column::ErrMsg, SimpleExpr::from(err_msg))
+            .col_expr(Column::Context, SimpleExpr::from(context))
             .filter(Column::InfoHash.eq(info_hash))
             .exec(&*self.conn)
             .await?;

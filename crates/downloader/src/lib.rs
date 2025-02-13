@@ -2,6 +2,7 @@
 pub mod db;
 pub mod pan_115_dl;
 mod tasks;
+mod context;
 
 use anyhow::Result;
 use async_trait::async_trait;
