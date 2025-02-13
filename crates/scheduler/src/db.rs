@@ -297,6 +297,7 @@ impl Db {
     pub async fn upsert_subscription(
         &self,
         bangumi_id: i32,
+        start_episode_number: Option<i32>,
         resolution_filter: Option<String>,
         language_filter: Option<String>,
         release_group_filter: Option<String>,
@@ -316,6 +317,7 @@ impl Db {
             collector_interval: Set(collector_interval),
             metadata_interval: Set(metadata_interval),
             task_processor_interval: Set(task_processor_interval),
+            start_episode_number: Set(start_episode_number),
             ..Default::default()
         };
 
@@ -330,6 +332,7 @@ impl Db {
                     .update_column(SubscriptionColumn::CollectorInterval)
                     .update_column(SubscriptionColumn::MetadataInterval)
                     .update_column(SubscriptionColumn::TaskProcessorInterval)
+                    .update_column(SubscriptionColumn::StartEpisodeNumber)
                     .to_owned(),
             )
             .exec(self.conn())

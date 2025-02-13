@@ -1,12 +1,11 @@
 use pan_115::model::OfflineTask;
 use serde::{Deserialize, Serialize};
 
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Pan115Context {
     pub file_id: String,
     pub dir_id: String,
-    pub file_name: String
+    pub file_name: String,
 }
 
 impl From<&OfflineTask> for Pan115Context {
@@ -32,4 +31,3 @@ impl Into<String> for Pan115Context {
         serde_json::to_string(&self).unwrap()
     }
 }
-

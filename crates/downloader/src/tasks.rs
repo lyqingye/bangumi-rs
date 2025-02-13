@@ -99,7 +99,12 @@ impl TaskManager {
             .ok_or_else(|| anyhow::anyhow!("任务不存在于缓存中"))?;
 
         self.db
-            .update_task_status(info_hash, status.clone(), err_msg.clone(), context.clone().map(|c| c.into()))
+            .update_task_status(
+                info_hash,
+                status.clone(),
+                err_msg.clone(),
+                context.clone().map(|c| c.into()),
+            )
             .await?;
 
         // 如果任务已经结束，则从缓存中移除

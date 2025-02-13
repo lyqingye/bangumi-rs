@@ -362,7 +362,15 @@ pub async fn refresh_bangumi(
     id: web::Path<i32>,
 ) -> Result<Json<Resp<()>>, ServerError> {
     let id = id.into_inner();
-    state.metadata.request_refresh(Some(id), RefreshKind::Metadata).await?;
+    state
+        .metadata
+        .request_refresh(Some(id), RefreshKind::Metadata)
+        .await?;
+    state
+        .metadata
+        .request_refresh(Some(id), RefreshKind::Torrents)
+        .await?;
+
     Ok(Json(Resp::ok(())))
 }
 
