@@ -83,14 +83,24 @@
         </div>
       </div>
     </v-card-item>
+
+    <!-- 订阅对话框 -->
+    <SubscribeDialog
+      v-model="showSubscribeDialog"
+      :bangumi-id="item.id"
+      :current-status="item.subscribe_status || SubscribeStatus.None"
+      @subscribe="handleSubscribe"
+    />
   </v-card>
 </template>
 
 <script lang="ts" setup>
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { SubscribeStatus, type Bangumi } from '@/api/model'
+import { SubscribeStatus, type Bangumi, type SubscribeParams } from '@/api/model'
 import { subscribeBangumi } from '@/api/api'
+import { useSnackbar } from '../composables/useSnackbar'
+import SubscribeDialog from '../components/SubscribeDialog.vue'
 
 const props = defineProps<{
   item: Bangumi
@@ -98,22 +108,36 @@ const props = defineProps<{
 
 const router = useRouter()
 const ratingValue = computed(() => props.item.rating / 2)
+const { showSnackbar } = useSnackbar()
 
 // 订阅状态
 const isSubscribed = ref(props.item.subscribe_status === SubscribeStatus.Subscribed)
+const showSubscribeDialog = ref(false)
 
 // 切换订阅状态
-const toggleSubscribe = async () => {
+const toggleSubscribe = (event: Event) => {
+  event.stopPropagation()
+  if (!props.item) return
+  showSubscribeDialog.value = true
+}
+
+// 处理订阅
+const handleSubscribe = async (params: SubscribeParams) => {
   try {
-    const newStatus = isSubscribed.value ? SubscribeStatus.None : SubscribeStatus.Subscribed
-    await subscribeBangumi(props.item.id, newStatus)
-    
+    // 调用订阅 API
+    await subscribeBangumi(props.item.id, params)
     // 更新本地状态
-    isSubscribed.value = !isSubscribed.value
-    props.item.subscribe_status = newStatus
+    isSubscribed.value = params.status === SubscribeStatus.Subscribed
+    props.item.subscribe_status = params.status
+    // 显示成功提示
+    showSnackbar({
+      text: params.status === SubscribeStatus.Subscribed ? '订阅成功' : '取消订阅成功',
+      color: 'success',
+      location: 'top right',
+      timeout: 3000
+    })
   } catch (error) {
     console.error('订阅操作失败:', error)
-    // TODO: 添加错误提示
   }
 }
 
