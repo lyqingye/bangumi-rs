@@ -10,7 +10,11 @@ use pan_115::{
     model::{OfflineTask, OfflineTaskStatus},
 };
 use std::{
-    collections::{HashMap, HashSet}, ops::Deref, path::PathBuf, sync::Arc, time::Duration
+    collections::{HashMap, HashSet},
+    ops::Deref,
+    path::PathBuf,
+    sync::Arc,
+    time::Duration,
 };
 use tokio::sync::{mpsc, Mutex};
 use tracing::{debug, error, info, warn};
@@ -487,17 +491,22 @@ impl Pan115Downloader {
         for local_task in local_tasks {
             let info_hash = local_task.info_hash.clone();
 
-            let (status, err_msg, context) = if let Some(remote_task) = remote_task_map.get(&info_hash) {
-                debug!("发现远程任务: info_hash={}", info_hash);
-                (Self::map_task_status(remote_task.status()), None, Some((*remote_task).into()))
-            } else {
-                warn!("任务在网盘中不存在: {}", info_hash);
-                (
-                    DownloadStatus::Failed,
-                    Some("任务在网盘中不存在".to_string()),
-                    None,
-                )
-            };
+            let (status, err_msg, context) =
+                if let Some(remote_task) = remote_task_map.get(&info_hash) {
+                    debug!("发现远程任务: info_hash={}", info_hash);
+                    (
+                        Self::map_task_status(remote_task.status()),
+                        None,
+                        Some((*remote_task).into()),
+                    )
+                } else {
+                    warn!("任务在网盘中不存在: {}", info_hash);
+                    (
+                        DownloadStatus::Failed,
+                        Some("任务在网盘中不存在".to_string()),
+                        None,
+                    )
+                };
 
             if status != local_task.download_status {
                 info!(

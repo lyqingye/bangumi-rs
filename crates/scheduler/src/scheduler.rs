@@ -129,6 +129,11 @@ impl Scheduler {
                 .join(",")
         });
 
+        // 刷新元数据
+        self.metadata
+            .request_refresh(Some(bangumi_id), metadata::worker::RefreshKind::Metadata)
+            .await?;
+
         // 4. 获取所有剧集信息
         let episodes = self.db.get_bangumi_episodes(bangumi_id).await?;
         if episodes.is_empty() {
@@ -163,6 +168,7 @@ impl Scheduler {
         self.db
             .upsert_subscription(
                 bangumi_id,
+                Some(start_episode),
                 resolution_filter_str,
                 language_filter_str,
                 release_group_filter,

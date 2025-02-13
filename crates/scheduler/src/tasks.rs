@@ -149,7 +149,7 @@ impl TaskManager {
         self.db.batch_create_tasks(tasks).await?;
 
         // 获取新创建的任务
-        let new_tasks = self.db.get_new_created_tasks(bangumi_id).await?;
+        let new_tasks = self.db.get_unfinished_tasks_by_bangumi(bangumi_id).await?;
 
         // 更新缓存
         let mut cache = self.tasks.write().await;
