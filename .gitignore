@@ -1,0 +1,30 @@
+/target/
+**/*.rs.bk
+*.pdb
+
+# IDE files
+.idea/
+.vscode/
+*.iml
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Debug files
+*.log
+
+# Environment files
+.env
+.env.local
+
+# Build output
+/build/
+/dist/
+
+/assets/
+
+/web/node_modules
+
+/web/.vite
+config.toml

@@ -1,0 +1,18 @@
+[package]
+name = "cli-app"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "bangumi"
+path = "src/main.rs"
+
+[dependencies]
+clap = { workspace = true,features = ["derive"] }
+tokio = { workspace = true, features = ["full"] }
+toml = { workspace = true }
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+server = { path = "../server"}
+jemallocator = { workspace = true }

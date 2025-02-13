@@ -1,0 +1,25 @@
+[package]
+name = "metadata"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+sea-orm = {workspace = true, features = [ "sqlx-mysql", "runtime-tokio-rustls", "macros", "debug-print"]}
+tokio = { workspace = true, features = ["full"] }
+serde = {workspace = true, features = ["derive"]}
+serde_json = {workspace = true}
+chrono = {workspace = true}
+thiserror = {workspace = true}
+anyhow ={ workspace = true}
+tracing = { workspace = true }
+reqwest = {workspace = true}
+
+mikan = {path = "../../libs/mikan" }
+tmdb = { path = "../../libs/tmdb" }
+bangumi-tv = { path = "../../libs/bangumi-tv" }
+model = {path = "../../crates/model"}
+notify = {path = "../notify"}
+dict = {path = "../dict"}
+[dev-dependencies]
+dotenv = {workspace = true}
+tracing-subscriber = {workspace = true}
