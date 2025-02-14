@@ -84,8 +84,6 @@ pub struct Pan115Downloader {
     file_name_cache: Arc<Mutex<LruCache<String, (DownloadInfo, std::time::Instant)>>>,
 }
 
-const USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
-
 // 公共接口实现
 #[async_trait]
 impl Downloader for Pan115Downloader {
@@ -121,9 +119,10 @@ impl Downloader for Pan115Downloader {
 
     async fn download_file(&self, info_hash: &str, ua: &str) -> Result<DownloadInfo> {
         let mut cache = self.file_name_cache.lock().await;
+        let cache_key = format!("{}-{}", info_hash, ua);
 
         let now = std::time::Instant::now();
-        if let Some((download_info, last_update)) = cache.get(info_hash) {
+        if let Some((download_info, last_update)) = cache.get(&cache_key) {
             let ttl = now.duration_since(*last_update);
             if ttl < self.config.download_cache_ttl {
                 info!("命中缓存: info_hash={}", info_hash);
@@ -157,7 +156,7 @@ impl Downloader for Pan115Downloader {
                     .download_file(&file.file_id, Some(ua))
                     .await?
                     .context("下载文件失败")?;
-                cache.put(info_hash.to_string(), (download_info.clone(), now));
+                cache.put(cache_key, (download_info.clone(), now));
                 Ok(download_info)
             }
             None => Err(anyhow::anyhow!("该下载器不支持下载文件")),
