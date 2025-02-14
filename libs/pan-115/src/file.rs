@@ -164,6 +164,36 @@ impl Client {
 
         Ok(resp.files.first().cloned())
     }
+
+    pub async fn list_files_with_fn<F>(
+        &self,
+        cid: &str,
+        filter: F,
+    ) -> Result<Vec<FileInfo>, Pan115Error>
+    where
+        F: Fn(&FileInfo) -> bool + Send + 'static,
+    {
+        let mut result = Vec::new();
+        let mut offset = 0;
+        let limit = 100;
+
+        loop {
+            let files = self.list_files(cid, Some(offset), Some(limit)).await?;
+            if files.is_empty() {
+                break;
+            }
+
+            // 使用 filter 过滤文件
+            result.extend_from_slice(files.as_slice());
+            offset += limit;
+
+            if files.len() < limit as usize {
+                break;
+            }
+        }
+
+        Ok(result)
+    }
 }
 
 #[cfg(test)]

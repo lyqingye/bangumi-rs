@@ -48,6 +48,13 @@ impl Db {
         Ok(())
     }
 
+    pub async fn get_by_info_hash(&self, info_hash: &str) -> Result<Option<Model>> {
+        Ok(torrent_download_tasks::Entity::find()
+            .filter(Column::InfoHash.eq(info_hash))
+            .one(&*self.conn)
+            .await?)
+    }
+
     /// 在事务中执行操作
     pub async fn transaction<F, T, E>(&self, f: F) -> Result<T>
     where

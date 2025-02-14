@@ -1,6 +1,6 @@
 use sea_orm::DatabaseConnection;
 
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use chrono::{Local, NaiveDateTime};
 use model::{sea_orm_active_enums::DownloadStatus, torrent_download_tasks::Model};
@@ -109,6 +109,41 @@ impl Downloader for Pan115Downloader {
         self.tasks
             .list_by_info_hashes_without_cache(info_hashes)
             .await
+    }
+
+    async fn download_file_as_response(
+        &self,
+        info_hash: &str,
+    ) -> Result<Option<reqwest::Response>> {
+        use tokio_stream::StreamExt;
+
+        let task = self
+            .tasks
+            .get_by_info_hash_without_cache(info_hash)
+            .await?
+            .context("下载任务不存在")?;
+        if task.download_status != DownloadStatus::Completed {
+            return Err(anyhow::anyhow!("文件未下载"));
+        }
+        match task.context {
+            Some(context) => {
+                let context: Pan115Context = serde_json::from_str(&context)?;
+                let mut client = self.pan115.clone();
+                let expect_file_name = context.file_name.clone();
+                let files = client
+                    .list_files_with_fn(&context.file_id, move |file| {
+                        !file.is_dir() && file.name == expect_file_name
+                    })
+                    .await?;
+                if files.is_empty() {
+                    return Err(anyhow::anyhow!("文件不存在"));
+                }
+                let file = files.first().unwrap();
+                let resp = client.download_file_as_response(&file.file_id).await?;
+                Ok(resp)
+            }
+            None => Err(anyhow::anyhow!("该下载器不支持下载文件")),
+        }
     }
 }
 

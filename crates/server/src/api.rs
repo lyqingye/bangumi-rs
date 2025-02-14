@@ -3,10 +3,11 @@ use std::sync::Arc;
 use actix_web::{
     get, post,
     web::{self, Json},
+    HttpResponse,
 };
 use dict::DictCode;
 use metadata::worker::RefreshKind;
-use model::sea_orm_active_enums::SubscribeStatus;
+use model::{sea_orm_active_enums::State, sea_orm_active_enums::SubscribeStatus};
 use parser::{Language, VideoResolution};
 use sea_orm::{prelude::Expr, Condition};
 use tracing::instrument;
@@ -372,6 +373,61 @@ pub async fn refresh_bangumi(
         .await?;
 
     Ok(Json(Resp::ok(())))
+}
+
+#[get("/api/bangumi/{id}/{episode_number}/online_watch")]
+pub async fn online_watch(
+    state: web::Data<Arc<AppState>>,
+    id: web::Path<i32>,
+    episode_number: web::Path<i32>,
+) -> Result<HttpResponse, ServerError> {
+    use model::episode_download_tasks::Column as TaskColumn;
+    use model::episode_download_tasks::Entity as EpisodeDownloadTasks;
+    use sea_orm::ColumnTrait;
+    use sea_orm::EntityTrait;
+    use sea_orm::QueryFilter;
+    let id = id.into_inner();
+    let episode_number = episode_number.into_inner();
+
+    let tasks = EpisodeDownloadTasks::find()
+        .filter(TaskColumn::BangumiId.eq(id))
+        .filter(TaskColumn::EpisodeNumber.eq(episode_number))
+        .filter(TaskColumn::State.eq(State::Downloaded))
+        .one(state.db.conn())
+        .await?;
+
+    let task = tasks.expect("剧集未下载");
+    let info_hash = task
+        .ref_torrent_info_hash
+        .ok_or(ServerError::Internal2(anyhow::anyhow!("种子未找到")))?;
+
+    let downloader = state.scheduler.get_downloader();
+    let resp = downloader
+        .download_file_as_response(&info_hash)
+        .await?
+        .ok_or(ServerError::Internal2(anyhow::anyhow!("文件不存在")))?;
+
+    Ok(forward_response(resp))
+}
+
+use actix_web::http::header::{HeaderName, HeaderValue};
+use actix_web::http::StatusCode;
+
+fn forward_response(resp: reqwest::Response) -> HttpResponse {
+    let mut client_resp =
+        HttpResponse::build(StatusCode::from_u16(resp.status().as_u16()).unwrap_or(StatusCode::OK));
+
+    // 转发所有响应头
+    for (name, value) in resp.headers() {
+        if let Ok(name) = HeaderName::try_from(name.as_str()) {
+            if let Ok(value) = HeaderValue::try_from(value.as_bytes()) {
+                client_resp.insert_header((name, value));
+            }
+        }
+    }
+
+    client_resp.insert_header(("Content-Disposition", "inline"));
+    client_resp.streaming(resp.bytes_stream())
 }
 
 #[get("/health")]
