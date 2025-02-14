@@ -186,28 +186,38 @@
                       @click="toggleEpisode(episode.id)"
                     >
                       <div class="d-flex align-center w-100">
-                        <div class="episode-number me-4">{{ episode.number }}</div>
+                        <div 
+                          class="episode-number me-4"
+                          :class="{ 'downloaded': episode.download_state === State.Downloaded }"
+                        >
+                          {{ episode.number }}
+                        </div>
                         <div class="episode-info flex-grow-1 d-flex align-center justify-space-between">
                           <div class="d-flex align-center">
                             <div class="episode-name">{{ episode.name }}</div>
-                            <v-icon
-                              v-if="episode.download_state === State.Downloaded"
-                              size="16"
-                              color="success"
-                              class="ms-2 download-icon"
-                            >
-                              mdi-cloud-download
-                            </v-icon>
                           </div>
                           <div class="episode-meta d-flex align-center">
                             <div class="meta-item me-4" v-if="episode.duration_seconds">
                               <v-icon size="16" class="me-1">mdi-clock-outline</v-icon>
                               {{ formatDuration(episode.duration_seconds) }}
                             </div>
-                            <div class="meta-item">
+                            <div class="meta-item me-4">
                               <v-icon size="16" class="me-1">mdi-calendar</v-icon>
                               {{ formatDate(episode.air_date) }}
                             </div>
+                            <!-- 播放按钮 -->
+                            <v-btn
+                              v-if="episode.download_state === State.Downloaded"
+                              variant="text"
+                              size="small"
+                              class="play-btn"
+                              @click.stop="playEpisode(episode)"
+                            >
+                              <v-icon icon="mdi-play" size="18" />
+                              <v-tooltip activator="parent" location="top">
+                                在 IINA 中播放
+                              </v-tooltip>
+                            </v-btn>
                             <v-icon
                               size="20"
                               :class="['expand-icon ms-4', { 'expanded': currentExpandedId === episode.id }]"
@@ -426,54 +436,219 @@
 .episodes-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
 }
 
 .episode-item {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 12px;
   overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.episode-header {
-  cursor: pointer;
-  transition: all 0.3s ease;
-  border-radius: 12px;
+.episode-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
-.episode-info {
-  font-size: 0.95rem;
+.episode-item:has(.episode-number.downloaded) {
+  border-left: 3px solid rgb(var(--v-theme-success));
+  padding-left: 2px;
 }
 
-.meta-item {
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 0.85rem;
+.episode-number {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+  min-width: 32px;
+  text-align: center;
+  padding: 6px 10px;
+  border-radius: 8px;
+  position: relative;
   display: flex;
   align-items: center;
+  gap: 6px;
+  transition: all 0.3s ease;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.episode-number.downloaded {
+  color: rgb(var(--v-theme-success));
+  font-weight: 700;
 }
 
 .episode-name {
   font-weight: 500;
   color: rgba(255, 255, 255, 0.9);
+  font-size: 0.95rem;
+}
+
+.episode-item:has(.episode-number.downloaded) .episode-name {
+  color: rgb(var(--v-theme-success));
+}
+
+.meta-item {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.85rem;
   display: flex;
   align-items: center;
+  background: rgba(255, 255, 255, 0.03);
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: all 0.3s ease;
+}
+
+.meta-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.meta-item .v-icon {
+  opacity: 0.7;
+  font-size: 14px;
+}
+
+.episode-meta {
+  position: relative;
+  z-index: 2;
+  margin-right: 8px;
+}
+
+.play-btn {
+  position: relative;
+  z-index: 2;
+  margin-right: 8px;
+}
+
+.play-btn {
+  opacity: 1 !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  width: 40px !important;
+  height: 40px !important;
+  min-width: 40px !important;
+  border-radius: 12px !important;
+  background: rgba(82, 145, 255, 0.12) !important;
+  padding: 0 !important;
+}
+
+.play-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(45deg, 
+    rgba(82, 145, 255, 0.12), 
+    rgba(82, 145, 255, 0.06)
+  );
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.play-btn:hover {
+  transform: translateY(-1px);
+  background: rgba(82, 145, 255, 0.15) !important;
+}
+
+.play-btn:hover::before {
+  opacity: 1;
+}
+
+.play-btn :deep(.v-icon) {
+  color: rgb(82, 145, 255);
+  filter: drop-shadow(0 2px 4px rgba(82, 145, 255, 0.2));
+  transition: transform 0.3s ease;
+}
+
+.play-btn:hover :deep(.v-icon) {
+  transform: scale(1.1);
+}
+
+.play-btn:active {
+  transform: translateY(1px);
+}
+
+.play-btn:active :deep(.v-icon) {
+  transform: scale(0.95);
+}
+
+.play-btn :deep(.v-btn__content) {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  z-index: 1;
+}
+
+/* 添加按钮组样式 */
+.episode-actions {
+  gap: 4px;
+}
+
+.episode-actions .action-btn {
+  opacity: 1 !important;
+  width: 36px !important;
+  height: 36px !important;
+  min-width: 36px !important;
+  border-radius: 8px !important;
+  background: rgba(255, 255, 255, 0.05) !important;
+  padding: 0 !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.episode-actions .action-btn:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+  transform: translateY(-1px);
+}
+
+.episode-actions .action-btn:active {
+  transform: translateY(1px);
+}
+
+.episode-actions .action-btn :deep(.v-icon) {
+  color: rgba(255, 255, 255, 0.9);
+  transition: transform 0.3s ease;
+}
+
+.episode-actions .action-btn:hover :deep(.v-icon) {
+  transform: scale(1.1);
+}
+
+.episode-actions .action-btn:active :deep(.v-icon) {
+  transform: scale(0.95);
 }
 
 .expand-icon {
   transition: transform 0.3s ease;
-  color: rgba(255, 255, 255, 0.7);
+  color: rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.03);
+  padding: 8px;
+  border-radius: 8px;
 }
 
 .expand-icon.expanded {
   transform: rotate(180deg);
+  background: rgba(var(--v-theme-primary), 0.1);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.episode-header.expanded {
+  background: rgba(var(--v-theme-primary), 0.05);
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
 }
 
 .episode-content {
-  background: rgba(255, 255, 255, 0.02);
-  margin-top: 1px;
-  border-bottom-left-radius: 12px;
-  border-bottom-right-radius: 12px;
+  background: rgba(18, 18, 18, 0.4);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.download-icon {
+  color: rgb(var(--v-theme-success)) !important;
+  filter: drop-shadow(0 2px 4px rgba(var(--v-theme-success), 0.2));
 }
 
 .episode-description {
@@ -481,24 +656,6 @@
   line-height: 1.6;
   font-size: 0.95rem;
   white-space: pre-line;
-}
-
-.episode-header.expanded {
-  background: rgba(var(--v-theme-primary), 0.08);
-  border-bottom-left-radius: 0;
-  border-bottom-right-radius: 0;
-}
-
-.episode-header:hover {
-  background: rgba(255, 255, 255, 0.08);
-}
-
-.episode-number {
-  font-size: 1.2rem;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.9);
-  min-width: 32px;
-  text-align: center;
 }
 
 .episode-duration {
@@ -1246,7 +1403,8 @@ import {
   subscribeBangumi, 
   getBangumiEpisodes,
   getBangumiTorrents,
-  refreshBangumi
+  refreshBangumi,
+  getOnlineWatchUrl
 } from '@/api/api'
 import { 
   DownloadStatus, 
@@ -1610,11 +1768,21 @@ async function handleSubscribe(params: SubscribeParams) {
   }
 }
 
+// 播放剧集
+const playEpisode = async (episode: Episode) => {
+  if (!anime.value) return
+  
+  // 构建播放 URL，使用 api 的 baseURL
+  const apiUrl = await getOnlineWatchUrl(anime.value.id, episode.number)
+  const playUrl = `iina://weblink?url=${encodeURIComponent(apiUrl)}`
+  
+  // 打开 IINA 播放器
+  window.location.href = playUrl
+}
+
 onMounted(() => {
   fetchAnimeDetail()
   fetchEpisodes()
   fetchTorrents()
 })
 </script>
-
-

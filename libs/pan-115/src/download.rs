@@ -70,7 +70,11 @@ impl Client {
         Ok(None)
     }
 
-    pub async fn download_file(&self, file_id: &str) -> Result<Option<DownloadInfo>, Pan115Error> {
+    pub async fn download_file(
+        &self,
+        file_id: &str,
+        ua: Option<&str>,
+    ) -> Result<Option<DownloadInfo>, Pan115Error> {
         let file = self
             .get_file(file_id)
             .await?
@@ -80,36 +84,32 @@ impl Client {
         }
 
         let download_info = self
-            .download(file.pick_code.as_str(), crate::client::USER_AGENT)
+            .download(
+                file.pick_code.as_str(),
+                ua.unwrap_or(crate::client::USER_AGENT),
+            )
             .await?;
         Ok(download_info)
     }
 
-    pub async fn download_file_as_response(
+    pub async fn download_info_as_response(
         &self,
-        file_id: &str,
-    ) -> Result<Option<reqwest::Response>, Pan115Error> {
-        let file = self
-            .get_file(file_id)
-            .await?
-            .ok_or(Pan115Error::FileNotFound(file_id.to_string()))?;
-        if file.is_dir() {
-            return Err(Pan115Error::UnsupportDownloadDirectory);
-        }
-
-        let download_info = self
-            .download(file.pick_code.as_str(), crate::client::USER_AGENT)
-            .await?
-            .ok_or(Pan115Error::DownloadFailed)?;
+        download_info: &DownloadInfo,
+    ) -> Result<reqwest::Response, Pan115Error> {
         let url = Url::parse(&download_info.url.url)
             .map_err(|_| Pan115Error::InvalidUrl(download_info.url.url.clone()))?;
-        let resp = self
+        let mut resp = self
             .cli
             .get(url)
-            .headers(download_info.header)
+            .headers(download_info.header.clone())
             .send()
             .await?;
-        Ok(Some(resp))
+
+        resp.headers_mut().insert(
+            reqwest::header::CONTENT_LENGTH,
+            reqwest::header::HeaderValue::from_str(&download_info.file_size().to_string()).unwrap(),
+        );
+        Ok(resp)
     }
 }
 
@@ -156,7 +156,7 @@ mod test {
     async fn test_download_file() -> Result<()> {
         dotenv::dotenv().ok();
         let client = Client::new_from_env()?;
-        let download_info = client.download_file("").await?;
+        let download_info = client.download_file("1234567890", Some(USER_AGENT)).await?;
         print!("{:?}", download_info);
         Ok(())
     }

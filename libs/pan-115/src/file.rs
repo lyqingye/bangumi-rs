@@ -183,11 +183,17 @@ impl Client {
                 break;
             }
 
+            let file_len = files.len();
+
             // 使用 filter 过滤文件
-            result.extend_from_slice(files.as_slice());
+            for file in files {
+                if filter(&file) {
+                    result.push(file);
+                }
+            }
             offset += limit;
 
-            if files.len() < limit as usize {
+            if file_len < limit as usize {
                 break;
             }
         }

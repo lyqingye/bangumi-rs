@@ -1,3 +1,4 @@
+use lru::LruCache;
 use sea_orm::DatabaseConnection;
 
 use anyhow::{anyhow, Context, Result};
@@ -7,10 +8,11 @@ use model::{sea_orm_active_enums::DownloadStatus, torrent_download_tasks::Model}
 use pan_115::{
     client::Client as Pan115Client,
     errors::Pan115Error,
-    model::{OfflineTask, OfflineTaskStatus},
+    model::{DownloadInfo, OfflineTask, OfflineTaskStatus},
 };
 use std::{
     collections::{HashMap, HashSet},
+    num::NonZero,
     ops::Deref,
     path::PathBuf,
     sync::Arc,
@@ -37,6 +39,8 @@ pub struct Config {
     pub retry_processor_interval: Duration,
     /// 下载目录
     pub download_dir: PathBuf,
+    /// 下载缓存 TTL
+    pub download_cache_ttl: Duration,
 }
 
 impl Default for Config {
@@ -47,6 +51,7 @@ impl Default for Config {
             max_retry_count: 5,
             retry_processor_interval: Duration::from_secs(5),
             download_dir: PathBuf::from("/"),
+            download_cache_ttl: Duration::from_secs(60 * 30),
         }
     }
 }
@@ -76,7 +81,10 @@ pub struct Pan115Downloader {
     is_spawned: Arc<std::sync::atomic::AtomicBool>,
     config: Config,
     path_cache: Arc<Mutex<HashMap<PathBuf, String>>>,
+    file_name_cache: Arc<Mutex<LruCache<String, (DownloadInfo, std::time::Instant)>>>,
 }
+
+const USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
 // 公共接口实现
 #[async_trait]
@@ -111,11 +119,17 @@ impl Downloader for Pan115Downloader {
             .await
     }
 
-    async fn download_file_as_response(
-        &self,
-        info_hash: &str,
-    ) -> Result<Option<reqwest::Response>> {
-        use tokio_stream::StreamExt;
+    async fn download_file(&self, info_hash: &str, ua: &str) -> Result<DownloadInfo> {
+        let mut cache = self.file_name_cache.lock().await;
+
+        let now = std::time::Instant::now();
+        if let Some((download_info, last_update)) = cache.get(info_hash) {
+            let ttl = now.duration_since(*last_update);
+            if ttl < self.config.download_cache_ttl {
+                info!("命中缓存: info_hash={}", info_hash);
+                return Ok(download_info.clone());
+            }
+        }
 
         let task = self
             .tasks
@@ -139,8 +153,12 @@ impl Downloader for Pan115Downloader {
                     return Err(anyhow::anyhow!("文件不存在"));
                 }
                 let file = files.first().unwrap();
-                let resp = client.download_file_as_response(&file.file_id).await?;
-                Ok(resp)
+                let download_info = client
+                    .download_file(&file.file_id, Some(ua))
+                    .await?
+                    .context("下载文件失败")?;
+                cache.put(info_hash.to_string(), (download_info.clone(), now));
+                Ok(download_info)
             }
             None => Err(anyhow::anyhow!("该下载器不支持下载文件")),
         }
@@ -171,6 +189,7 @@ impl Pan115Downloader {
             is_spawned: Arc::new(std::sync::atomic::AtomicBool::new(false)),
             config,
             path_cache: Arc::new(Mutex::new(HashMap::new())),
+            file_name_cache: Arc::new(Mutex::new(LruCache::new(NonZero::new(5).unwrap()))),
         })
     }
 

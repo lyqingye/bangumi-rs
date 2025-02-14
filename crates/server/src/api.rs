@@ -3,14 +3,14 @@ use std::sync::Arc;
 use actix_web::{
     get, post,
     web::{self, Json},
-    HttpResponse,
+    HttpRequest, HttpResponse,
 };
 use dict::DictCode;
 use metadata::worker::RefreshKind;
 use model::{sea_orm_active_enums::State, sea_orm_active_enums::SubscribeStatus};
 use parser::{Language, VideoResolution};
 use sea_orm::{prelude::Expr, Condition};
-use tracing::instrument;
+use tracing::{info, instrument};
 
 use crate::{
     error::ServerError,
@@ -377,57 +377,61 @@ pub async fn refresh_bangumi(
 
 #[get("/api/bangumi/{id}/{episode_number}/online_watch")]
 pub async fn online_watch(
+    req: HttpRequest,
     state: web::Data<Arc<AppState>>,
-    id: web::Path<i32>,
-    episode_number: web::Path<i32>,
+    path: web::Path<(i32, i32)>,
 ) -> Result<HttpResponse, ServerError> {
     use model::episode_download_tasks::Column as TaskColumn;
     use model::episode_download_tasks::Entity as EpisodeDownloadTasks;
     use sea_orm::ColumnTrait;
     use sea_orm::EntityTrait;
     use sea_orm::QueryFilter;
-    let id = id.into_inner();
-    let episode_number = episode_number.into_inner();
 
-    let tasks = EpisodeDownloadTasks::find()
+    let (id, episode_number) = path.into_inner();
+
+    // 获取 User-Agent，如果没有则使用默认值
+    let user_agent = req
+        .headers()
+        .get("User-Agent")
+        .and_then(|h| h.to_str().ok())
+        .unwrap_or("Unknown Browser");
+
+    // 查找下载任务
+    let task = EpisodeDownloadTasks::find()
         .filter(TaskColumn::BangumiId.eq(id))
         .filter(TaskColumn::EpisodeNumber.eq(episode_number))
         .filter(TaskColumn::State.eq(State::Downloaded))
         .one(state.db.conn())
-        .await?;
+        .await?
+        .ok_or_else(|| ServerError::Internal2(anyhow::anyhow!("剧集未下载")))?;
 
-    let task = tasks.expect("剧集未下载");
+    // 获取种子信息
     let info_hash = task
         .ref_torrent_info_hash
-        .ok_or(ServerError::Internal2(anyhow::anyhow!("种子未找到")))?;
+        .ok_or_else(|| ServerError::Internal2(anyhow::anyhow!("种子未找到")))?;
 
-    let downloader = state.scheduler.get_downloader();
-    let resp = downloader
-        .download_file_as_response(&info_hash)
-        .await?
-        .ok_or(ServerError::Internal2(anyhow::anyhow!("文件不存在")))?;
+    // 获取下载信息
+    let download_info = state
+        .scheduler
+        .get_downloader()
+        .download_file(&info_hash, user_agent)
+        .await?;
 
-    Ok(forward_response(resp))
-}
+    info!("在线播放成功: {}", download_info.file_name);
 
-use actix_web::http::header::{HeaderName, HeaderValue};
-use actix_web::http::StatusCode;
-
-fn forward_response(resp: reqwest::Response) -> HttpResponse {
-    let mut client_resp =
-        HttpResponse::build(StatusCode::from_u16(resp.status().as_u16()).unwrap_or(StatusCode::OK));
-
-    // 转发所有响应头
-    for (name, value) in resp.headers() {
-        if let Ok(name) = HeaderName::try_from(name.as_str()) {
-            if let Ok(value) = HeaderValue::try_from(value.as_bytes()) {
-                client_resp.insert_header((name, value));
-            }
-        }
-    }
-
-    client_resp.insert_header(("Content-Disposition", "inline"));
-    client_resp.streaming(resp.bytes_stream())
+    // 构建响应
+    Ok(HttpResponse::Found()
+        .content_type("text/html; charset=utf-8")
+        .append_header(("Referrer-Policy", "no-referrer"))
+        .append_header((
+            "Cache-Control",
+            "max-age=0, no-cache, no-store, must-revalidate",
+        ))
+        .append_header(("Location", download_info.url.url.clone()))
+        .body(format!(
+            r#"<a href="{url}">Found</a>"#,
+            url = download_info.url.url
+        )))
 }
 
 #[get("/health")]
