@@ -1,16 +1,18 @@
+use lru::LruCache;
 use sea_orm::DatabaseConnection;
 
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 use async_trait::async_trait;
 use chrono::{Local, NaiveDateTime};
 use model::{sea_orm_active_enums::DownloadStatus, torrent_download_tasks::Model};
 use pan_115::{
     client::Client as Pan115Client,
     errors::Pan115Error,
-    model::{OfflineTask, OfflineTaskStatus},
+    model::{DownloadInfo, OfflineTask, OfflineTaskStatus},
 };
 use std::{
     collections::{HashMap, HashSet},
+    num::NonZero,
     ops::Deref,
     path::PathBuf,
     sync::Arc,
@@ -37,6 +39,8 @@ pub struct Config {
     pub retry_processor_interval: Duration,
     /// 下载目录
     pub download_dir: PathBuf,
+    /// 下载缓存 TTL
+    pub download_cache_ttl: Duration,
 }
 
 impl Default for Config {
@@ -47,6 +51,7 @@ impl Default for Config {
             max_retry_count: 5,
             retry_processor_interval: Duration::from_secs(5),
             download_dir: PathBuf::from("/"),
+            download_cache_ttl: Duration::from_secs(60 * 30),
         }
     }
 }
@@ -76,6 +81,7 @@ pub struct Pan115Downloader {
     is_spawned: Arc<std::sync::atomic::AtomicBool>,
     config: Config,
     path_cache: Arc<Mutex<HashMap<PathBuf, String>>>,
+    file_name_cache: Arc<Mutex<LruCache<String, (DownloadInfo, std::time::Instant)>>>,
 }
 
 // 公共接口实现
@@ -110,6 +116,52 @@ impl Downloader for Pan115Downloader {
             .list_by_info_hashes_without_cache(info_hashes)
             .await
     }
+
+    async fn download_file(&self, info_hash: &str, ua: &str) -> Result<DownloadInfo> {
+        let mut cache = self.file_name_cache.lock().await;
+        let cache_key = format!("{}-{}", info_hash, ua);
+
+        let now = std::time::Instant::now();
+        if let Some((download_info, last_update)) = cache.get(&cache_key) {
+            let ttl = now.duration_since(*last_update);
+            if ttl < self.config.download_cache_ttl {
+                info!("命中缓存: info_hash={}", info_hash);
+                return Ok(download_info.clone());
+            }
+        }
+
+        let task = self
+            .tasks
+            .get_by_info_hash_without_cache(info_hash)
+            .await?
+            .context("下载任务不存在")?;
+        if task.download_status != DownloadStatus::Completed {
+            return Err(anyhow::anyhow!("文件未下载"));
+        }
+        match task.context {
+            Some(context) => {
+                let context: Pan115Context = serde_json::from_str(&context)?;
+                let mut client = self.pan115.clone();
+                let expect_file_name = context.file_name.clone();
+                let files = client
+                    .list_files_with_fn(&context.file_id, move |file| {
+                        !file.is_dir() && file.name == expect_file_name
+                    })
+                    .await?;
+                if files.is_empty() {
+                    return Err(anyhow::anyhow!("文件不存在"));
+                }
+                let file = files.first().unwrap();
+                let download_info = client
+                    .download_file(&file.file_id, Some(ua))
+                    .await?
+                    .context("下载文件失败")?;
+                cache.put(cache_key, (download_info.clone(), now));
+                Ok(download_info)
+            }
+            None => Err(anyhow::anyhow!("该下载器不支持下载文件")),
+        }
+    }
 }
 
 // 初始化相关方法
@@ -136,6 +188,7 @@ impl Pan115Downloader {
             is_spawned: Arc::new(std::sync::atomic::AtomicBool::new(false)),
             config,
             path_cache: Arc::new(Mutex::new(HashMap::new())),
+            file_name_cache: Arc::new(Mutex::new(LruCache::new(NonZero::new(5).unwrap()))),
         })
     }
 

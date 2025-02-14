@@ -109,3 +109,7 @@ export async function refreshBangumi(id: number): Promise<void> {
     handleError(error, '刷新元数据失败')
   }
 }
+
+export async function getOnlineWatchUrl(bangumiId: number, episodeId: number): Promise<string> {
+    return api.defaults.baseURL + `/bangumi/${bangumiId}/${episodeId}/online_watch`
+}

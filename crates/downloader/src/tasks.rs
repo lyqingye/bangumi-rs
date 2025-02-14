@@ -49,6 +49,13 @@ impl TaskManager {
         Ok(task.cloned())
     }
 
+    pub async fn get_by_info_hash_without_cache(
+        &self,
+        info_hash: &str,
+    ) -> Result<Option<torrent_download_tasks::Model>> {
+        let task = self.db.get_by_info_hash(info_hash).await?;
+        Ok(task)
+    }
     pub async fn list_by_info_hashes(
         &self,
         info_hashes: &[String],

@@ -208,4 +208,8 @@ impl Scheduler {
 
         Ok(())
     }
+
+    pub fn get_downloader(&self) -> Arc<Box<dyn Downloader>> {
+        self.downloader.clone()
+    }
 }

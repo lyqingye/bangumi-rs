@@ -6,8 +6,20 @@ pub enum Pan115Error {
     #[error("invalid path, path is not a directory or path is not absolute: {0}")]
     InvalidPath(String),
 
+    #[error("invalid url: {0}")]
+    InvalidUrl(String),
+
     #[error("cookie parse failed: {0}")]
     CookieParseFailed(String),
+
+    #[error("file not found: {0}")]
+    FileNotFound(String),
+
+    #[error("download failed")]
+    DownloadFailed,
+
+    #[error("unsupport download directory")]
+    UnsupportDownloadDirectory,
 
     #[error("user not login")]
     NotLogin,

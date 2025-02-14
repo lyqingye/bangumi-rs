@@ -3,13 +3,14 @@ use std::sync::Arc;
 use actix_web::{
     get, post,
     web::{self, Json},
+    HttpRequest, HttpResponse,
 };
 use dict::DictCode;
 use metadata::worker::RefreshKind;
-use model::sea_orm_active_enums::SubscribeStatus;
+use model::{sea_orm_active_enums::State, sea_orm_active_enums::SubscribeStatus};
 use parser::{Language, VideoResolution};
 use sea_orm::{prelude::Expr, Condition};
-use tracing::instrument;
+use tracing::{info, instrument};
 
 use crate::{
     error::ServerError,
@@ -372,6 +373,65 @@ pub async fn refresh_bangumi(
         .await?;
 
     Ok(Json(Resp::ok(())))
+}
+
+#[get("/api/bangumi/{id}/{episode_number}/online_watch")]
+pub async fn online_watch(
+    req: HttpRequest,
+    state: web::Data<Arc<AppState>>,
+    path: web::Path<(i32, i32)>,
+) -> Result<HttpResponse, ServerError> {
+    use model::episode_download_tasks::Column as TaskColumn;
+    use model::episode_download_tasks::Entity as EpisodeDownloadTasks;
+    use sea_orm::ColumnTrait;
+    use sea_orm::EntityTrait;
+    use sea_orm::QueryFilter;
+
+    let (id, episode_number) = path.into_inner();
+
+    // 获取 User-Agent，如果没有则使用默认值
+    let user_agent = req
+        .headers()
+        .get("User-Agent")
+        .and_then(|h| h.to_str().ok())
+        .unwrap_or("Unknown Browser");
+
+    // 查找下载任务
+    let task = EpisodeDownloadTasks::find()
+        .filter(TaskColumn::BangumiId.eq(id))
+        .filter(TaskColumn::EpisodeNumber.eq(episode_number))
+        .filter(TaskColumn::State.eq(State::Downloaded))
+        .one(state.db.conn())
+        .await?
+        .ok_or_else(|| ServerError::Internal2(anyhow::anyhow!("剧集未下载")))?;
+
+    // 获取种子信息
+    let info_hash = task
+        .ref_torrent_info_hash
+        .ok_or_else(|| ServerError::Internal2(anyhow::anyhow!("种子未找到")))?;
+
+    // 获取下载信息
+    let download_info = state
+        .scheduler
+        .get_downloader()
+        .download_file(&info_hash, user_agent)
+        .await?;
+
+    info!("在线播放成功: {}", download_info.file_name);
+
+    // 构建响应
+    Ok(HttpResponse::Found()
+        .content_type("text/html; charset=utf-8")
+        .append_header(("Referrer-Policy", "no-referrer"))
+        .append_header((
+            "Cache-Control",
+            "max-age=0, no-cache, no-store, must-revalidate",
+        ))
+        .append_header(("Location", download_info.url.url.clone()))
+        .body(format!(
+            r#"<a href="{url}">Found</a>"#,
+            url = download_info.url.url
+        )))
 }
 
 #[get("/health")]

@@ -272,6 +272,7 @@ impl Server {
             .service(api::subscribe_bangumi)
             .service(api::get_bangumi_torrents_by_id)
             .service(api::refresh_bangumi)
+            .service(api::online_watch)
             .service(api::health)
             .route("/ws", web::get().to(ws_handler));
     }

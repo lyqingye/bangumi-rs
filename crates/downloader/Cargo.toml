@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 sea-orm = {workspace = true, features = [ "sqlx-mysql", "runtime-tokio-rustls", "macros", "debug-print"]}
 tokio = { workspace = true, features = ["full"] }
+tokio-stream = { workspace = true }
 serde = {workspace = true, features = ["derive"]}
 serde_json = {workspace = true}
 chrono = {workspace = true}
