@@ -372,6 +372,8 @@
       v-model="showSubscribeDialog"
       :bangumi-id="anime.id"
       :current-status="anime.subscribe_status || SubscribeStatus.None"
+      :release-groups="releaseGroups"
+      :current-subscribe-settings="currentSubscribeSettings"
       @subscribe="handleSubscribe"
     />
   </div>
@@ -1773,6 +1775,17 @@ const groupedTorrents = (episode: Episode) => {
   }))
 }
 
+// 添加计算属性获取所有字幕组
+const releaseGroups = computed(() => {
+  const groups = new Set<string>();
+  torrents.value.forEach(torrent => {
+    if (torrent.release_group) {
+      groups.add(torrent.release_group);
+    }
+  });
+  return Array.from(groups);
+});
+
 async function handleSubscribe(params: SubscribeParams) {
   if (!anime.value) return
   console.log('订阅参数:', params)
@@ -1861,6 +1874,20 @@ const formatPubDate = (date: string) => {
     hour12: false
   })
 }
+
+// 添加一个计算属性来获取当前订阅设置
+const currentSubscribeSettings = computed(() => {
+  if (!anime.value || anime.value.subscribe_status !== SubscribeStatus.Subscribed) {
+    return undefined;
+  }
+  
+  return {
+    start_episode_number: anime.value.start_episode_number,
+    resolution_filter: anime.value.resolution_filter,
+    language_filter: anime.value.language_filter,
+    release_group_filter: anime.value.release_group_filter,
+  }
+})
 
 onMounted(() => {
   fetchAnimeDetail()

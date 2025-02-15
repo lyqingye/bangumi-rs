@@ -70,7 +70,11 @@ export interface Bangumi {
   subscribe_status: SubscribeStatus
   created_at: string
   updated_at: string
-  season_number: number
+  season_number: number,
+  start_episode_number: number | null
+  resolution_filter: string | null
+  language_filter: string | null
+  release_group_filter: string | null
 }
 
 // 剧集信息
