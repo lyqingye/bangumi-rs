@@ -5,7 +5,7 @@ use parser::Parser;
 use std::sync::Arc;
 use std::{net::SocketAddr, path::PathBuf, str::FromStr};
 use tokio::sync::broadcast;
-use tracing::info;
+use tracing::{error, info};
 use tracing_actix_web::TracingLogger;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::{EnvFilter, Layer};
@@ -241,7 +241,8 @@ impl Server {
 
         let state = self.state.clone();
 
-        HttpServer::new(move || {
+        // 创建 HTTP 服务器
+        let server = HttpServer::new(move || {
             let cors = Cors::default()
                 .allow_any_origin()
                 .allow_any_method()
@@ -253,8 +254,36 @@ impl Server {
                 .configure(|cfg| Self::configure_app(cfg, state.clone()))
         })
         .bind(addr)?
-        .run()
-        .await?;
+        .run();
+
+        let server_handle = server.handle();
+        let server_task = tokio::spawn(server);
+
+        // 等待中断信号
+        match tokio::signal::ctrl_c().await {
+            Ok(()) => {
+                info!("收到中断信号，开始优雅停机...");
+
+                // 1. 停止接受新的连接
+                info!("停止接受新的连接...");
+                server_handle.stop(true).await;
+
+                // 3. 等待所有现有连接处理完成
+                match server_task.await {
+                    Ok(_) => info!("HTTP 服务器已完全停止"),
+                    Err(e) => error!("HTTP 服务器停止时发生错误: {}", e),
+                }
+
+                // 2. 停止调度器和其他组件
+                info!("停止调度器和其他组件...");
+                if let Err(e) = self.state.scheduler.shutdown().await {
+                    error!("停止调度器时发生错误: {}", e);
+                }
+
+                info!("服务器优雅停机完成");
+            }
+            Err(err) => error!("无法监听中断信号: {}", err),
+        }
 
         Ok(())
     }

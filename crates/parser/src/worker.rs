@@ -170,6 +170,24 @@ impl Worker {
 
         response_receiver.await.context("接收解析结果失败")?
     }
+
+    pub async fn shutdown(&self) -> Result<()> {
+        info!("开始停止解析器 Worker...");
+        if let Some(sender) = &self.sender {
+            // 关闭发送通道，这将导致接收端的循环退出
+            drop(sender.clone());
+
+            // 标记为未启动状态
+            self.is_spawned
+                .store(false, std::sync::atomic::Ordering::SeqCst);
+
+            // 等待一段时间确保任务完成
+            tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+
+            info!("解析器 Worker 已停止");
+        }
+        Ok(())
+    }
 }
 
 #[cfg(test)]

@@ -317,4 +317,23 @@ impl Worker {
         }
         Ok(())
     }
+
+    pub async fn shutdown(&self) -> Result<()> {
+        info!("开始停止通知 Worker...");
+
+        // 发送停止信号
+        if let Some(tx) = &self.tx {
+            tx.send(WorkerMessage::Stop)
+                .await
+                .context("发送停止消息失败")?;
+        }
+
+        // 等待 Worker 完全停止
+        while self.is_spawned.load(std::sync::atomic::Ordering::SeqCst) {
+            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+        }
+
+        info!("通知 Worker 已停止");
+        Ok(())
+    }
 }

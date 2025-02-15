@@ -139,6 +139,19 @@ impl Worker {
         self.is_running.store(false, Ordering::SeqCst);
     }
 
+    pub async fn shutdown(&self) -> Result<()> {
+        info!("开始停止元数据 Worker...");
+
+        // 停止运行标志
+        self.is_running.store(false, Ordering::SeqCst);
+
+        // 等待一段时间确保任务完成
+        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+
+        info!("元数据 Worker 已停止");
+        Ok(())
+    }
+
     async fn run_loop(
         self,
         mut receiver: mpsc::Receiver<RefreshRequest>,
