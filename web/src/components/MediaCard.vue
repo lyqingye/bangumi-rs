@@ -1,9 +1,5 @@
 <template>
-  <v-card 
-    class="media-card" 
-    elevation="0"
-    @click="goToDetail"
-  >
+  <v-card class="media-card" elevation="0" @click="goToDetail">
     <div class="card-image-wrapper">
       <!-- 订阅状态丝带 -->
       <div class="ribbon-wrapper" v-if="item.subscribe_status === SubscribeStatus.Subscribed">
@@ -13,22 +9,10 @@
         </div>
       </div>
 
-      <v-img
-        :src="item.poster_image_url"
-        height="360"
-        cover
-        class="card-image"
-      >
+      <v-img :src="item.poster_image_url" height="360" cover class="card-image">
         <template v-slot:placeholder>
-          <v-row
-            class="fill-height ma-0"
-            align="center"
-            justify="center"
-          >
-            <v-progress-circular
-              indeterminate
-              color="grey-lighten-5"
-            />
+          <v-row class="fill-height ma-0" align="center" justify="center">
+            <v-progress-circular indeterminate color="grey-lighten-5" />
           </v-row>
         </template>
 
@@ -36,12 +20,7 @@
         <div class="image-overlay">
           <div class="action-buttons">
             <!-- 订阅按钮 -->
-            <v-btn
-              variant="text"
-              size="small"
-              class="action-btn"
-              @click.stop="toggleSubscribe"
-            >
+            <v-btn variant="text" size="small" class="action-btn" @click.stop="toggleSubscribe">
               <v-icon
                 :icon="isSubscribed ? 'mdi-heart' : 'mdi-heart-outline'"
                 :color="isSubscribed ? 'error' : undefined"
@@ -186,11 +165,7 @@ const goToDetail = () => {
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(
-    to bottom,
-    rgba(0, 0, 0, 0.2) 0%,
-    rgba(0, 0, 0, 0.6) 100%
-  );
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.2) 0%, rgba(0, 0, 0, 0.6) 100%);
   opacity: 0;
   transition: opacity 0.3s ease;
   display: flex;

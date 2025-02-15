@@ -16,23 +16,15 @@
     <v-row>
       <!-- 星期导航条 -->
       <v-col cols="12" class="mb-6">
-        <v-card
-          class="weekday-tabs-card"
-          elevation="0"
-        >
-          <v-tabs 
-            v-model="selectedWeekday" 
+        <v-card class="weekday-tabs-card" elevation="0">
+          <v-tabs
+            v-model="selectedWeekday"
             color="primary"
             class="weekday-tabs"
             show-arrows
             fixed-tabs
           >
-            <v-tab 
-              v-for="tab in weekTabs" 
-              :key="tab.value" 
-              :value="tab.value"
-              class="text-body-2"
-            >
+            <v-tab v-for="tab in weekTabs" :key="tab.value" :value="tab.value" class="text-body-2">
               {{ tab.label }}
             </v-tab>
           </v-tabs>
@@ -45,17 +37,9 @@
         class="d-flex justify-center align-center"
         style="min-height: 400px"
       >
-        <v-progress-circular
-          indeterminate
-          color="primary"
-          size="64"
-        />
+        <v-progress-circular indeterminate color="primary" size="64" />
       </v-col>
-      <v-col
-        v-else-if="error"
-        cols="12"
-        class="text-center text-error"
-      >
+      <v-col v-else-if="error" cols="12" class="text-center text-error">
         {{ error }}
       </v-col>
       <template v-else>
@@ -78,8 +62,8 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
-import { fetchCalendar } from "@/api/api"
-import { type Bangumi } from "@/api/model"
+import { fetchCalendar } from '@/api/api'
+import { type Bangumi } from '@/api/model'
 import MediaCard from '@/components/MediaCard.vue'
 
 const selectedWeekday = ref(String(new Date().getDay()))
@@ -91,9 +75,7 @@ const filteredCalendarItems = computed(() => {
   if (selectedWeekday.value === '-1') {
     return calendarItems.value
   }
-  return calendarItems.value.filter(item =>
-    item.air_week === parseInt(selectedWeekday.value)
-  )
+  return calendarItems.value.filter(item => item.air_week === parseInt(selectedWeekday.value))
 })
 
 const loadCalendarData = async () => {
@@ -117,7 +99,7 @@ const weekTabs = [
   { label: '周四', value: '4' },
   { label: '周五', value: '5' },
   { label: '周六', value: '6' },
-  { label: '周日', value: '0' },
+  { label: '周日', value: '0' }
 ]
 
 onMounted(() => {
@@ -226,4 +208,4 @@ onMounted(() => {
 .media-card-col {
   transition: transform 0.2s ease;
 }
-</style> 
+</style>

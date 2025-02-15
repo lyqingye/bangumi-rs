@@ -27,7 +27,7 @@ export interface PaginatedResponse<T> {
 export enum SubscribeStatus {
   None = 'None',
   Subscribed = 'Subscribed',
-  Downloaded = 'Downloaded',
+  Downloaded = 'Downloaded'
 }
 
 // 下载状态枚举
@@ -35,7 +35,7 @@ export enum DownloadStatus {
   Pending = 'Pending',
   Downloading = 'Downloading',
   Completed = 'Completed',
-  Failed = 'Failed',
+  Failed = 'Failed'
 }
 
 // 下载状态枚举
@@ -45,7 +45,7 @@ export enum State {
   Downloading = 'Downloading',
   Downloaded = 'Downloaded',
   Failed = 'Failed',
-  Retrying = 'Retrying',
+  Retrying = 'Retrying'
 }
 
 // 订阅参数
@@ -63,20 +63,20 @@ export interface SubscribeParams {
 export interface Bangumi {
   id: number
   name: string
-  description: string 
-  bangumi_tv_id: number 
+  description: string
+  bangumi_tv_id: number
   tmdb_id: number
-  mikan_id: number 
+  mikan_id: number
   poster_image_url: string
   backdrop_image_url: string
-  air_date: string 
-  air_week: number 
+  air_date: string
+  air_week: number
   rating: number
   ep_count: number
   subscribe_status: SubscribeStatus
   created_at: string
   updated_at: string
-  season_number: number,
+  season_number: number
   start_episode_number: number | null
   resolution_filter: string | null
   language_filter: string | null
@@ -111,7 +111,7 @@ export interface Torrent {
   size: number
   magnet: string
   pub_date: string
-  
+
   // 文件解析信息
   release_group: string | null
   season_number: number | null
@@ -119,7 +119,7 @@ export interface Torrent {
   language: string | null
   video_resolution: string | null
   parser_status: string | null
-  
+
   // 下载信息
   download_status: DownloadStatus | null
   downloader_name: string | null

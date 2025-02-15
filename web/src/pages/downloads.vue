@@ -14,4 +14,4 @@ import DownloadTasksTable from '@/components/DownloadTasksTable.vue'
   height: 100%;
   background: transparent;
 }
-</style> 
+</style>

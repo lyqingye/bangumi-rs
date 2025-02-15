@@ -6,30 +6,12 @@
         <div class="d-flex align-center">
           <v-icon icon="mdi-console" class="me-2" />
           日志查看器
-          <v-chip
-            v-if="connected"
-            color="success"
-            size="small"
-            class="ms-2"
-          >
-            已连接
-          </v-chip>
-          <v-chip
-            v-else
-            color="error"
-            size="small"
-            class="ms-2"
-          >
-            未连接
-          </v-chip>
+          <v-chip v-if="connected" color="success" size="small" class="ms-2"> 已连接 </v-chip>
+          <v-chip v-else color="error" size="small" class="ms-2"> 未连接 </v-chip>
         </div>
       </v-expansion-panel-title>
       <v-expansion-panel-text>
-        <div
-          ref="logContainer"
-          class="log-container"
-          :class="{ 'dark-theme': isDarkTheme }"
-        >
+        <div ref="logContainer" class="log-container" :class="{ 'dark-theme': isDarkTheme }">
           <pre v-for="(log, index) in logs" :key="index" class="log-entry">
             <code>{{ log }}</code>
           </pre>
@@ -52,13 +34,13 @@ const isDarkTheme = computed(() => theme.global.current.value.dark)
 const connected = ref(false)
 const logs = ref<string[]>([])
 const logContainer = ref<HTMLElement | null>(null)
-const panelState = ref<number[]>([])  // 使用数组跟踪展开状态
+const panelState = ref<number[]>([]) // 使用数组跟踪展开状态
 let ws: WebSocket | null = null
 let reconnectAttempts = 0
 const MAX_RECONNECT_ATTEMPTS = 5
 
 const connectWebSocket = () => {
-  if (ws) return  // 防止重复连接
+  if (ws) return // 防止重复连接
 
   console.log('Connecting to:', props.websocketUrl)
   ws = new WebSocket(props.websocketUrl)
@@ -69,7 +51,7 @@ const connectWebSocket = () => {
     logs.value.push(`[系统] WebSocket 连接已建立 (${new Date().toLocaleTimeString()})`)
   }
 
-  ws.onmessage = (event) => {
+  ws.onmessage = event => {
     logs.value.push(event.data)
     nextTick(() => {
       if (logContainer.value) {
@@ -78,7 +60,7 @@ const connectWebSocket = () => {
     })
   }
 
-  ws.onclose = (event) => {
+  ws.onclose = event => {
     connected.value = false
     logs.value.push(`[系统] WebSocket 连接关闭 (${event.code})`)
     ws = null
@@ -93,7 +75,7 @@ const connectWebSocket = () => {
     }
   }
 
-  ws.onerror = (error) => {
+  ws.onerror = error => {
     logs.value.push('[系统] WebSocket 连接错误: ' + (error as Event).type)
   }
 }
@@ -106,7 +88,7 @@ const disconnectWebSocket = () => {
 }
 
 // 监听面板展开状态变化
-watch(panelState, (newVal) => {
+watch(panelState, newVal => {
   console.log(newVal)
   if (newVal != undefined) {
     connectWebSocket()

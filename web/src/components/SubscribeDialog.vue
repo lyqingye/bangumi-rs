@@ -19,16 +19,21 @@ const emit = defineEmits<{
 const formData = ref({
   status: SubscribeStatus.Subscribed,
   start_episode_number: props.currentSubscribeSettings?.start_episode_number ?? 1,
-  resolution_filter: props.currentSubscribeSettings?.resolution_filter ? 
-    props.currentSubscribeSettings.resolution_filter.split(',') : [],
-  language_filter: props.currentSubscribeSettings?.language_filter ? 
-    props.currentSubscribeSettings.language_filter.split(',') : [],
-  release_group_filter: props.currentSubscribeSettings?.release_group_filter ? 
-    props.currentSubscribeSettings.release_group_filter.split(',') : [],
-  collector_interval: props.currentSubscribeSettings?.collector_interval ? 
-    Math.floor(props.currentSubscribeSettings.collector_interval / 60) : 30,
-  metadata_interval: props.currentSubscribeSettings?.metadata_interval ? 
-    Math.floor(props.currentSubscribeSettings.metadata_interval / 60) : 60,
+  resolution_filter: props.currentSubscribeSettings?.resolution_filter
+    ? props.currentSubscribeSettings.resolution_filter.split(',')
+    : [],
+  language_filter: props.currentSubscribeSettings?.language_filter
+    ? props.currentSubscribeSettings.language_filter.split(',')
+    : [],
+  release_group_filter: props.currentSubscribeSettings?.release_group_filter
+    ? props.currentSubscribeSettings.release_group_filter.split(',')
+    : [],
+  collector_interval: props.currentSubscribeSettings?.collector_interval
+    ? Math.floor(props.currentSubscribeSettings.collector_interval / 60)
+    : 30,
+  metadata_interval: props.currentSubscribeSettings?.metadata_interval
+    ? Math.floor(props.currentSubscribeSettings.metadata_interval / 60)
+    : 60
 })
 
 interface Resolution {
@@ -67,8 +72,12 @@ function onSubmit() {
     resolution_filter: arrayToString(formData.value.resolution_filter),
     language_filter: arrayToString(formData.value.language_filter),
     release_group_filter: arrayToString(formData.value.release_group_filter),
-    collector_interval: formData.value.collector_interval ? formData.value.collector_interval * 60 : undefined,
-    metadata_interval: formData.value.metadata_interval ? formData.value.metadata_interval * 60 : undefined
+    collector_interval: formData.value.collector_interval
+      ? formData.value.collector_interval * 60
+      : undefined,
+    metadata_interval: formData.value.metadata_interval
+      ? formData.value.metadata_interval * 60
+      : undefined
   }
   emit('subscribe', params)
   emit('update:modelValue', false)
@@ -85,7 +94,7 @@ function unsubscribe() {
 </script>
 
 <template>
-  <v-dialog 
+  <v-dialog
     :model-value="modelValue"
     @update:model-value="emit('update:modelValue', $event)"
     max-width="400"
@@ -138,12 +147,7 @@ function unsubscribe() {
               class="input-field"
             >
               <template v-slot:chip="{ props, item }">
-                <v-chip
-                  v-bind="props"
-                  :text="item.raw.text"
-                  size="x-small"
-                  label
-                />
+                <v-chip v-bind="props" :text="item.raw.text" size="x-small" label />
               </template>
             </v-select>
           </div>
@@ -167,12 +171,7 @@ function unsubscribe() {
               class="input-field"
             >
               <template v-slot:chip="{ props, item }">
-                <v-chip
-                  v-bind="props"
-                  :text="item.raw.text"
-                  size="x-small"
-                  label
-                />
+                <v-chip v-bind="props" :text="item.raw.text" size="x-small" label />
               </template>
             </v-select>
           </div>
@@ -194,12 +193,7 @@ function unsubscribe() {
               class="input-field"
             >
               <template v-slot:chip="{ props, item }">
-                <v-chip
-                  v-bind="props"
-                  :text="item.raw"
-                  size="x-small"
-                  label
-                />
+                <v-chip v-bind="props" :text="item.raw" size="x-small" label />
               </template>
             </v-select>
           </div>
@@ -259,20 +253,16 @@ function unsubscribe() {
           取消订阅
         </v-btn>
         <v-spacer />
-        <v-btn
-          color="grey"
-          variant="text"
-          size="small"
-          class="me-2"
-          @click="onCancel"
-        >
+        <v-btn color="grey" variant="text" size="small" class="me-2" @click="onCancel">
           取消
         </v-btn>
         <v-btn
           color="primary"
           variant="tonal"
           size="small"
-          :prepend-icon="currentStatus === SubscribeStatus.Subscribed ? 'mdi-check-circle' : 'mdi-plus-circle'"
+          :prepend-icon="
+            currentStatus === SubscribeStatus.Subscribed ? 'mdi-check-circle' : 'mdi-plus-circle'
+          "
           @click="onSubmit"
         >
           {{ currentStatus === SubscribeStatus.Subscribed ? '更新订阅' : '订阅' }}
@@ -400,4 +390,4 @@ function unsubscribe() {
 :deep(.v-chip__close:hover) {
   opacity: 1;
 }
-</style> 
+</style>

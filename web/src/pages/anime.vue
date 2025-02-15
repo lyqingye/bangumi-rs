@@ -13,4 +13,4 @@
   justify-content: center;
   color: rgba(255, 255, 255, 0.7);
 }
-</style> 
+</style>

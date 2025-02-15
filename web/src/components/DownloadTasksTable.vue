@@ -31,8 +31,8 @@
               :class="{ 'status-item': true, [`status-${item.raw.value}`]: item.raw.value }"
             >
               <template #prepend>
-                <div 
-                  class="status-dot" 
+                <div
+                  class="status-dot"
                   :class="item.raw.value ? `bg-${getStatusColor(item.raw.value)}` : ''"
                 />
               </template>
@@ -43,7 +43,7 @@
           </template>
         </v-select>
       </v-card-title>
-      
+
       <v-data-table
         :headers="headers"
         :items="tasks"
@@ -54,7 +54,7 @@
         show-expand
         hover
         item-value="info_hash"
-        @update:expanded="(e) => expandedItems = e"
+        @update:expanded="e => (expandedItems = e)"
       >
         <template #[`item.name`]="{ item }">
           <div class="d-flex align-center">
@@ -88,11 +88,11 @@
             {{ getStatusText(item.download_status) }}
           </v-chip>
         </template>
-        
+
         <template #[`item.created_at`]="{ item }">
           <span class="text-body-2 font-weight-medium">{{ formatDate(item.created_at) }}</span>
         </template>
-        
+
         <template #[`item.updated_at`]="{ item }">
           <span class="text-body-2 font-weight-medium">{{ formatDate(item.updated_at) }}</span>
         </template>
@@ -103,7 +103,9 @@
               <v-row dense class="expanded-row">
                 <v-col cols="12" sm="6" md="4" class="mb-3">
                   <div class="text-caption text-medium-emphasis mb-2">文件名</div>
-                  <div class="text-body-1 font-weight-medium text-truncate">{{ item.file_name || '-' }}</div>
+                  <div class="text-body-1 font-weight-medium text-truncate">
+                    {{ item.file_name || '-' }}
+                  </div>
                 </v-col>
                 <v-col cols="12" sm="6" md="4" class="mb-3">
                   <div class="text-caption text-medium-emphasis mb-2">下载器</div>
@@ -170,7 +172,7 @@ const headers = [
   { title: '文件大小', key: 'file_size', align: 'center' as const },
   { title: '下载状态', key: 'download_status', align: 'center' as const },
   { title: '创建时间', key: 'created_at', align: 'center' as const },
-  { title: '更新时间', key: 'updated_at', align: 'center' as const },
+  { title: '更新时间', key: 'updated_at', align: 'center' as const }
 ]
 
 const statusOptions = [
@@ -178,7 +180,7 @@ const statusOptions = [
   { title: '等待中', value: DownloadStatus.Pending },
   { title: '下载中', value: DownloadStatus.Downloading },
   { title: '已完成', value: DownloadStatus.Completed },
-  { title: '失败', value: DownloadStatus.Failed },
+  { title: '失败', value: DownloadStatus.Failed }
 ]
 
 const loadTasks = async () => {
@@ -188,13 +190,13 @@ const loadTasks = async () => {
     const params = {
       offset,
       limit: pageSize.value + 1, // 多请求一条数据用于判断是否有下一页
-      status: selectedStatus.value || undefined,
+      status: selectedStatus.value || undefined
     }
     const data = await fetchDownloadTasks(params)
-    
+
     // 判断是否有下一页
     hasNextPage.value = data.length > pageSize.value
-    
+
     // 如果有下一页，则移除多余的一条数据
     tasks.value = hasNextPage.value ? data.slice(0, -1) : data
   } catch (error) {
@@ -240,7 +242,7 @@ const formatDate = (date: string) => {
     month: '2-digit',
     day: '2-digit',
     hour: '2-digit',
-    minute: '2-digit',
+    minute: '2-digit'
   })
 }
 
@@ -472,4 +474,4 @@ onMounted(() => {
 :deep(.text-medium-emphasis) {
   color: rgba(255, 255, 255, 0.85) !important;
 }
-</style> 
+</style>

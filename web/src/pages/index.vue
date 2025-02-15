@@ -1,12 +1,7 @@
 <template>
   <v-layout class="fill-height">
     <!-- 左侧导航树 -->
-    <v-navigation-drawer
-      permanent
-      class="navigation-drawer"
-      elevation="0"
-      width="280"
-    >
+    <v-navigation-drawer permanent class="navigation-drawer" elevation="0" width="280">
       <!-- 毛玻璃背景 -->
       <div class="glass-bg"></div>
 
@@ -55,7 +50,7 @@ const navItems = [
   { title: '下载', icon: 'mdi-download', to: '/downloads' },
   { title: '电影', icon: 'mdi-movie', to: '/movies' },
   { title: '电视剧', icon: 'mdi-television-classic', to: '/tv' },
-  { title: '动画', icon: 'mdi-animation', to: '/anime' },
+  { title: '动画', icon: 'mdi-animation', to: '/anime' }
 ]
 </script>
 

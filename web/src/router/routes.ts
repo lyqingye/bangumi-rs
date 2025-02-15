@@ -36,4 +36,4 @@ export const routes = [
     name: 'detail',
     component: () => import('@/pages/detail.vue')
   }
-] 
+]

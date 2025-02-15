@@ -29,12 +29,7 @@ defineExpose({
 </script>
 
 <template>
-  <v-snackbar
-    v-model="show"
-    :color="color"
-    :timeout="timeout"
-    :location="location"
-  >
+  <v-snackbar v-model="show" :color="color" :timeout="timeout" :location="location">
     {{ text }}
   </v-snackbar>
-</template> 
+</template>
