@@ -33,15 +33,22 @@ pub enum Relation {
     EpisodeDownloadTasks,
 }
 
-impl Related<super::bangumi::Entity> for Entity {
-    fn to() -> RelationDef {
-        Relation::Bangumi.def()
-    }
-}
-
 impl Related<super::episode_download_tasks::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::EpisodeDownloadTasks.def()
+    }
+}
+
+impl Related<super::bangumi::Entity> for Entity {
+    fn to() -> RelationDef {
+        super::episode_download_tasks::Relation::Bangumi.def()
+    }
+    fn via() -> Option<RelationDef> {
+        Some(
+            super::episode_download_tasks::Relation::Torrents
+                .def()
+                .rev(),
+        )
     }
 }
 

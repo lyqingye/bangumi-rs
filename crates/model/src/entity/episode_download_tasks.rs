@@ -28,14 +28,6 @@ pub enum Relation {
     )]
     Bangumi,
     #[sea_orm(
-        belongs_to = "super::torrent_download_tasks::Entity",
-        from = "Column::RefTorrentInfoHash",
-        to = "super::torrent_download_tasks::Column::InfoHash",
-        on_update = "NoAction",
-        on_delete = "NoAction"
-    )]
-    TorrentDownloadTasks,
-    #[sea_orm(
         belongs_to = "super::torrents::Entity",
         from = "Column::RefTorrentInfoHash",
         to = "super::torrents::Column::InfoHash",
@@ -48,12 +40,6 @@ pub enum Relation {
 impl Related<super::bangumi::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::Bangumi.def()
-    }
-}
-
-impl Related<super::torrent_download_tasks::Entity> for Entity {
-    fn to() -> RelationDef {
-        Relation::TorrentDownloadTasks.def()
     }
 }
 
