@@ -100,6 +100,7 @@ export interface Torrent {
   title: string
   size: number
   magnet: string
+  pub_date: string
   
   // 文件解析信息
   release_group: string | null

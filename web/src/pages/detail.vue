@@ -319,6 +319,18 @@
                                       </v-chip>
                                     </div>
                                   </td>
+                                  <td class="info-cell">
+                                    <div class="d-flex align-center">
+                                      <v-chip
+                                        v-if="torrent.pub_date"
+                                        size="small"
+                                        variant="flat"
+                                        class="me-2"
+                                      >
+                                        {{ formatPubDate(torrent.pub_date) }}
+                                      </v-chip>
+                                    </div>
+                                  </td>
                                   
                                   <!-- 操作列 -->
                                   <td class="action-cell">
@@ -1835,6 +1847,19 @@ const handleDelete = async () => {
   } finally {
     isDeleting.value = false
   }
+}
+
+// 添加格式化发布时间的方法
+const formatPubDate = (date: string) => {
+  return new Date(date).toLocaleString('zh-CN', {
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  })
 }
 
 onMounted(() => {

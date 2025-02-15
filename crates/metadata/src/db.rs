@@ -9,10 +9,11 @@ use model::{
     torrents,
 };
 use sea_orm::{
-    sea_query::OnConflict, ConnectOptions, Database, DatabaseConnection, EntityTrait,
+    sea_query::OnConflict,
+    ConnectOptions, Database, DatabaseConnection, EntityTrait,
     IntoActiveModel, QueryFilter, QuerySelect,
+    ColumnTrait, Set, ConnectionTrait, ActiveModelTrait,
 };
-use sea_orm::{ColumnTrait, Set, UpdateMany};
 use std::time::Duration;
 use std::{collections::HashSet, sync::Arc};
 
@@ -220,7 +221,7 @@ impl Db {
         Ok(result)
     }
 
-    pub async fn batch_insert_torrent(&self, torrents: Vec<torrents::Model>) -> Result<()> {
+    pub async fn batch_upsert_torrent(&self, torrents: Vec<torrents::Model>) -> Result<()> {
         if torrents.is_empty() {
             return Ok(());
         }
@@ -228,7 +229,11 @@ impl Db {
         let _ = torrents::Entity::insert_many(
             torrents.into_iter().map(|model| model.into_active_model()),
         )
-        .on_conflict_do_nothing()
+        .on_conflict(
+            OnConflict::column(torrents::Column::InfoHash)
+                .update_column(torrents::Column::PubDate)
+                .to_owned()
+        )
         .exec(db)
         .await?;
         Ok(())
@@ -243,41 +248,25 @@ impl Db {
             return Ok(());
         }
 
-        let hashes: Vec<String> = torrents.iter().map(|t| t.info_hash.clone()).collect();
-
-        let exist_torrents = self
-            .list_torrent_info_hash_by_hashes(hashes.clone())
-            .await?;
-        let exist_hashes: HashSet<String> = exist_torrents.iter().map(|t| t.clone()).collect();
-
-        let new_torrents: Vec<_> = torrents
+        let models: Vec<torrents::Model> = torrents
             .into_iter()
-            .filter(|t| !exist_hashes.contains(&t.info_hash))
+            .filter_map(|t| {
+                t.pub_date.map(|pub_date| torrents::Model {
+                    bangumi_id,
+                    title: t.file_name.unwrap_or_default(),
+                    size: t.file_size as i64,
+                    info_hash: t.info_hash,
+                    magnet: t.magnet_link,
+                    data: None,
+                    download_url: t.torrent_download_url.map(|url| url.to_string()),
+                    pub_date,
+                })
+            })
             .collect();
 
-        if new_torrents.is_empty() {
-            return Ok(());
+        if !models.is_empty() {
+            self.batch_upsert_torrent(models).await?;
         }
-
-        let now = chrono::Local::now().naive_utc();
-        let mut torrents_to_insert = Vec::new();
-        for torrent in new_torrents {
-            let obj = torrents::Model {
-                bangumi_id,
-                title: torrent.file_name.unwrap_or_default(),
-                size: torrent.file_size as i64,
-                info_hash: torrent.info_hash,
-                magnet: torrent.magnet_link,
-                // 用到的时候再下载种子
-                data: None,
-                download_url: torrent.torrent_download_url.map(|url| url.to_string()),
-                created_at: now,
-                updated_at: now,
-            };
-            torrents_to_insert.push(obj);
-        }
-
-        self.batch_insert_torrent(torrents_to_insert).await?;
 
         Ok(())
     }

@@ -15,8 +15,7 @@ pub struct Model {
     pub magnet: String,
     #[sea_orm(column_type = "Binary(255)", nullable)]
     pub data: Option<Vec<u8>>,
-    pub created_at: DateTime,
-    pub updated_at: DateTime,
+    pub pub_date: DateTime,
     pub download_url: Option<String>,
 }
 

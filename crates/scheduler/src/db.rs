@@ -148,7 +148,7 @@ impl Db {
 
         let torrents = Torrents::find()
             .filter(TorrentColumn::BangumiId.eq(bangumi_id))
-            .order_by_desc(TorrentColumn::CreatedAt)
+            .order_by_desc(TorrentColumn::PubDate)
             .all(self.conn())
             .await?;
 
@@ -191,8 +191,7 @@ impl Db {
                 TorrentColumn::Size,
                 TorrentColumn::InfoHash,
                 TorrentColumn::Magnet,
-                TorrentColumn::CreatedAt,
-                TorrentColumn::UpdatedAt,
+                TorrentColumn::PubDate,
             ])
             .filter(TorrentColumn::BangumiId.eq(bangumi_id))
             .join(
@@ -204,7 +203,7 @@ impl Db {
             )
             .select_also(ParseRecord)
             .filter(ParseColumn::ParserStatus.eq(ParserStatus::Completed))
-            .order_by_desc(TorrentColumn::CreatedAt)
+            .order_by_desc(TorrentColumn::PubDate)
             .all(self.conn())
             .await?;
 

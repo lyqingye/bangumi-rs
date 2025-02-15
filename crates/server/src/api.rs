@@ -319,6 +319,7 @@ pub async fn get_bangumi_torrents_by_id(
         .column(TorrentColumn::Title)
         .column(TorrentColumn::Size)
         .column(TorrentColumn::Magnet)
+        .column(TorrentColumn::PubDate)
         // 文件名解析信息
         .column(ParseColumn::ReleaseGroup)
         .column(ParseColumn::SeasonNumber)
@@ -346,7 +347,7 @@ pub async fn get_bangumi_torrents_by_id(
                 .into(),
         )
         .filter(TorrentColumn::BangumiId.eq(bangumi_id))
-        .order_by_desc(TorrentColumn::CreatedAt)
+        .order_by_desc(TorrentColumn::PubDate)
         .into_model::<Torrent>()
         .all(state.db.conn())
         .await
