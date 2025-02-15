@@ -555,7 +555,7 @@ impl Pan115Downloader {
                 } else {
                     warn!("任务在网盘中不存在: {}", info_hash);
                     (
-                        DownloadStatus::Failed,
+                        DownloadStatus::Pending,
                         Some("任务在网盘中不存在".to_string()),
                         None,
                     )
