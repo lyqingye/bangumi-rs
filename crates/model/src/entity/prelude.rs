@@ -5,7 +5,6 @@ pub use super::dictionary::Entity as Dictionary;
 pub use super::episode_download_tasks::Entity as EpisodeDownloadTasks;
 pub use super::episodes::Entity as Episodes;
 pub use super::file_name_parse_record::Entity as FileNameParseRecord;
-pub use super::mikan_scraper_record::Entity as MikanScraperRecord;
 pub use super::subscriptions::Entity as Subscriptions;
 pub use super::torrent_download_tasks::Entity as TorrentDownloadTasks;
 pub use super::torrents::Entity as Torrents;

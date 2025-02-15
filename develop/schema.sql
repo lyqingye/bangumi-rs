@@ -71,7 +71,8 @@ create table if not exists episode_download_tasks (
     created_at datetime not null default current_timestamp comment '创建时间',
     updated_at datetime not null default current_timestamp on update current_timestamp comment '更新时间',
     primary key (bangumi_id, episode_number),
-    key status_idx (state)
+    key status_idx (state),
+    key ref_torrent_info_hash_idx (ref_torrent_info_hash)
 )comment '用于记录番剧的每一集的下载状态';
 
 create table if not exists torrents (
@@ -96,7 +97,8 @@ create table if not exists torrent_download_tasks (
     retry_count int not null default 0 comment '重试次数',
     next_retry_at datetime not null comment '重试时间',
     created_at datetime not null default current_timestamp comment '创建时间',
-    updated_at datetime not null default current_timestamp on update current_timestamp comment '更新时间'
+    updated_at datetime not null default current_timestamp on update current_timestamp comment '更新时间',
+    key status_idx (download_status, updated_at DESC)
 )comment '种子下载任务，用于记录种子的下载状态';
 
 create table if not exists file_name_parse_record (
@@ -125,6 +127,51 @@ CREATE TABLE dictionary (
     description TEXT null  -- 描述
 );
 
-update bangumi set calendar_season = '2025 冬季番组';
+-- 外键
 
--- update file_name_parse_record set parser_status = 'pending' where parser_status = 'failed';
+-- 为 episode_download_tasks 表添加外键约束
+ALTER TABLE episode_download_tasks
+ADD CONSTRAINT fk_edt_bangumi
+    FOREIGN KEY (bangumi_id)
+    REFERENCES bangumi(id)  -- 关联到 bangumi 表的主键 id
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION;
+
+ALTER TABLE episode_download_tasks
+ADD CONSTRAINT fk_edt_torrent_tasks
+    FOREIGN KEY (ref_torrent_info_hash)
+    REFERENCES torrent_download_tasks(info_hash)  -- 关联到 torrent_download_tasks 表的主键
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION;
+
+ALTER TABLE episode_download_tasks
+ADD CONSTRAINT fk_edt_torrents
+    FOREIGN KEY (ref_torrent_info_hash)
+    REFERENCES torrents(info_hash)  -- 关联到 torrents 表的主键
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION;
+
+-- 为 subscriptions 表添加外键约束
+ALTER TABLE subscriptions
+ADD CONSTRAINT fk_subscriptions_bangumi
+    FOREIGN KEY (bangumi_id)
+    REFERENCES bangumi(id)  -- 关联到 bangumi 表的主键
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION;
+
+-- 为 episodes 表添加外键约束
+ALTER TABLE episodes
+ADD CONSTRAINT fk_episodes_bangumi
+    FOREIGN KEY (bangumi_id)
+    REFERENCES bangumi(id)  -- 关联到 bangumi 表的主键
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION;
+
+-- 为 torrents 表添加外键约束
+ALTER TABLE torrents
+ADD CONSTRAINT fk_torrents_bangumi
+    FOREIGN KEY (bangumi_id)
+    REFERENCES bangumi(id)  -- 关联到 bangumi 表的主键
+    ON DELETE NO ACTION
+    ON UPDATE NO ACTION;
+

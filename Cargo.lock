@@ -3868,6 +3868,7 @@ dependencies = [
  "chrono",
  "console-subscriber",
  "dict",
+ "dotenv",
  "downloader",
  "metadata",
  "mikan",

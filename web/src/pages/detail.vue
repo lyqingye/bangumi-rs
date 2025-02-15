@@ -24,11 +24,7 @@
                   </div>
                 </div>
 
-                <v-img
-                  :src="anime.poster_image_url"
-                  cover
-                  class="poster-image"
-                >
+                <v-img :src="anime.poster_image_url" cover class="poster-image">
                   <template v-slot:placeholder>
                     <v-row class="fill-height ma-0" align="center" justify="center">
                       <v-progress-circular indeterminate color="grey-lighten-5" />
@@ -47,9 +43,7 @@
                         :loading="isRefreshing"
                       >
                         <v-icon icon="mdi-refresh" size="20" />
-                        <v-tooltip activator="parent" location="top">
-                          刷新元数据
-                        </v-tooltip>
+                        <v-tooltip activator="parent" location="top"> 刷新元数据 </v-tooltip>
                       </v-btn>
                       <!-- 删除按钮 -->
                       <v-btn
@@ -187,26 +181,23 @@
             <!-- 下部：剧集列表 -->
             <div class="episodes-section">
               <div v-if="episodes.length">
-                
                 <div class="episodes-list">
-                  <div
-                    v-for="episode in episodes"
-                    :key="episode.id"
-                    class="episode-item mb-3"
-                  >
+                  <div v-for="episode in episodes" :key="episode.id" class="episode-item mb-3">
                     <div
                       class="episode-header pa-4"
-                      :class="{ 'expanded': currentExpandedId === episode.id }"
+                      :class="{ expanded: currentExpandedId === episode.id }"
                       @click="toggleEpisode(episode.id)"
                     >
                       <div class="d-flex align-center w-100">
-                        <div 
+                        <div
                           class="episode-number me-4"
-                          :class="{ 'downloaded': episode.download_state === State.Downloaded }"
+                          :class="{ downloaded: episode.download_state === State.Downloaded }"
                         >
                           {{ episode.number }}
                         </div>
-                        <div class="episode-info flex-grow-1 d-flex align-center justify-space-between">
+                        <div
+                          class="episode-info flex-grow-1 d-flex align-center justify-space-between"
+                        >
                           <div class="d-flex align-center">
                             <div class="episode-name">{{ episode.name }}</div>
                           </div>
@@ -234,7 +225,10 @@
                             </v-btn>
                             <v-icon
                               size="20"
-                              :class="['expand-icon ms-4', { 'expanded': currentExpandedId === episode.id }]"
+                              :class="[
+                                'expand-icon ms-4',
+                                { expanded: currentExpandedId === episode.id }
+                              ]"
                             >
                               mdi-chevron-down
                             </v-icon>
@@ -242,7 +236,7 @@
                         </div>
                       </div>
                     </div>
-                    
+
                     <div v-if="currentExpandedId === episode.id" class="episode-content">
                       <div class="pa-6">
                         <!-- 剧集描述 -->
@@ -253,21 +247,22 @@
                         <!-- 种子列表 -->
                         <div class="torrents-section" v-if="episodeTorrents(episode).length">
                           <div class="section-header d-flex align-center mb-3">
-                            <v-icon class="me-2" color="primary" size="18">mdi-download-circle</v-icon>
+                            <v-icon class="me-2" color="primary" size="18"
+                              >mdi-download-circle</v-icon
+                            >
                             <span class="section-title">可用资源</span>
                           </div>
 
                           <!-- 按字幕组分组显示 -->
-                          <div v-for="group in groupedTorrents(episode)" :key="group.name" class="torrent-group mb-4">
+                          <div
+                            v-for="group in groupedTorrents(episode)"
+                            :key="group.name"
+                            class="torrent-group mb-4"
+                          >
                             <!-- 字幕组标题 -->
                             <div class="group-header d-flex align-center mb-2">
                               <span class="group-name">{{ group.name || '未知字幕组' }}</span>
-                              <v-chip
-                                size="x-small"
-                                color="primary"
-                                variant="flat"
-                                class="ms-2"
-                              >
+                              <v-chip size="x-small" color="primary" variant="flat" class="ms-2">
                                 {{ group.torrents.length }}
                               </v-chip>
                             </div>
@@ -275,12 +270,16 @@
                             <!-- 种子列表表格 -->
                             <v-table class="torrent-table">
                               <tbody>
-                                <tr v-for="torrent in group.torrents" :key="torrent.info_hash" class="torrent-row">
+                                <tr
+                                  v-for="torrent in group.torrents"
+                                  :key="torrent.info_hash"
+                                  class="torrent-row"
+                                >
                                   <!-- 标题列 -->
                                   <td class="title-cell">
                                     <div class="torrent-title">{{ torrent.title }}</div>
                                   </td>
-                                  
+
                                   <!-- 信息列 -->
                                   <td class="info-cell">
                                     <div class="d-flex align-center">
@@ -303,7 +302,7 @@
                                         variant="flat"
                                         class="me-2"
                                       >
-                                        {{ formatFileSize(torrent.size)  }}
+                                        {{ formatFileSize(torrent.size) }}
                                       </v-chip>
                                     </div>
                                   </td>
@@ -331,24 +330,34 @@
                                       </v-chip>
                                     </div>
                                   </td>
-                                  
+
                                   <!-- 操作列 -->
                                   <td class="action-cell">
                                     <v-btn
                                       :color="getActionButtonColor(torrent.download_status)"
-                                      :loading="torrent.download_status === DownloadStatus.Downloading"
-                                      :disabled="torrent.download_status === DownloadStatus.Completed"
+                                      :loading="
+                                        torrent.download_status === DownloadStatus.Downloading
+                                      "
+                                      :disabled="
+                                        torrent.download_status === DownloadStatus.Completed
+                                      "
                                       size="small"
                                       variant="tonal"
                                       class="download-btn"
                                       elevation="0"
                                     >
-                                      <template v-if="torrent.download_status === DownloadStatus.Completed">
+                                      <template
+                                        v-if="torrent.download_status === DownloadStatus.Completed"
+                                      >
                                         <v-icon size="16" color="success">mdi-check</v-icon>
                                       </template>
                                       <template v-else>
-                                        <v-icon size="16" class="me-1">{{ getActionButtonIcon(torrent.download_status) }}</v-icon>
-                                        <span class="btn-text">{{ getActionButtonText(torrent.download_status) }}</span>
+                                        <v-icon size="16" class="me-1">{{
+                                          getActionButtonIcon(torrent.download_status)
+                                        }}</v-icon>
+                                        <span class="btn-text">{{
+                                          getActionButtonText(torrent.download_status)
+                                        }}</span>
                                       </template>
                                     </v-btn>
                                   </td>
@@ -404,11 +413,7 @@
 .backdrop-overlay {
   position: absolute;
   inset: 0;
-  background: linear-gradient(
-    to bottom,
-    rgba(0, 0, 0, 0.3) 0%,
-    rgba(18, 18, 18, 1) 100%
-  );
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.3) 0%, rgba(18, 18, 18, 1) 100%);
 }
 
 /* 2. 内容层样式 */
@@ -456,7 +461,8 @@
 }
 
 /* 确保文字在背景上清晰可见 */
-.text-h3, .text-body-1 {
+.text-h3,
+.text-body-1 {
   color: rgba(255, 255, 255, 0.95);
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
@@ -564,10 +570,7 @@
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(45deg, 
-    rgba(82, 145, 255, 0.12), 
-    rgba(82, 145, 255, 0.06)
-  );
+  background: linear-gradient(45deg, rgba(82, 145, 255, 0.12), rgba(82, 145, 255, 0.06));
   opacity: 0;
   transition: opacity 0.3s ease;
 }
@@ -857,12 +860,17 @@
 }
 
 /* 文字阴影 */
-.text-h3, .text-h5, .text-body-1, .text-subtitle-1 {
+.text-h3,
+.text-h5,
+.text-body-1,
+.text-subtitle-1 {
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 /* 亮色文本 */
-.text-h3, .text-h5, .text-body-1 {
+.text-h3,
+.text-h5,
+.text-body-1 {
   color: rgba(255, 255, 255, 0.95);
 }
 
@@ -1318,11 +1326,11 @@
   .title-cell {
     width: 70%;
   }
-  
+
   .info-cell {
     width: 20%;
   }
-  
+
   .action-cell {
     width: 10%;
   }
@@ -1332,7 +1340,7 @@
   .torrent-table {
     display: block;
   }
-  
+
   .torrent-row {
     display: flex;
     flex-direction: column;
@@ -1340,7 +1348,7 @@
     padding: 12px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   }
-  
+
   .title-cell,
   .info-cell,
   .action-cell {
@@ -1348,15 +1356,15 @@
     padding: 6px 0;
     text-align: left;
   }
-  
+
   .torrent-title {
     margin-bottom: 8px;
   }
-  
+
   .action-cell {
     margin-top: 8px;
   }
-  
+
   .download-btn {
     width: 100%;
     height: 36px !important;
@@ -1370,11 +1378,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(
-    to bottom,
-    rgba(0, 0, 0, 0.2) 0%,
-    rgba(0, 0, 0, 0.6) 100%
-  );
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.2) 0%, rgba(0, 0, 0, 0.6) 100%);
   opacity: 0;
   transition: opacity 0.3s ease;
   display: flex;
@@ -1426,23 +1430,23 @@
 <script lang="ts" setup>
 import { ref, computed, onMounted, reactive } from 'vue'
 import { useRoute } from 'vue-router'
-import { 
-  getBangumiById, 
-  subscribeBangumi, 
+import {
+  getBangumiById,
+  subscribeBangumi,
   getBangumiEpisodes,
   getBangumiTorrents,
   refreshBangumi,
   getOnlineWatchUrl,
   deleteBangumiDownloadTasks
 } from '@/api/api'
-import { 
-  DownloadStatus, 
+import {
+  DownloadStatus,
   State,
-  type Episode, 
-  type Bangumi, 
-  SubscribeStatus, 
+  type Episode,
+  type Bangumi,
+  SubscribeStatus,
   type Torrent,
-  type SubscribeParams 
+  type SubscribeParams
 } from '@/api/model'
 import { useSnackbar } from '../composables/useSnackbar'
 import SubscribeDialog from '../components/SubscribeDialog.vue'
@@ -1453,7 +1457,7 @@ const showSubscribeDialog = ref(false)
 const { showSnackbar } = useSnackbar()
 
 // 评分转换为5分制
-const ratingValue = computed(() => anime.value?.rating ? anime.value.rating / 2 : 0)
+const ratingValue = computed(() => (anime.value?.rating ? anime.value.rating / 2 : 0))
 
 // 添加订阅状态
 const isSubscribed = ref(false)
@@ -1469,7 +1473,7 @@ const fetchAnimeDetail = async () => {
   try {
     const id = Number(route.params.id)
     if (!id) return
-    
+
     anime.value = await getBangumiById(id)
     isSubscribed.value = anime.value.subscribe_status === 'Subscribed'
   } catch (error) {
@@ -1485,7 +1489,7 @@ const fetchEpisodes = async () => {
   try {
     const id = Number(route.params.id)
     if (!id) return
-    
+
     episodes.value = await getBangumiEpisodes(id)
   } catch (error) {
     console.error('获取剧集列表失败:', error)
@@ -1507,17 +1511,13 @@ const isRefreshing = ref(false)
 // 处理刷新操作
 const handleRefresh = async () => {
   if (!anime.value || isRefreshing.value) return
-  
+
   try {
     isRefreshing.value = true
     // 调用刷新 API
     await refreshBangumi(anime.value.id)
     // 重新加载数据
-    await Promise.all([
-      fetchAnimeDetail(),
-      fetchEpisodes(),
-      fetchTorrents()
-    ])
+    await Promise.all([fetchAnimeDetail(), fetchEpisodes(), fetchTorrents()])
     // 显示成功提示
     showSnackbar({
       text: '已经加入刷新队列',
@@ -1611,25 +1611,34 @@ const formatFileSize = (bytes: number) => {
   const units = ['B', 'KB', 'MB', 'GB', 'TB']
   let size = bytes
   let unitIndex = 0
-  
+
   while (size >= 1024 && unitIndex < units.length - 1) {
     size /= 1024
     unitIndex++
   }
-  
+
   return `${size.toFixed(2)} ${units[unitIndex]}`
 }
 
 const formatLanguage = (language: string) => {
-  return language.split(',').map(lang => 
-    lang.trim() === 'CHS' ? '简中' : 
-    lang.trim() === 'CHT' ? '繁中' : 
-    lang.trim() === 'ENG' ? '英语' : 
-    lang.trim() === 'JPN' ? '日语' : 
-    lang.trim() === 'KOR' ? '韩语' : 
-    lang.trim() === 'RUS' ? '俄语' :
-    lang.trim()
-  ).join(', ')
+  return language
+    .split(',')
+    .map(lang =>
+      lang.trim() === 'CHS'
+        ? '简中'
+        : lang.trim() === 'CHT'
+          ? '繁中'
+          : lang.trim() === 'ENG'
+            ? '英语'
+            : lang.trim() === 'JPN'
+              ? '日语'
+              : lang.trim() === 'KOR'
+                ? '韩语'
+                : lang.trim() === 'RUS'
+                  ? '俄语'
+                  : lang.trim()
+    )
+    .join(', ')
 }
 
 // 获取分辨率颜色
@@ -1754,7 +1763,7 @@ const getActionButtonText = (status: string | null) => {
 const groupedTorrents = (episode: Episode) => {
   const torrents = episodeTorrents(episode)
   const groups = new Map<string, Torrent[]>()
-  
+
   torrents.forEach(torrent => {
     const groupName = torrent.release_group || '未知字幕组'
     if (!groups.has(groupName)) {
@@ -1762,7 +1771,7 @@ const groupedTorrents = (episode: Episode) => {
     }
     groups.get(groupName)?.push(torrent)
   })
-  
+
   return Array.from(groups.entries()).map(([name, torrents]) => ({
     name,
     torrents: torrents.sort((a, b) => {
@@ -1777,14 +1786,14 @@ const groupedTorrents = (episode: Episode) => {
 
 // 添加计算属性获取所有字幕组
 const releaseGroups = computed(() => {
-  const groups = new Set<string>();
+  const groups = new Set<string>()
   torrents.value.forEach(torrent => {
     if (torrent.release_group) {
-      groups.add(torrent.release_group);
+      groups.add(torrent.release_group)
     }
-  });
-  return Array.from(groups);
-});
+  })
+  return Array.from(groups)
+})
 
 async function handleSubscribe(params: SubscribeParams) {
   if (!anime.value) return
@@ -1811,11 +1820,11 @@ async function handleSubscribe(params: SubscribeParams) {
 // 播放剧集
 const playEpisode = async (episode: Episode) => {
   if (!anime.value) return
-  
+
   // 构建播放 URL，使用 api 的 baseURL
   const apiUrl = await getOnlineWatchUrl(anime.value.id, episode.number)
   const playUrl = `iina://weblink?url=${encodeURIComponent(apiUrl)}`
-  
+
   // 打开 IINA 播放器
   window.location.href = playUrl
 }
@@ -1826,21 +1835,17 @@ const isDeleting = ref(false)
 // 处理删除操作
 const handleDelete = async () => {
   if (!anime.value || isDeleting.value) return
-  
+
   // 显示确认对话框
   const confirmed = await window.confirm('确定要取消订阅并删除所有下载任务吗？')
   if (!confirmed) return
-  
+
   try {
     isDeleting.value = true
     // 调用删除 API
     await deleteBangumiDownloadTasks(anime.value.id)
     // 重新加载数据
-    await Promise.all([
-      fetchAnimeDetail(),
-      fetchEpisodes(),
-      fetchTorrents()
-    ])
+    await Promise.all([fetchAnimeDetail(), fetchEpisodes(), fetchTorrents()])
     // 显示成功提示
     showSnackbar({
       text: '已取消订阅并删除所有下载任务',
@@ -1878,14 +1883,14 @@ const formatPubDate = (date: string) => {
 // 添加一个计算属性来获取当前订阅设置
 const currentSubscribeSettings = computed(() => {
   if (!anime.value || anime.value.subscribe_status !== SubscribeStatus.Subscribed) {
-    return undefined;
+    return undefined
   }
-  
+
   return {
     start_episode_number: anime.value.start_episode_number,
     resolution_filter: anime.value.resolution_filter,
     language_filter: anime.value.language_filter,
-    release_group_filter: anime.value.release_group_filter,
+    release_group_filter: anime.value.release_group_filter
   }
 })
 

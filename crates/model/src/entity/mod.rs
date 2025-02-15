@@ -7,7 +7,6 @@ pub mod dictionary;
 pub mod episode_download_tasks;
 pub mod episodes;
 pub mod file_name_parse_record;
-pub mod mikan_scraper_record;
 pub mod sea_orm_active_enums;
 pub mod subscriptions;
 pub mod torrent_download_tasks;

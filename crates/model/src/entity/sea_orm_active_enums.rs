@@ -44,16 +44,6 @@ pub enum ParserStatus {
     Failed,
 }
 #[derive(Debug, Clone, PartialEq, Eq, EnumIter, DeriveActiveEnum, Serialize, Deserialize)]
-#[sea_orm(rs_type = "String", db_type = "Enum", enum_name = "scraper_status")]
-pub enum ScraperStatus {
-    #[sea_orm(string_value = "pending")]
-    Pending,
-    #[sea_orm(string_value = "completed")]
-    Completed,
-    #[sea_orm(string_value = "failed")]
-    Failed,
-}
-#[derive(Debug, Clone, PartialEq, Eq, EnumIter, DeriveActiveEnum, Serialize, Deserialize)]
 #[sea_orm(rs_type = "String", db_type = "Enum", enum_name = "state")]
 pub enum State {
     #[sea_orm(string_value = "missing")]

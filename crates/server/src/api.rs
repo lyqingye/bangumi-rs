@@ -6,11 +6,12 @@ use actix_web::{
     HttpRequest, HttpResponse,
 };
 use dict::DictCode;
-use model::{sea_orm_active_enums::State, sea_orm_active_enums::SubscribeStatus};
+use model::sea_orm_active_enums::{State, SubscribeStatus};
 use parser::{Language, VideoResolution};
 use sea_orm::{prelude::Expr, Condition};
 use tracing::{info, instrument};
 
+use crate::model::{DownloadTask, QueryDownloadTask};
 use crate::{
     error::ServerError,
     model::{Bangumi, Episode, Resp, SubscribeParams, Torrent},
@@ -461,6 +462,19 @@ pub async fn online_watch(
             r#"<a href="{url}">Found</a>"#,
             url = download_info.url.url
         )))
+}
+
+#[post("/api/downloads")]
+pub async fn list_download_tasks(
+    state: web::Data<Arc<AppState>>,
+    params: Json<QueryDownloadTask>,
+) -> Result<Json<Resp<Vec<DownloadTask>>>, ServerError> {
+    let downloads = state
+        .db
+        .query_downloads_info(params.offset, params.limit, params.status.clone())
+        .await?;
+
+    Ok(Json(Resp::ok(downloads)))
 }
 
 #[get("/health")]
