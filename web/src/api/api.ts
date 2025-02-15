@@ -1,6 +1,6 @@
 import axios, { AxiosError } from 'axios'
 import type { AxiosResponse } from 'axios'
-import type { ApiResponse, Bangumi, Episode, Torrent, SubscribeStatus, SubscribeParams } from './model'
+import type { ApiResponse, Bangumi, Episode, Torrent, SubscribeStatus, SubscribeParams, DownloadTask, QueryDownloadTask, PaginatedResponse } from './model'
 import { ApiError } from './model'
 import { useSnackbar } from '../composables/useSnackbar'
 
@@ -122,4 +122,14 @@ export async function deleteBangumiDownloadTasks(id: number): Promise<void> {
 
 export async function getOnlineWatchUrl(bangumiId: number, episodeId: number): Promise<string> {
     return api.defaults.baseURL + `/bangumi/${bangumiId}/${episodeId}/online_watch`
+}
+
+// 下载任务相关 API
+export async function fetchDownloadTasks(params: QueryDownloadTask): Promise<DownloadTask[]> {
+  try {
+    const response = await api.post<ApiResponse<DownloadTask[]>>('/downloads', params)
+    return handleResponse(response, '获取下载任务列表失败')
+  } catch (error) {
+    return handleError(error, '获取下载任务列表失败')
+  }
 }

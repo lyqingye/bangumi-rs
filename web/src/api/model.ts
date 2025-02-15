@@ -17,6 +17,12 @@ export interface ApiResponse<T> {
   data: T
 }
 
+// 分页响应类型
+export interface PaginatedResponse<T> {
+  items: T[]
+  total: number
+}
+
 // 订阅状态枚举
 export enum SubscribeStatus {
   None = 'None',
@@ -118,4 +124,27 @@ export interface Torrent {
   download_status: DownloadStatus | null
   downloader_name: string | null
   task_created_at: string | null
+}
+
+// 下载任务查询参数
+export interface QueryDownloadTask {
+  offset: number
+  limit: number
+  status?: DownloadStatus
+}
+
+// 下载任务信息
+export interface DownloadTask {
+  bangumi_id: number
+  name: string
+  episode_number: number
+  info_hash: string
+  file_name: string
+  file_size: number
+  download_status: DownloadStatus
+  downloader: string
+  created_at: string
+  updated_at: string
+  err_msg: string | null
+  retry_count: number
 }

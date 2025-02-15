@@ -89,6 +89,7 @@
       v-model="showSubscribeDialog"
       :bangumi-id="item.id"
       :current-status="item.subscribe_status || SubscribeStatus.None"
+      :release-groups="[]"
       @subscribe="handleSubscribe"
     />
   </v-card>

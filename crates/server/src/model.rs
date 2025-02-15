@@ -117,10 +117,12 @@ pub struct SubscribeParams {
 // 定义一个结构体来接收查询结果
 #[derive(Debug, serde::Serialize, FromQueryResult)]
 pub struct DownloadTask {
+    pub bangumi_id: i32,
     pub name: String,
     pub episode_number: i32,
     pub info_hash: String,
     pub file_name: String,
+    pub file_size: i64,
     pub download_status: DownloadStatus,
     pub downloader: String,
     pub created_at: NaiveDateTime,

@@ -7,6 +7,7 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    DownloadTasksTable: typeof import('./src/components/DownloadTasksTable.vue')['default']
     HelloWorld: typeof import('./src/components/HelloWorld.vue')['default']
     LogViewer: typeof import('./src/components/LogViewer.vue')['default']
     MediaCard: typeof import('./src/components/MediaCard.vue')['default']

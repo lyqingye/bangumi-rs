@@ -141,8 +141,10 @@ impl Db {
             )
             // 添加需要的其他字段
             .column(BangumiColumn::Name)
+            .column_as(BangumiColumn::Id, "bangumi_id")
             .column(EpisodeTaskColumn::EpisodeNumber)
             .column_as(TorrentColumn::Title, "file_name")
+            .column_as(TorrentColumn::Size, "file_size")
             // 分页
             .offset(offset)
             .limit(limit)
