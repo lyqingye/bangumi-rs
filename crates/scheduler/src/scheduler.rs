@@ -97,6 +97,14 @@ impl Scheduler {
         Ok(())
     }
 
+    pub async fn trigger_collection(&self, bangumi_id: i32) -> Result<()> {
+        let mut workers = self.workers.lock().await;
+        if let Some(worker) = workers.get_mut(&bangumi_id) {
+            worker.trigger_collection();
+        }
+        Ok(())
+    }
+
     /// 订阅番剧
     pub async fn subscribe(
         &self,

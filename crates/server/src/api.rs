@@ -6,7 +6,6 @@ use actix_web::{
     HttpRequest, HttpResponse,
 };
 use dict::DictCode;
-use metadata::worker::RefreshKind;
 use model::{sea_orm_active_enums::State, sea_orm_active_enums::SubscribeStatus};
 use parser::{Language, VideoResolution};
 use sea_orm::{prelude::Expr, Condition};
@@ -363,15 +362,7 @@ pub async fn refresh_bangumi(
     id: web::Path<i32>,
 ) -> Result<Json<Resp<()>>, ServerError> {
     let id = id.into_inner();
-    state
-        .metadata
-        .request_refresh(Some(id), RefreshKind::Metadata)
-        .await?;
-    state
-        .metadata
-        .request_refresh(Some(id), RefreshKind::Torrents)
-        .await?;
-
+    state.scheduler.trigger_collection(id).await?;
     Ok(Json(Resp::ok(())))
 }
 

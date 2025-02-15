@@ -7,11 +7,20 @@ use parser;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::broadcast;
-use tracing::{debug, error, info};
+use tracing::{debug, error, info, warn};
 
 use crate::db::Db;
 use crate::selector::TorrentSelector;
 use crate::tasks::TaskManager;
+
+/// Worker 命令枚举
+#[derive(Debug, Clone)]
+pub enum WorkerCommand {
+    /// 停止 worker
+    Stop,
+    /// 触发收集种子
+    TriggerCollection,
+}
 
 /// 负责单个番剧的下载任务处理
 #[derive(Clone)]
@@ -21,8 +30,8 @@ pub struct BangumiWorker {
     pub(crate) metadata: metadata::worker::Worker,
     pub(crate) downloader: Arc<Box<dyn Downloader>>,
     pub(crate) task_manager: TaskManager,
-    // 停止信号发送器，缓冲区设为2以确保能发送给两个线程
-    stop_tx: broadcast::Sender<()>,
+    // 命令发送器
+    cmd_tx: broadcast::Sender<WorkerCommand>,
     notify: notify::worker::Worker,
     selector: TorrentSelector,
     pub(crate) bangumi: bangumi::Model,
@@ -40,8 +49,8 @@ impl BangumiWorker {
         task_manager: TaskManager,
         notify: notify::worker::Worker,
     ) -> Self {
-        // 创建容量为2的通道，确保可以发送给两个线程
-        let (stop_tx, _) = broadcast::channel(2);
+        // 创建命令通道
+        let (cmd_tx, _) = broadcast::channel(16);
         let selector = TorrentSelector::new(&sub);
         Self {
             sub,
@@ -51,7 +60,7 @@ impl BangumiWorker {
             metadata,
             downloader,
             task_manager,
-            stop_tx,
+            cmd_tx,
             notify,
             selector,
         }
@@ -152,18 +161,31 @@ impl BangumiWorker {
         Ok(())
     }
 
-    /// 启动收集器，用于收集种子和刷新元数据
-    async fn run_collector(worker: BangumiWorker, mut stop_rx: broadcast::Receiver<()>) {
-        info!("启动番剧 {} 的种子收集处理", worker.bangumi.name);
+    /// 统一的 worker 运行循环，处理所有定时任务
+    async fn run_worker(worker: BangumiWorker, mut cmd_rx: broadcast::Receiver<WorkerCommand>) {
+        info!("启动番剧 {} 的后台处理", worker.bangumi.name);
 
-        // 默认30分钟收集一次种子
+        // 初始化任务缓存
+        if let Err(e) = worker
+            .task_manager
+            .init_bangumi_tasks(worker.sub.bangumi_id)
+            .await
+        {
+            error!("初始化番剧 {} 的任务缓存失败: {}", worker.bangumi.name, e);
+            return;
+        }
+
+        // 创建三个定时器
         let mut collector_interval = tokio::time::interval(std::time::Duration::from_secs(
             worker.sub.collector_interval.unwrap_or(60 * 30) as u64,
         ));
 
-        // 默认24小时刷新一次元数据
         let mut metadata_interval = tokio::time::interval(std::time::Duration::from_secs(
             worker.sub.metadata_interval.unwrap_or(60 * 60 * 24) as u64,
+        ));
+
+        let mut task_processor_interval = tokio::time::interval(std::time::Duration::from_secs(
+            worker.sub.task_processor_interval.unwrap_or(5) as u64,
         ));
 
         loop {
@@ -182,44 +204,26 @@ impl BangumiWorker {
                         error!("番剧 {} 刷新元数据失败: {}", worker.bangumi.name, e);
                     }
                 }
-                _ = stop_rx.recv() => {
-                    info!("停止番剧 {} 的种子收集处理", worker.bangumi.name);
-                    break;
-                }
-            }
-        }
-    }
-
-    /// 启动任务处理循环
-    async fn run_task_processor(worker: BangumiWorker, mut stop_rx: broadcast::Receiver<()>) {
-        info!("启动番剧 {} 的下载任务处理", worker.bangumi.name);
-
-        // 初始化任务缓存
-        if let Err(e) = worker
-            .task_manager
-            .init_bangumi_tasks(worker.sub.bangumi_id)
-            .await
-        {
-            error!("初始化番剧 {} 的任务缓存失败: {}", worker.bangumi.name, e);
-            return;
-        }
-
-        // 默认30秒处理一次任务
-        let mut interval = tokio::time::interval(std::time::Duration::from_secs(
-            worker.sub.task_processor_interval.unwrap_or(5) as u64,
-        ));
-        loop {
-            tokio::select! {
-                _ = interval.tick() => {
+                _ = task_processor_interval.tick() => {
                     if let Err(e) = worker.process_tasks().await {
                         error!("番剧 {} 处理下载任务失败: {}", worker.bangumi.name, e);
                     }
                 }
-                _ = stop_rx.recv() => {
-                    info!("停止番剧 {} 的下载任务处理", worker.bangumi.name);
-                    // 清除任务缓存
-                    worker.task_manager.clear_bangumi_tasks(worker.sub.bangumi_id).await;
-                    break;
+                Ok(cmd) = cmd_rx.recv() => {
+                    match cmd {
+                        WorkerCommand::Stop => {
+                            info!("停止番剧 {} 的后台处理", worker.bangumi.name);
+                            // 清除任务缓存
+                            worker.task_manager.clear_bangumi_tasks(worker.sub.bangumi_id).await;
+                            break;
+                        }
+                        WorkerCommand::TriggerCollection => {
+                            info!("手动触发番剧 {} 的种子收集", worker.bangumi.name);
+                            if let Err(e) = worker.collect_and_process_torrents().await {
+                                error!("番剧 {} 处理种子失败: {}", worker.bangumi.name, e);
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -227,29 +231,25 @@ impl BangumiWorker {
 
     /// 启动 worker，开始定时处理任务
     pub fn spawn(self) {
-        // 创建两个克隆，分别用于两个循环
-        let worker_clone1 = self.clone();
-        let worker_clone2 = self.clone();
+        // 创建命令接收器
+        let cmd_rx = self.cmd_tx.subscribe();
 
-        // 为两个线程分别创建停止信号接收器
-        let stop_rx1 = self.stop_tx.subscribe();
-        let stop_rx2 = self.stop_tx.subscribe();
-
-        // 启动种子收集和处理循环
+        // 启动统一的后台处理循环
         tokio::spawn(async move {
-            Self::run_collector(worker_clone1, stop_rx1).await;
-        });
-
-        // 启动任务状态处理循环
-        tokio::spawn(async move {
-            Self::run_task_processor(worker_clone2, stop_rx2).await;
+            Self::run_worker(self, cmd_rx).await;
         });
     }
 
     /// 停止 worker
     pub fn stop(&self) {
-        // 发送停止信号，由于通道容量为2，这一次发送会被两个接收者接收到
-        let _ = self.stop_tx.send(());
+        // 发送停止命令
+        let _ = self.cmd_tx.send(WorkerCommand::Stop);
+    }
+
+    /// 触发种子收集
+    pub fn trigger_collection(&self) {
+        // 发送触发收集命令
+        let _ = self.cmd_tx.send(WorkerCommand::TriggerCollection);
     }
 
     /// 处理所有任务的状态转换
@@ -352,7 +352,7 @@ impl BangumiWorker {
             }
             State::Retrying => {
                 // 重置状态到 Missing，重新开始整个流程
-                info!(
+                warn!(
                     "番剧 {} 第 {} 集重试下载",
                     self.bangumi.name, task.episode_number
                 );
