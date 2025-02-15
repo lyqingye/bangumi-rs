@@ -2,8 +2,11 @@ use anyhow::{Context, Result};
 use downloader::Downloader;
 use metadata;
 use model::sea_orm_active_enums::{DownloadStatus, State};
-use model::{bangumi, episode_download_tasks, file_name_parse_record, subscriptions, torrents};
+use model::{
+    bangumi, episode_download_tasks, episodes, file_name_parse_record, subscriptions, torrents,
+};
 use parser;
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::broadcast;
@@ -72,22 +75,32 @@ impl BangumiWorker {
         episode_number: i32,
         ep_start_number: i32,
         torrent_pairs: &[(torrents::Model, file_name_parse_record::Model)],
+        episodes: &HashMap<i32, episodes::Model>,
     ) -> Result<Option<torrents::Model>> {
         // 过滤出当前集数的种子
         let episode_torrents: Vec<_> = torrent_pairs
             .iter()
-            .filter(|(_, parse_result)| {
+            .filter(|(torrent, parse_result)| {
                 if let Some(ep) = parse_result.episode_number {
                     // 剧集修复:
                     // 例如: 某些番剧第二季可能从第13集开始,但种子标记为第1集
                     // ep_start_number = 13, ep = 1 时:
                     // actual_ep = 1 + 13 - 1 = 13,修正为实际的第13集
+                    let mut actual_ep = ep;
                     if ep_start_number > 1 && ep < ep_start_number {
-                        let actual_ep = ep + ep_start_number - 1;
-                        actual_ep == episode_number
-                    } else {
-                        ep == episode_number
+                        actual_ep = ep + ep_start_number - 1;
                     }
+
+                    // 确保种子发布时间在番剧集数发布时间之后
+                    if let Some(episode) = episodes.get(&actual_ep) {
+                        if let Some(air_date) = episode.air_date {
+                            if torrent.pub_date < air_date.into() {
+                                return false;
+                            }
+                        }
+                    }
+
+                    actual_ep == episode_number
                 } else {
                     false
                 }
@@ -134,6 +147,14 @@ impl BangumiWorker {
             .filter(|t| t.state == State::Missing)
             .collect();
 
+        let episodes: HashMap<i32, episodes::Model> = self
+            .db
+            .get_bangumi_episodes(self.bangumi.id)
+            .await?
+            .into_iter()
+            .map(|e| (e.number, e))
+            .collect();
+
         info!("开始为番剧 {} 选择合适的种子", self.bangumi.name);
 
         // 6. 为每个 Missing 任务选择合适的种子
@@ -143,6 +164,7 @@ impl BangumiWorker {
                     task.episode_number,
                     self.bangumi.ep_start_number,
                     &torrent_pairs,
+                    &episodes,
                 )
                 .await?
             {

@@ -87,6 +87,7 @@ pub struct Torrent {
     pub title: String,
     pub size: i64,
     pub magnet: String,
+    pub pub_date: NaiveDateTime,
 
     // 文件名解析信息
     pub release_group: Option<String>,

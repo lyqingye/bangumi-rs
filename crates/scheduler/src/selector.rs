@@ -134,7 +134,7 @@ impl TorrentSelector {
             }
 
             // 语言优先级相同时，按发布时间排序（新的优先）
-            b_torrent.created_at.cmp(&a_torrent.created_at)
+            b_torrent.pub_date.cmp(&a_torrent.pub_date)
         });
 
         // 返回排序后的第一个种子

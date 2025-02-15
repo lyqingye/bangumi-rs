@@ -7,6 +7,8 @@ const props = defineProps<{
   modelValue: boolean
   bangumiId: number
   currentStatus: SubscribeStatus
+  releaseGroups: string[]
+  currentSubscribeSettings?: SubscribeParams
 }>()
 
 const emit = defineEmits<{
@@ -16,12 +18,17 @@ const emit = defineEmits<{
 
 const formData = ref({
   status: SubscribeStatus.Subscribed,
-  start_episode_number: 1 as number,
-  resolution_filter: [] as string[],
-  language_filter: [] as string[],
-  release_group_filter: [] as string[],
-  collector_interval: undefined as number | undefined,
-  metadata_interval: undefined as number | undefined
+  start_episode_number: props.currentSubscribeSettings?.start_episode_number ?? 1,
+  resolution_filter: props.currentSubscribeSettings?.resolution_filter ? 
+    props.currentSubscribeSettings.resolution_filter.split(',') : [],
+  language_filter: props.currentSubscribeSettings?.language_filter ? 
+    props.currentSubscribeSettings.language_filter.split(',') : [],
+  release_group_filter: props.currentSubscribeSettings?.release_group_filter ? 
+    props.currentSubscribeSettings.release_group_filter.split(',') : [],
+  collector_interval: props.currentSubscribeSettings?.collector_interval ? 
+    Math.floor(props.currentSubscribeSettings.collector_interval / 60) : 30,
+  metadata_interval: props.currentSubscribeSettings?.metadata_interval ? 
+    Math.floor(props.currentSubscribeSettings.metadata_interval / 60) : 60,
 })
 
 interface Resolution {
@@ -175,8 +182,9 @@ function unsubscribe() {
               <v-icon icon="mdi-account-group" color="primary" size="16" class="me-2" />
               <span>字幕组</span>
             </div>
-            <v-combobox
+            <v-select
               v-model="formData.release_group_filter"
+              :items="props.releaseGroups"
               density="compact"
               variant="outlined"
               hide-details
@@ -193,7 +201,7 @@ function unsubscribe() {
                   label
                 />
               </template>
-            </v-combobox>
+            </v-select>
           </div>
 
           <div class="section-title">高级设置</div>
@@ -212,9 +220,6 @@ function unsubscribe() {
               class="input-field"
               placeholder="默认 30 分钟"
             >
-              <template v-slot:append>
-                <span class="text-caption text-medium-emphasis">分钟</span>
-              </template>
             </v-text-field>
           </div>
 
@@ -233,9 +238,6 @@ function unsubscribe() {
               class="input-field"
               placeholder="默认 60 分钟"
             >
-              <template v-slot:append>
-                <span class="text-caption text-medium-emphasis">分钟</span>
-              </template>
             </v-text-field>
           </div>
         </v-form>

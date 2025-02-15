@@ -51,6 +51,20 @@
                           刷新元数据
                         </v-tooltip>
                       </v-btn>
+                      <!-- 删除按钮 -->
+                      <v-btn
+                        variant="text"
+                        size="small"
+                        class="action-btn"
+                        @click.stop="handleDelete"
+                        :loading="isDeleting"
+                        :disabled="!isSubscribed"
+                      >
+                        <v-icon icon="mdi-delete" size="20" />
+                        <v-tooltip activator="parent" location="top">
+                          取消订阅并删除下载任务
+                        </v-tooltip>
+                      </v-btn>
                       <!-- 订阅按钮 -->
                       <v-btn
                         variant="text"
@@ -305,6 +319,18 @@
                                       </v-chip>
                                     </div>
                                   </td>
+                                  <td class="info-cell">
+                                    <div class="d-flex align-center">
+                                      <v-chip
+                                        v-if="torrent.pub_date"
+                                        size="small"
+                                        variant="flat"
+                                        class="me-2"
+                                      >
+                                        {{ formatPubDate(torrent.pub_date) }}
+                                      </v-chip>
+                                    </div>
+                                  </td>
                                   
                                   <!-- 操作列 -->
                                   <td class="action-cell">
@@ -346,6 +372,8 @@
       v-model="showSubscribeDialog"
       :bangumi-id="anime.id"
       :current-status="anime.subscribe_status || SubscribeStatus.None"
+      :release-groups="releaseGroups"
+      :current-subscribe-settings="currentSubscribeSettings"
       @subscribe="handleSubscribe"
     />
   </div>
@@ -1404,7 +1432,8 @@ import {
   getBangumiEpisodes,
   getBangumiTorrents,
   refreshBangumi,
-  getOnlineWatchUrl
+  getOnlineWatchUrl,
+  deleteBangumiDownloadTasks
 } from '@/api/api'
 import { 
   DownloadStatus, 
@@ -1746,6 +1775,17 @@ const groupedTorrents = (episode: Episode) => {
   }))
 }
 
+// 添加计算属性获取所有字幕组
+const releaseGroups = computed(() => {
+  const groups = new Set<string>();
+  torrents.value.forEach(torrent => {
+    if (torrent.release_group) {
+      groups.add(torrent.release_group);
+    }
+  });
+  return Array.from(groups);
+});
+
 async function handleSubscribe(params: SubscribeParams) {
   if (!anime.value) return
   console.log('订阅参数:', params)
@@ -1779,6 +1819,75 @@ const playEpisode = async (episode: Episode) => {
   // 打开 IINA 播放器
   window.location.href = playUrl
 }
+
+// 添加删除状态
+const isDeleting = ref(false)
+
+// 处理删除操作
+const handleDelete = async () => {
+  if (!anime.value || isDeleting.value) return
+  
+  // 显示确认对话框
+  const confirmed = await window.confirm('确定要取消订阅并删除所有下载任务吗？')
+  if (!confirmed) return
+  
+  try {
+    isDeleting.value = true
+    // 调用删除 API
+    await deleteBangumiDownloadTasks(anime.value.id)
+    // 重新加载数据
+    await Promise.all([
+      fetchAnimeDetail(),
+      fetchEpisodes(),
+      fetchTorrents()
+    ])
+    // 显示成功提示
+    showSnackbar({
+      text: '已取消订阅并删除所有下载任务',
+      color: 'success',
+      location: 'top right',
+      timeout: 3000
+    })
+  } catch (error) {
+    console.error('删除失败:', error)
+    // 显示错误提示
+    showSnackbar({
+      text: '删除失败',
+      color: 'error',
+      location: 'top right',
+      timeout: 3000
+    })
+  } finally {
+    isDeleting.value = false
+  }
+}
+
+// 添加格式化发布时间的方法
+const formatPubDate = (date: string) => {
+  return new Date(date).toLocaleString('zh-CN', {
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  })
+}
+
+// 添加一个计算属性来获取当前订阅设置
+const currentSubscribeSettings = computed(() => {
+  if (!anime.value || anime.value.subscribe_status !== SubscribeStatus.Subscribed) {
+    return undefined;
+  }
+  
+  return {
+    start_episode_number: anime.value.start_episode_number,
+    resolution_filter: anime.value.resolution_filter,
+    language_filter: anime.value.language_filter,
+    release_group_filter: anime.value.release_group_filter,
+  }
+})
 
 onMounted(() => {
   fetchAnimeDetail()

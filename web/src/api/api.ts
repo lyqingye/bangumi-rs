@@ -110,6 +110,16 @@ export async function refreshBangumi(id: number): Promise<void> {
   }
 }
 
+// 删除番剧下载任务
+export async function deleteBangumiDownloadTasks(id: number): Promise<void> {
+  try {
+    const response = await api.get<ApiResponse<null>>(`/bangumi/${id}/delete_download_tasks`)
+    handleResponse(response, '删除下载任务失败')
+  } catch (error) {
+    handleError(error, '删除下载任务失败')
+  }
+}
+
 export async function getOnlineWatchUrl(bangumiId: number, episodeId: number): Promise<string> {
     return api.defaults.baseURL + `/bangumi/${bangumiId}/${episodeId}/online_watch`
 }

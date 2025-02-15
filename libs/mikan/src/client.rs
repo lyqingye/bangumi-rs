@@ -50,20 +50,9 @@ impl EpisodeItem {
     pub fn validate(&self) -> bool {
         self.file_name.is_some()
             && self.torrent_download_url.is_some()
-            && self.pub_date.is_some()
             && !self.info_hash.is_empty()
             && !self.magnet_link.is_empty()
     }
-}
-
-#[derive(Debug, Clone, Default)]
-pub struct Item {
-    pub title: Option<String>,
-    pub mikan_bangumi_id: Option<i32>,
-    pub bangumi_tv_subject_id: Option<i32>,
-    pub torrent: Option<Vec<u8>>,
-    pub magnet_link: Option<String>,
-    pub file_size: usize,
 }
 
 #[derive(Debug)]

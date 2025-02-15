@@ -70,7 +70,11 @@ export interface Bangumi {
   subscribe_status: SubscribeStatus
   created_at: string
   updated_at: string
-  season_number: number
+  season_number: number,
+  start_episode_number: number | null
+  resolution_filter: string | null
+  language_filter: string | null
+  release_group_filter: string | null
 }
 
 // 剧集信息
@@ -100,6 +104,7 @@ export interface Torrent {
   title: string
   size: number
   magnet: string
+  pub_date: string
   
   // 文件解析信息
   release_group: string | null

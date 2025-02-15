@@ -1,8 +1,8 @@
 use anyhow::Result;
-use chrono::NaiveDate;
-use model::bangumi;
+use model::{episode_download_tasks, torrent_download_tasks, torrents};
 use sea_orm::{
-    ColumnTrait, ConnectOptions, Database, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder,
+    ColumnTrait, ConnectOptions, Database, DatabaseConnection, EntityTrait, QueryFilter,
+    QuerySelect,
 };
 use std::{sync::Arc, time::Duration};
 #[derive(Clone)]
@@ -44,22 +44,30 @@ impl Db {
 }
 
 impl Db {
-    pub async fn list_calendar_by_date(
-        &self,
-        from: NaiveDate,
-        to: NaiveDate,
-    ) -> Result<Vec<bangumi::Model>> {
+    pub async fn delete_bangumi_download_tasks(&self, bangumi_id: i32) -> Result<()> {
         let db = self.conn();
-
-        let calendars = bangumi::Entity::find()
-            .filter(bangumi::Column::AirDate.between(
-                from.format("%Y-%m-%d").to_string(),
-                to.format("%Y-%m-%d").to_string(),
-            ))
-            .order_by_asc(bangumi::Column::AirDate)
-            .all(db)
+        episode_download_tasks::Entity::delete_many()
+            .filter(episode_download_tasks::Column::BangumiId.eq(bangumi_id))
+            .exec(db)
             .await?;
 
-        Ok(calendars)
+        // 获取番剧对应的所有种子
+        let info_hashes = torrents::Entity::find()
+            .select_only()
+            .column(torrents::Column::InfoHash)
+            .filter(torrents::Column::BangumiId.eq(bangumi_id))
+            .into_tuple::<String>()
+            .all(db)
+            .await?;
+        if info_hashes.is_empty() {
+            return Ok(());
+        }
+
+        // 删除下载记录
+        torrent_download_tasks::Entity::delete_many()
+            .filter(torrent_download_tasks::Column::InfoHash.is_in(info_hashes))
+            .exec(db)
+            .await?;
+        Ok(())
     }
 }

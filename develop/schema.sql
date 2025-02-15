@@ -82,8 +82,7 @@ create table if not exists torrents (
     magnet TEXT not null comment '磁力链接',
     data MEDIUMBLOB null comment '种子文件',
     download_url varchar(255) null comment '种子下载地址',
-    created_at datetime not null default current_timestamp comment '创建时间',
-    updated_at datetime not null default current_timestamp on update current_timestamp comment '更新时间',
+    pub_date datetime not null comment '发布时间',
     key `torrent_bangumi_id_idx` (bangumi_id)
 )comment '种子信息，用于记录种子的信息';
 
