@@ -9,7 +9,7 @@ use parser;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
-use tokio::sync::broadcast;
+use tokio::sync::{broadcast, mpsc};
 use tracing::{debug, error, info, warn};
 
 use crate::db::Db;
@@ -20,7 +20,7 @@ use crate::tasks::TaskManager;
 #[derive(Debug, Clone)]
 pub enum WorkerCommand {
     /// 停止 worker
-    Stop,
+    Shutdown(mpsc::Sender<()>),
     /// 触发收集种子
     TriggerCollection,
 }
@@ -233,10 +233,11 @@ impl BangumiWorker {
                 }
                 Ok(cmd) = cmd_rx.recv() => {
                     match cmd {
-                        WorkerCommand::Stop => {
+                        WorkerCommand::Shutdown(tx) => {
                             info!("停止番剧 {} 的后台处理", worker.bangumi.name);
                             // 清除任务缓存
                             worker.task_manager.clear_bangumi_tasks(worker.sub.bangumi_id).await;
+                            let _ = tx.send(()).await;
                             break;
                         }
                         WorkerCommand::TriggerCollection => {
@@ -263,9 +264,16 @@ impl BangumiWorker {
     }
 
     /// 停止 worker
-    pub fn stop(&self) {
+    pub async fn shutdown(&self) -> Result<()> {
+        // 创建一个 mpsc 通道来等待 worker 完全停止
+        let (tx, mut rx) = mpsc::channel(1);
         // 发送停止命令
-        let _ = self.cmd_tx.send(WorkerCommand::Stop);
+        let _ = self.cmd_tx.send(WorkerCommand::Shutdown(tx));
+        // 等待 worker 确认停止
+        rx.recv()
+            .await
+            .ok_or_else(|| anyhow::anyhow!("worker 停止失败"))?;
+        Ok(())
     }
 
     /// 触发种子收集

@@ -9,14 +9,18 @@ use crate::{db::Db, ParseResult, Parser};
 
 const CHANNEL_BUFFER_SIZE: usize = 100;
 
+#[derive(Debug)]
+enum WorkerMessage {
+    Parse(Vec<String>, oneshot::Sender<Result<Vec<ParseResult>>>),
+    Shutdown(oneshot::Sender<()>),
+}
+
 #[derive(Clone)]
 pub struct Worker {
     db: Db,
-    sender: Option<mpsc::Sender<ParseRequest>>,
+    sender: Option<mpsc::Sender<WorkerMessage>>,
     is_spawned: Arc<std::sync::atomic::AtomicBool>,
 }
-
-type ParseRequest = (Vec<String>, oneshot::Sender<Result<Vec<ParseResult>>>);
 
 impl Worker {
     pub fn new(db: Db) -> Self {
@@ -52,26 +56,28 @@ impl Worker {
             return Err(anyhow::anyhow!("Worker already spawned"));
         }
 
-        let (sender, receiver) = mpsc::channel(CHANNEL_BUFFER_SIZE);
+        let (sender, mut receiver) = mpsc::channel(CHANNEL_BUFFER_SIZE);
         self.sender = Some(sender);
         let db = self.db.clone();
 
         tokio::spawn(async move {
-            Self::process_requests(receiver, parser, db).await;
+            while let Some(msg) = receiver.recv().await {
+                match msg {
+                    WorkerMessage::Parse(file_names, response_sender) => {
+                        let res = Self::handle_parse_request(&parser, &db, file_names).await;
+                        let _ = response_sender.send(res);
+                    }
+                    WorkerMessage::Shutdown(done_tx) => {
+                        info!("解析器 Worker 收到停机信号");
+                        let _ = done_tx.send(());
+                        break;
+                    }
+                }
+            }
+            info!("解析器 Worker 已停止");
         });
 
         Ok(())
-    }
-
-    async fn process_requests(
-        mut receiver: mpsc::Receiver<ParseRequest>,
-        parser: Arc<Box<dyn Parser + Send + Sync>>,
-        db: Db,
-    ) {
-        while let Some((file_names, response_sender)) = receiver.recv().await {
-            let res = Self::handle_parse_request(&parser, &db, file_names).await;
-            let _ = response_sender.send(res);
-        }
     }
 
     async fn handle_parse_request(
@@ -164,11 +170,32 @@ impl Worker {
 
         let (response_sender, response_receiver) = oneshot::channel();
         sender
-            .send((file_names.to_vec(), response_sender))
+            .send(WorkerMessage::Parse(file_names.to_vec(), response_sender))
             .await
             .context("发送解析请求失败")?;
 
         response_receiver.await.context("接收解析结果失败")?
+    }
+
+    pub async fn shutdown(&self) -> Result<()> {
+        info!("开始停止解析器 Worker...");
+        if let Some(sender) = &self.sender {
+            let (done_tx, done_rx) = oneshot::channel();
+            sender
+                .send(WorkerMessage::Shutdown(done_tx))
+                .await
+                .context("发送停机信号失败")?;
+
+            // 等待 worker 确认停止
+            done_rx.await.context("等待 worker 停止失败")?;
+
+            // 标记为未启动状态
+            self.is_spawned
+                .store(false, std::sync::atomic::Ordering::SeqCst);
+
+            info!("解析器 Worker 已停止");
+        }
+        Ok(())
     }
 }
 

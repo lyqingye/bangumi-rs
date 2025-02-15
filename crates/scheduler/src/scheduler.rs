@@ -210,8 +210,14 @@ impl Scheduler {
         // 停止并移除对应的 worker
         let mut workers = self.workers.lock().await;
         if let Some(worker) = workers.remove(&bangumi_id) {
-            worker.stop();
-            info!("已停止番剧 {} 的下载任务处理器", worker.bangumi.name);
+            if let Err(e) = worker.shutdown().await {
+                error!(
+                    "停止番剧 {} 的下载任务处理器失败: {}",
+                    worker.bangumi.name, e
+                );
+            } else {
+                info!("已停止番剧 {} 的下载任务处理器", worker.bangumi.name);
+            }
         }
 
         Ok(())
@@ -219,5 +225,34 @@ impl Scheduler {
 
     pub fn get_downloader(&self) -> Arc<Box<dyn Downloader>> {
         self.downloader.clone()
+    }
+
+    /// 优雅停机
+    pub async fn shutdown(&self) -> Result<()> {
+        info!("开始调度器优雅停机...");
+
+        // 1. 停止所有 worker
+        let mut workers = self.workers.lock().await;
+        for (bangumi_id, worker) in workers.iter() {
+            info!("停止番剧 {} 的下载任务处理器", bangumi_id);
+            if let Err(e) = worker.shutdown().await {
+                error!("停止番剧 {} 的下载任务处理器失败: {}", bangumi_id, e);
+            }
+        }
+        workers.clear();
+
+        // 2. 停止相关组件
+        if let Err(e) = self.parser.shutdown().await {
+            error!("停止解析器时发生错误: {}", e);
+        }
+        if let Err(e) = self.metadata.shutdown().await {
+            error!("停止元数据服务时发生错误: {}", e);
+        }
+        if let Err(e) = self.notify.shutdown().await {
+            error!("停止通知服务时发生错误: {}", e);
+        }
+
+        info!("调度器优雅停机完成");
+        Ok(())
     }
 }
