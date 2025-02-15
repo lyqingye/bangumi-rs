@@ -1,7 +1,8 @@
 use anyhow::Result;
 use model::{episode_download_tasks, torrent_download_tasks, torrents};
 use sea_orm::{
-    ColumnTrait, ConnectOptions, Database, DatabaseConnection, EntityTrait, QueryFilter, QuerySelect,
+    ColumnTrait, ConnectOptions, Database, DatabaseConnection, EntityTrait, QueryFilter,
+    QuerySelect,
 };
 use std::{sync::Arc, time::Duration};
 #[derive(Clone)]

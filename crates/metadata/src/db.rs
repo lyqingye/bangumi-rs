@@ -9,10 +9,8 @@ use model::{
     torrents,
 };
 use sea_orm::{
-    sea_query::OnConflict,
-    ConnectOptions, Database, DatabaseConnection, EntityTrait,
-    IntoActiveModel, QueryFilter, QuerySelect,
-    ColumnTrait, Set, ConnectionTrait, ActiveModelTrait,
+    sea_query::OnConflict, ActiveModelTrait, ColumnTrait, ConnectOptions, ConnectionTrait,
+    Database, DatabaseConnection, EntityTrait, IntoActiveModel, QueryFilter, QuerySelect, Set,
 };
 use std::time::Duration;
 use std::{collections::HashSet, sync::Arc};
@@ -232,7 +230,7 @@ impl Db {
         .on_conflict(
             OnConflict::column(torrents::Column::InfoHash)
                 .update_column(torrents::Column::PubDate)
-                .to_owned()
+                .to_owned(),
         )
         .exec(db)
         .await?;
