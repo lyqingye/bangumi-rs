@@ -138,13 +138,6 @@ ADD CONSTRAINT fk_edt_bangumi
     ON UPDATE NO ACTION;
 
 ALTER TABLE episode_download_tasks
-ADD CONSTRAINT fk_edt_torrent_tasks
-    FOREIGN KEY (ref_torrent_info_hash)
-    REFERENCES torrent_download_tasks(info_hash)  -- 关联到 torrent_download_tasks 表的主键
-    ON DELETE NO ACTION
-    ON UPDATE NO ACTION;
-
-ALTER TABLE episode_download_tasks
 ADD CONSTRAINT fk_edt_torrents
     FOREIGN KEY (ref_torrent_info_hash)
     REFERENCES torrents(info_hash)  -- 关联到 torrents 表的主键

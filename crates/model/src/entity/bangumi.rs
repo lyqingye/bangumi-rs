@@ -63,7 +63,10 @@ impl Related<super::subscriptions::Entity> for Entity {
 
 impl Related<super::torrents::Entity> for Entity {
     fn to() -> RelationDef {
-        Relation::Torrents.def()
+        super::episode_download_tasks::Relation::Torrents.def()
+    }
+    fn via() -> Option<RelationDef> {
+        Some(super::episode_download_tasks::Relation::Bangumi.def().rev())
     }
 }
 
