@@ -9,7 +9,7 @@ use std::{
     },
     time::Duration,
 };
-use tokio::sync::{mpsc, Mutex};
+use tokio::sync::{mpsc, oneshot, Mutex};
 
 use crate::{db::Db, fetcher::Fetcher};
 use anyhow::{Context, Result};
@@ -57,15 +57,20 @@ struct RefreshKey {
     kind: RefreshKind,
 }
 
+#[derive(Debug)]
+enum WorkerMessage {
+    Refresh(RefreshRequest),
+    Shutdown(oneshot::Sender<()>),
+}
+
 #[derive(Clone)]
 pub struct Worker {
     db: Db,
     mikan: mikan::client::Client,
     client: reqwest::Client,
     fetcher: Fetcher,
-    refresh_sender: Option<mpsc::Sender<RefreshRequest>>,
+    sender: Option<mpsc::Sender<WorkerMessage>>,
     is_spawned: Arc<AtomicBool>,
-    is_running: Arc<AtomicBool>,
     dict: dict::Dict,
 }
 
@@ -82,9 +87,8 @@ impl Worker {
             mikan,
             client,
             fetcher,
-            refresh_sender: None,
+            sender: None,
             is_spawned: Arc::new(AtomicBool::new(false)),
-            is_running: Arc::new(AtomicBool::new(false)),
             dict,
         }
     }
@@ -121,57 +125,67 @@ impl Worker {
             return Err(anyhow::anyhow!("Worker 已经启动"));
         }
 
-        self.is_running.store(true, Ordering::SeqCst);
-        let (sender, receiver) = mpsc::channel(CHANNEL_CAPACITY);
-        self.refresh_sender = Some(sender);
+        let (sender, mut receiver) = mpsc::channel(CHANNEL_CAPACITY);
+        self.sender = Some(sender);
 
         let worker = self.clone();
-        let is_running = self.is_running.clone();
+        let is_spawned = self.is_spawned.clone();
 
         tokio::spawn(async move {
-            worker.run_loop(receiver, is_running).await;
+            let refresh_times: Arc<Mutex<HashMap<RefreshKey, NaiveDateTime>>> =
+                Arc::new(Mutex::new(HashMap::new()));
+
+            while let Some(msg) = receiver.recv().await {
+                match msg {
+                    WorkerMessage::Refresh(request) => {
+                        let key = request.key();
+                        if worker.should_process_request(&key, &refresh_times).await {
+                            worker.handle_refresh_request(request).await;
+                        }
+                    }
+                    WorkerMessage::Shutdown(done_tx) => {
+                        info!("元数据 Worker 收到停机信号");
+                        let _ = done_tx.send(());
+                        break;
+                    }
+                }
+            }
+            is_spawned.store(false, Ordering::SeqCst);
+            info!("元数据 Worker 已停止");
         });
 
         Ok(())
     }
 
-    pub async fn stop(&self) {
-        self.is_running.store(false, Ordering::SeqCst);
+    pub async fn request_refresh(&self, bangumi_id: Option<i32>, kind: RefreshKind) -> Result<()> {
+        let sender = self.sender.as_ref().context("Worker 未启动")?;
+
+        sender
+            .send(WorkerMessage::Refresh(RefreshRequest::new(
+                bangumi_id, kind,
+            )))
+            .await
+            .context("发送刷新请求失败")?;
+
+        Ok(())
     }
 
     pub async fn shutdown(&self) -> Result<()> {
         info!("开始停止元数据 Worker...");
 
-        // 停止运行标志
-        self.is_running.store(false, Ordering::SeqCst);
+        if let Some(sender) = &self.sender {
+            let (done_tx, done_rx) = oneshot::channel();
+            sender
+                .send(WorkerMessage::Shutdown(done_tx))
+                .await
+                .context("发送停机信号失败")?;
 
-        // 等待一段时间确保任务完成
-        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+            // 等待 worker 确认停止
+            done_rx.await.context("等待 worker 停止失败")?;
 
-        info!("元数据 Worker 已停止");
-        Ok(())
-    }
-
-    async fn run_loop(
-        self,
-        mut receiver: mpsc::Receiver<RefreshRequest>,
-        is_running: Arc<AtomicBool>,
-    ) {
-        let refresh_times: Arc<Mutex<HashMap<RefreshKey, NaiveDateTime>>> =
-            Arc::new(Mutex::new(HashMap::new()));
-
-        while is_running.load(Ordering::SeqCst) {
-            match tokio::time::timeout(POLL_TIMEOUT, receiver.recv()).await {
-                Ok(Some(request)) => {
-                    let key = request.key();
-                    if self.should_process_request(&key, &refresh_times).await {
-                        self.handle_refresh_request(request).await;
-                    }
-                }
-                Ok(None) => break,
-                Err(_) => continue,
-            }
+            info!("元数据 Worker 已停止");
         }
+        Ok(())
     }
 
     async fn should_process_request(
@@ -257,17 +271,6 @@ impl Worker {
         info!("已收集 {} 个番剧 {} 的种子信息", torrents.len(), bgm.name);
 
         self.db.save_mikan_torrents(bgm.id, torrents).await?;
-        Ok(())
-    }
-
-    pub async fn request_refresh(&self, bangumi_id: Option<i32>, kind: RefreshKind) -> Result<()> {
-        let sender = self.refresh_sender.as_ref().context("Worker 未启动")?;
-
-        sender
-            .send(RefreshRequest::new(bangumi_id, kind))
-            .await
-            .context("发送刷新请求失败")?;
-
         Ok(())
     }
 

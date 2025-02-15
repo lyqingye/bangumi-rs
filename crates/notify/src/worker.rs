@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use lru::LruCache;
 use serde::Serialize;
 use std::{collections::HashMap, num::NonZeroUsize, sync::Arc, time::Duration};
-use tokio::sync::{mpsc, Mutex};
+use tokio::sync::{mpsc, oneshot, Mutex};
 use tracing::{error, info, warn};
 
 use crate::{telegram, Notifier};
@@ -75,7 +75,7 @@ impl Default for TopicConfig {
 #[derive(Debug)]
 enum WorkerMessage {
     Notify(Message),
-    Stop,
+    Shutdown(oneshot::Sender<()>),
 }
 
 // 消息处理器
@@ -238,7 +238,7 @@ impl Worker {
             }
         }
 
-        let (tx, rx) = mpsc::channel(100);
+        let (tx, mut rx) = mpsc::channel(100);
         self.tx = Some(tx);
 
         let processor = MessageProcessor::new(
@@ -247,17 +247,6 @@ impl Worker {
             self.message_caches.clone(),
         );
 
-        self.spawn_message_handler(rx, processor).await?;
-        self.is_spawned
-            .store(true, std::sync::atomic::Ordering::SeqCst);
-        Ok(())
-    }
-
-    async fn spawn_message_handler(
-        &self,
-        mut rx: mpsc::Receiver<WorkerMessage>,
-        processor: MessageProcessor,
-    ) -> Result<()> {
         let is_spawned = self.is_spawned.clone();
 
         tokio::spawn(async move {
@@ -268,15 +257,19 @@ impl Worker {
                             error!("处理通知消息失败: {}", e);
                         }
                     }
-                    WorkerMessage::Stop => {
-                        info!("通知服务停止");
-                        is_spawned.store(false, std::sync::atomic::Ordering::SeqCst);
+                    WorkerMessage::Shutdown(done_tx) => {
+                        info!("通知服务收到停机信号");
+                        let _ = done_tx.send(());
                         break;
                     }
                 }
             }
+            is_spawned.store(false, std::sync::atomic::Ordering::SeqCst);
+            info!("通知服务已停止");
         });
 
+        self.is_spawned
+            .store(true, std::sync::atomic::Ordering::SeqCst);
         Ok(())
     }
 
@@ -309,31 +302,20 @@ impl Worker {
             .await
     }
 
-    pub async fn stop(&self) -> Result<()> {
-        if let Some(tx) = &self.tx {
-            tx.send(WorkerMessage::Stop)
-                .await
-                .context("发送停止消息失败")?;
-        }
-        Ok(())
-    }
-
     pub async fn shutdown(&self) -> Result<()> {
         info!("开始停止通知 Worker...");
 
-        // 发送停止信号
         if let Some(tx) = &self.tx {
-            tx.send(WorkerMessage::Stop)
+            let (done_tx, done_rx) = oneshot::channel();
+            tx.send(WorkerMessage::Shutdown(done_tx))
                 .await
-                .context("发送停止消息失败")?;
-        }
+                .context("发送停机信号失败")?;
 
-        // 等待 Worker 完全停止
-        while self.is_spawned.load(std::sync::atomic::Ordering::SeqCst) {
-            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
-        }
+            // 等待 worker 确认停止
+            done_rx.await.context("等待 worker 停止失败")?;
 
-        info!("通知 Worker 已停止");
+            info!("通知 Worker 已停止");
+        }
         Ok(())
     }
 }

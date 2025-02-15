@@ -210,8 +210,14 @@ impl Scheduler {
         // 停止并移除对应的 worker
         let mut workers = self.workers.lock().await;
         if let Some(worker) = workers.remove(&bangumi_id) {
-            worker.stop();
-            info!("已停止番剧 {} 的下载任务处理器", worker.bangumi.name);
+            if let Err(e) = worker.shutdown().await {
+                error!(
+                    "停止番剧 {} 的下载任务处理器失败: {}",
+                    worker.bangumi.name, e
+                );
+            } else {
+                info!("已停止番剧 {} 的下载任务处理器", worker.bangumi.name);
+            }
         }
 
         Ok(())
@@ -229,7 +235,9 @@ impl Scheduler {
         let mut workers = self.workers.lock().await;
         for (bangumi_id, worker) in workers.iter() {
             info!("停止番剧 {} 的下载任务处理器", bangumi_id);
-            worker.stop();
+            if let Err(e) = worker.shutdown().await {
+                error!("停止番剧 {} 的下载任务处理器失败: {}", bangumi_id, e);
+            }
         }
         workers.clear();
 
