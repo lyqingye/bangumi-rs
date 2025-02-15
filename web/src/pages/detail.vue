@@ -51,6 +51,20 @@
                           刷新元数据
                         </v-tooltip>
                       </v-btn>
+                      <!-- 删除按钮 -->
+                      <v-btn
+                        variant="text"
+                        size="small"
+                        class="action-btn"
+                        @click.stop="handleDelete"
+                        :loading="isDeleting"
+                        :disabled="!isSubscribed"
+                      >
+                        <v-icon icon="mdi-delete" size="20" />
+                        <v-tooltip activator="parent" location="top">
+                          取消订阅并删除下载任务
+                        </v-tooltip>
+                      </v-btn>
                       <!-- 订阅按钮 -->
                       <v-btn
                         variant="text"
@@ -1404,7 +1418,8 @@ import {
   getBangumiEpisodes,
   getBangumiTorrents,
   refreshBangumi,
-  getOnlineWatchUrl
+  getOnlineWatchUrl,
+  deleteBangumiDownloadTasks
 } from '@/api/api'
 import { 
   DownloadStatus, 
@@ -1778,6 +1793,48 @@ const playEpisode = async (episode: Episode) => {
   
   // 打开 IINA 播放器
   window.location.href = playUrl
+}
+
+// 添加删除状态
+const isDeleting = ref(false)
+
+// 处理删除操作
+const handleDelete = async () => {
+  if (!anime.value || isDeleting.value) return
+  
+  // 显示确认对话框
+  const confirmed = await window.confirm('确定要取消订阅并删除所有下载任务吗？')
+  if (!confirmed) return
+  
+  try {
+    isDeleting.value = true
+    // 调用删除 API
+    await deleteBangumiDownloadTasks(anime.value.id)
+    // 重新加载数据
+    await Promise.all([
+      fetchAnimeDetail(),
+      fetchEpisodes(),
+      fetchTorrents()
+    ])
+    // 显示成功提示
+    showSnackbar({
+      text: '已取消订阅并删除所有下载任务',
+      color: 'success',
+      location: 'top right',
+      timeout: 3000
+    })
+  } catch (error) {
+    console.error('删除失败:', error)
+    // 显示错误提示
+    showSnackbar({
+      text: '删除失败',
+      color: 'error',
+      location: 'top right',
+      timeout: 3000
+    })
+  } finally {
+    isDeleting.value = false
+  }
 }
 
 onMounted(() => {

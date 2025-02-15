@@ -273,6 +273,19 @@ pub async fn subscribe_bangumi(
 }
 
 #[instrument(skip(state), fields(id = %id))]
+#[get("/api/bangumi/{id}/delete_download_tasks")]
+pub async fn delete_bangumi_download_tasks(
+    state: web::Data<Arc<AppState>>,
+    id: web::Path<i32>,
+) -> Result<Json<Resp<()>>, ServerError> {
+    let bangumi_id = id.into_inner();
+    // 先取消订阅
+    state.scheduler.unsubscribe(bangumi_id).await?;
+    state.db.delete_bangumi_download_tasks(bangumi_id).await?;
+    Ok(Json(Resp::ok(())))
+}
+
+#[instrument(skip(state), fields(id = %id))]
 #[get("/api/bangumi/{id}/torrents")]
 pub async fn get_bangumi_torrents_by_id(
     state: web::Data<Arc<AppState>>,
