@@ -113,3 +113,25 @@ pub struct SubscribeParams {
     pub collector_interval: Option<i32>,
     pub metadata_interval: Option<i32>,
 }
+
+// 定义一个结构体来接收查询结果
+#[derive(Debug, serde::Serialize, FromQueryResult)]
+pub struct DownloadTask {
+    pub name: String,
+    pub episode_number: i32,
+    pub info_hash: String,
+    pub file_name: String,
+    pub download_status: DownloadStatus,
+    pub downloader: String,
+    pub created_at: NaiveDateTime,
+    pub updated_at: NaiveDateTime,
+    pub err_msg: Option<String>,
+    pub retry_count: i32,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct QueryDownloadTask {
+    pub offset: u64,
+    pub limit: u64,
+    pub status: Option<DownloadStatus>,
+}
