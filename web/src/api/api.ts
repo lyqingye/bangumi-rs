@@ -130,6 +130,14 @@ export async function deleteBangumiDownloadTasks(id: number): Promise<void> {
   }
 }
 
+export async function manualSelectTorrent(bangumiId: number, episodeNumber: number, infoHash: string): Promise<void> {
+  try {
+    const response = await api.get<ApiResponse<null>>(`/bangumi/${bangumiId}/${episodeNumber}/manual_select_torrent/${infoHash}`)
+    handleResponse(response, '手动选择种子下载失败')
+  } catch (error) {
+    handleError(error, '手动选择种子下载失败')
+  }
+}
 export async function getOnlineWatchUrl(bangumiId: number, episodeId: number): Promise<string> {
   return api.defaults.baseURL + `/bangumi/${bangumiId}/${episodeId}/online_watch`
 }

@@ -464,6 +464,19 @@ pub async fn online_watch(
         )))
 }
 
+#[get("/api/bangumi/{bangumi_id}/{episode_number}/manual_select_torrent/{info_hash}")]
+pub async fn manual_select_torrent(
+    state: web::Data<Arc<AppState>>,
+    path: web::Path<(i32, i32, String)>,
+) -> Result<Json<Resp<()>>, ServerError> {
+    let (bangumi_id, episode_number, info_hash) = path.into_inner();
+    state
+        .scheduler
+        .manual_select_episode_torrent(bangumi_id, episode_number, &info_hash)
+        .await?;
+    Ok(Json(Resp::ok(())))
+}
+
 #[post("/api/downloads")]
 pub async fn list_download_tasks(
     state: web::Data<Arc<AppState>>,

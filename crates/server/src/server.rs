@@ -304,6 +304,7 @@ impl Server {
             .service(api::online_watch)
             .service(api::delete_bangumi_download_tasks)
             .service(api::list_download_tasks)
+            .service(api::manual_select_torrent)
             .service(api::health)
             .route("/ws", web::get().to(ws_handler));
     }
