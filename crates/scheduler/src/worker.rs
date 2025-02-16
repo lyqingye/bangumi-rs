@@ -382,15 +382,15 @@ impl BangumiWorker {
                                     .await?;
                             }
                             DownloadStatus::Failed => {
-                                error!(
-                                    "番剧 {} 第 {} 集下载失败",
+                                warn!(
+                                    "番剧 {} 第 {} 集下载失败, 尝试重新选择种子",
                                     self.bangumi.name, task.episode_number
                                 );
                                 self.task_manager
                                     .update_task_state(
                                         task.bangumi_id,
                                         task.episode_number,
-                                        State::Failed,
+                                        State::Missing,
                                     )
                                     .await?;
                             }
