@@ -292,6 +292,24 @@ impl Db {
         Ok(tasks)
     }
 
+    pub async fn get_episode_task_by_bangumi_id_and_episode_number(
+        &self,
+        bangumi_id: i32,
+        episode_number: i32,
+    ) -> Result<Option<episode_download_tasks::Model>> {
+        use model::episode_download_tasks::Column as TaskColumn;
+        use model::episode_download_tasks::Entity as Tasks;
+        let task = Tasks::find()
+            .filter(
+                Condition::all()
+                    .add(TaskColumn::BangumiId.eq(bangumi_id))
+                    .add(TaskColumn::EpisodeNumber.eq(episode_number)),
+            )
+            .one(self.conn())
+            .await?;
+        Ok(task)
+    }
+
     /// 更新或创建订阅记录
     pub async fn upsert_subscription(
         &self,

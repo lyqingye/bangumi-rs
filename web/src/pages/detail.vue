@@ -345,6 +345,7 @@
                                       variant="tonal"
                                       class="download-btn"
                                       elevation="0"
+                                      @click="handleManualSelectTorrent(episode.number, torrent.info_hash)"
                                     >
                                       <template
                                         v-if="torrent.download_status === DownloadStatus.Completed"
@@ -1437,7 +1438,8 @@ import {
   getBangumiTorrents,
   refreshBangumi,
   getOnlineWatchUrl,
-  deleteBangumiDownloadTasks
+  deleteBangumiDownloadTasks,
+  manualSelectTorrent
 } from '@/api/api'
 import {
   DownloadStatus,
@@ -1550,9 +1552,20 @@ const formatDate = (date: string | null) => {
   })
 }
 
-const downloadResource = (resource: any) => {
-  // 实现下载逻辑
-  console.log('Downloading:', resource.name)
+const handleManualSelectTorrent = async (episodeNumber: number, infoHash: string) => {
+  console.log(anime.value?.id, episodeNumber, infoHash)
+  // 显示确认对话框
+  const confirmed = await window.confirm('确定要手动选择种子下载吗？')
+  if (!confirmed) return
+
+  if (!anime.value?.id) return
+  manualSelectTorrent(anime.value.id, episodeNumber, infoHash)
+  showSnackbar({
+    text: '已经手动选择种子下载',
+    color: 'success',
+    location: 'top right',
+    timeout: 3000
+  })
 }
 
 // 格式化时长
@@ -1575,16 +1588,6 @@ const formatDescription = (description: string) => {
   const parts = description.split('\r\n\r\n')
   // 返回第一部分作为剧集描述
   return parts[0]
-}
-
-// 格式化制作信息
-const formatStaffInfo = (description: string) => {
-  const parts = description.split('\r\n\r\n')
-  // 如果有多个部分，最后一部分通常是制作信息
-  if (parts.length > 1) {
-    return parts[parts.length - 1]
-  }
-  return ''
 }
 
 // 存储所有种子信息
@@ -1703,18 +1706,6 @@ const formatDownloadStatus = (status: string | null) => {
 // 格式化日期时间
 const formatDateTime = (dateStr: string) => {
   return new Date(dateStr).toLocaleString('zh-CN')
-}
-
-// 复制磁力链接
-const copyMagnet = (magnet: string) => {
-  navigator.clipboard.writeText(magnet)
-  // TODO: 添加复制成功提示
-}
-
-// 下载种子
-const downloadTorrent = (torrent: Torrent) => {
-  // TODO: 实现下载逻辑
-  console.log('下载种子:', torrent)
 }
 
 // 获取操作按钮颜色

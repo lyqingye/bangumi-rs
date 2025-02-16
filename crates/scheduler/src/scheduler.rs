@@ -223,6 +223,22 @@ impl Scheduler {
         Ok(())
     }
 
+    pub async fn manual_select_episode_torrent(
+        &self,
+        bangumi_id: i32,
+        episode_number: i32,
+        info_hash: &str,
+    ) -> Result<()> {
+        let torrent = self.db.get_torrent_by_info_hash(info_hash).await?;
+        if torrent.is_none() {
+            return Err(anyhow::anyhow!("未找到种子信息"));
+        }
+        self.task_manager
+            .update_task_ready(bangumi_id, episode_number, info_hash)
+            .await?;
+        Ok(())
+    }
+
     pub fn get_downloader(&self) -> Arc<Box<dyn Downloader>> {
         self.downloader.clone()
     }

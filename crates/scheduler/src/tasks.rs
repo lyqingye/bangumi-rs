@@ -120,6 +120,15 @@ impl TaskManager {
             if let Some(task) = bangumi_tasks.get_mut(&episode_number) {
                 task.state = State::Ready;
                 task.ref_torrent_info_hash = Some(info_hash.to_string());
+            } else {
+                // 缓存不存在则从数据库捞取然后插入
+                let task = self
+                    .db
+                    .get_episode_task_by_bangumi_id_and_episode_number(bangumi_id, episode_number)
+                    .await?;
+                if let Some(task) = task {
+                    bangumi_tasks.insert(episode_number, task);
+                }
             }
         }
 
