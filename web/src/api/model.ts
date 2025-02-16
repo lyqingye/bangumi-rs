@@ -35,7 +35,9 @@ export enum DownloadStatus {
   Pending = 'Pending',
   Downloading = 'Downloading',
   Completed = 'Completed',
-  Failed = 'Failed'
+  Failed = 'Failed',
+  Retrying = 'Retrying',
+  Cancelled = 'Cancelled'
 }
 
 // 下载状态枚举

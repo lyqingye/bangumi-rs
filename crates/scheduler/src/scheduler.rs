@@ -233,6 +233,17 @@ impl Scheduler {
         if torrent.is_none() {
             return Err(anyhow::anyhow!("未找到种子信息"));
         }
+        let task = self
+            .db
+            .get_episode_task_by_bangumi_id_and_episode_number(bangumi_id, episode_number)
+            .await?;
+
+        // 如果任务存在，则取消之前的任务
+        if let Some(old_task) = task {
+            if let Some(ref_info_hash) = old_task.ref_torrent_info_hash {
+                self.downloader.cancel_task(&ref_info_hash).await?;
+            }
+        }
         self.task_manager
             .update_task_ready(bangumi_id, episode_number, info_hash)
             .await?;

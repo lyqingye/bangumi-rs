@@ -49,6 +49,13 @@ impl TaskManager {
         Ok(task.cloned())
     }
 
+    pub async fn remove_by_info_hash(&self, info_hash: &str) -> Result<()> {
+        let mut cache = self.tasks.write().await;
+        cache.remove(info_hash);
+        self.db.remove_by_info_hash(info_hash).await?;
+        Ok(())
+    }
+
     pub async fn get_by_info_hash_without_cache(
         &self,
         info_hash: &str,
@@ -116,7 +123,7 @@ impl TaskManager {
 
         // 如果任务已经结束，则从缓存中移除
         match status {
-            DownloadStatus::Failed | DownloadStatus::Completed => {
+            DownloadStatus::Failed | DownloadStatus::Completed | DownloadStatus::Cancelled => {
                 cache.remove(info_hash);
             }
             _ => {

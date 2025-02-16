@@ -1659,55 +1659,6 @@ const getResolutionColor = (resolution: string) => {
   }
 }
 
-// 获取状态图标
-const getStatusIcon = (status: string | null) => {
-  switch (status) {
-    case 'Pending':
-      return 'mdi-progress-download'
-    case 'Downloading':
-      return 'mdi-check-circle'
-    case 'Failed':
-      return 'mdi-alert-circle'
-    default:
-      return 'mdi-download-circle-outline'
-  }
-}
-
-// 获取状态颜色
-const getStatusColor = (status: string | null) => {
-  switch (status) {
-    case DownloadStatus.Pending:
-      return 'info'
-    case DownloadStatus.Downloading:
-      return 'success'
-    case DownloadStatus.Failed:
-      return 'error'
-    default:
-      return 'grey'
-  }
-}
-
-// 格式化下载状态
-const formatDownloadStatus = (status: string | null) => {
-  switch (status) {
-    case DownloadStatus.Downloading:
-      return '下载中'
-    case DownloadStatus.Completed:
-      return '已完成'
-    case DownloadStatus.Failed:
-      return '下载失败'
-    case DownloadStatus.Pending:
-      return '等待下载'
-    default:
-      return '未下载'
-  }
-}
-
-// 格式化日期时间
-const formatDateTime = (dateStr: string) => {
-  return new Date(dateStr).toLocaleString('zh-CN')
-}
-
 // 获取操作按钮颜色
 const getActionButtonColor = (status: string | null) => {
   switch (status) {

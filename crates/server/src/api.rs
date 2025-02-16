@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::Arc};
+use std::sync::Arc;
 
 use actix_web::{
     get, post,
@@ -294,8 +294,6 @@ pub async fn get_bangumi_torrents_by_id(
 ) -> Result<Json<Resp<Vec<Torrent>>>, ServerError> {
     use model::bangumi::Column as BangumiColumn;
     use model::bangumi::Entity as Bangumis;
-    use model::episodes::Column as EpisodeColumn;
-    use model::episodes::Entity as Episodes;
     use model::file_name_parse_record::Column as ParseColumn;
     use model::file_name_parse_record::Entity as ParseRecord;
     use model::torrent_download_tasks::Column as TaskColumn;
@@ -356,17 +354,17 @@ pub async fn get_bangumi_torrents_by_id(
         .await
         .map_err(|e| ServerError::Internal3(e))?;
 
-    let episodes = Episodes::find()
-        .filter(EpisodeColumn::BangumiId.eq(bangumi_id))
-        .order_by_asc(EpisodeColumn::Number)
-        .all(state.db.conn())
-        .await
-        .map_err(|e| ServerError::Internal3(e))?;
+    // let episodes = Episodes::find()
+    //     .filter(EpisodeColumn::BangumiId.eq(bangumi_id))
+    //     .order_by_asc(EpisodeColumn::Number)
+    //     .all(state.db.conn())
+    //     .await
+    //     .map_err(|e| ServerError::Internal3(e))?;
 
-    let episodes_map = episodes
-        .into_iter()
-        .map(|ep| (ep.number, ep))
-        .collect::<HashMap<_, _>>();
+    // let episodes_map = episodes
+    //     .into_iter()
+    //     .map(|ep| (ep.number, ep))
+    //     .collect::<HashMap<_, _>>();
 
     // 3. 处理剧集编号映射和过滤非法种子
     torrents.retain_mut(|torrent| {
@@ -375,18 +373,19 @@ pub async fn get_bangumi_torrents_by_id(
             // 例如: 某些番剧第二季可能从第13集开始,但种子标记为第1集
             // ep_start_number = 13, ep = 1 时:
             // actual_ep = 1 + 13 - 1 = 13,修正为实际的第13集
-            let mut actual_ep = ep;
+            // let actual_ep = ep;
             if min_ep > 1 && ep < min_ep {
-                actual_ep = min_ep + ep - 1;
+                let actual_ep = min_ep + ep - 1;
                 torrent.episode_number = Some(actual_ep);
             }
 
-            // 过滤掉发布时间早于剧集放送时间的种子
-            if let Some(episode) = episodes_map.get(&actual_ep) {
-                if let Some(air_date) = episode.air_date {
-                    return torrent.pub_date >= air_date.into();
-                }
-            }
+            // 过滤掉发布时间早于剧集放送时间的种子, 前端过滤
+
+            // if let Some(episode) = episodes_map.get(&actual_ep) {
+            //     if let Some(air_date) = episode.air_date {
+            //         return torrent.pub_date >= air_date.into();
+            //     }
+            // }
         }
         true
     });

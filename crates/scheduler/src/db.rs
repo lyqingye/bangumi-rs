@@ -1,5 +1,6 @@
 #![allow(unused)]
 use anyhow::{Context, Result};
+use model::torrent_download_tasks;
 use model::{
     episode_download_tasks, file_name_parse_record, sea_orm_active_enums::State, subscriptions,
     torrents,
@@ -9,6 +10,7 @@ use sea_orm::{
     ColumnTrait, Condition, ConnectOptions, Database, DatabaseConnection, EntityTrait, QueryFilter,
     QueryOrder, QuerySelect,
 };
+use std::collections::HashSet;
 use std::{sync::Arc, time::Duration};
 
 #[derive(Clone)]
@@ -218,6 +220,24 @@ impl Db {
         Ok(pairs)
     }
 
+    pub async fn list_torrent_download_tasks_by_info_hashes(
+        &self,
+        info_hashes: &[String],
+    ) -> Result<HashSet<String>> {
+        use model::torrent_download_tasks::Column as TorrentDownloadTasksColumn;
+        use model::torrent_download_tasks::Entity as TorrentDownloadTasks;
+        let tasks_hashes = TorrentDownloadTasks::find()
+            .select_only()
+            .columns([TorrentDownloadTasksColumn::InfoHash])
+            .filter(TorrentDownloadTasksColumn::InfoHash.is_in(info_hashes))
+            .into_tuple::<String>()
+            .all(self.conn())
+            .await?
+            .into_iter()
+            .collect();
+        Ok(tasks_hashes)
+    }
+
     pub async fn get_bangumi_by_id(
         &self,
         bangumi_id: i32,
@@ -390,7 +410,15 @@ mod tests {
             .init();
         let db = Db::new_from_env().await?;
         let torrents = db.get_bangumi_torrents_with_parse_results(91).await?;
+        let info_hashes = torrents
+            .iter()
+            .map(|t| t.0.info_hash.clone())
+            .collect::<Vec<String>>();
+        let info_hashes = db
+            .list_torrent_download_tasks_by_info_hashes(&info_hashes)
+            .await?;
         println!("torrents: {:?}", torrents);
+        println!("info_hashes: {:?}", info_hashes);
         Ok(())
     }
 }

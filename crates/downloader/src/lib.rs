@@ -17,4 +17,5 @@ pub trait Downloader: Send + Sync {
     async fn add_task(&self, info_hash: &str, dir: PathBuf) -> Result<()>;
     async fn list_tasks(&self, info_hashes: &[String]) -> Result<Vec<Model>>;
     async fn download_file(&self, info_hash: &str, ua: &str) -> Result<DownloadInfo>;
+    async fn cancel_task(&self, info_hash: &str) -> Result<()>;
 }

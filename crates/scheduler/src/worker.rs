@@ -155,6 +155,25 @@ impl BangumiWorker {
             .map(|e| (e.number, e))
             .collect();
 
+        // 这里需要筛选未被使用过的种子, TODO 考虑上面的Sql做处理？
+        let info_hashes = torrent_pairs
+            .iter()
+            .map(|t| t.0.info_hash.clone())
+            .collect::<Vec<String>>();
+        let already_used_info_hashes = self
+            .db
+            .list_torrent_download_tasks_by_info_hashes(&info_hashes)
+            .await?;
+
+        let mut unused_torrents = Vec::new();
+        for (torrent, ps) in torrent_pairs {
+            if already_used_info_hashes.contains(&torrent.info_hash) {
+                debug!("种子 {} 已被使用过，跳过", torrent.info_hash);
+                continue;
+            }
+            unused_torrents.push((torrent, ps));
+        }
+
         info!("开始为番剧 {} 选择合适的种子", self.bangumi.name);
 
         // 6. 为每个 Missing 任务选择合适的种子
@@ -163,7 +182,7 @@ impl BangumiWorker {
                 .select_episode_torrent(
                     task.episode_number,
                     self.bangumi.ep_start_number,
-                    &torrent_pairs,
+                    &unused_torrents,
                     &episodes,
                 )
                 .await?

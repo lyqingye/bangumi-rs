@@ -89,7 +89,7 @@ create table if not exists torrents (
 
 create table if not exists torrent_download_tasks (
     info_hash varchar(40) primary key not null comment '种子文件的info hash, 用于去重',
-    download_status enum('pending', 'downloading', 'completed', 'failed', 'retrying') not null comment '状态, pending: 等待下载, downloading: 下载中, completed: 下载完成, failed: 下载失败, retrying: 重试中',
+    download_status enum('pending', 'downloading', 'completed', 'failed', 'retrying','cancelled') not null comment '状态, pending: 等待下载, downloading: 下载中, completed: 下载完成, failed: 下载失败, retrying: 重试中, cancelled: 已取消',
     downloader varchar(255) comment '下载器名称',
     dir varchar(255) not null comment '下载目录',
     context text comment '下载器上下文',
