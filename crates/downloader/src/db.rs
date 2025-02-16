@@ -145,4 +145,12 @@ impl Db {
             .all(&*self.conn)
             .await?)
     }
+
+    pub async fn remove_by_info_hash(&self, info_hash: &str) -> Result<()> {
+        torrent_download_tasks::Entity::delete_many()
+            .filter(Column::InfoHash.eq(info_hash))
+            .exec(&*self.conn)
+            .await?;
+        Ok(())
+    }
 }

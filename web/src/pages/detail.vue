@@ -328,6 +328,23 @@
                                       >
                                         {{ formatPubDate(torrent.pub_date) }}
                                       </v-chip>
+                                      <!-- 添加警示图标 -->
+                                      <v-tooltip
+                                        location="top"
+                                        content-class="warning-tooltip"
+                                      >
+                                        <template v-slot:activator="{ props }">
+                                          <v-icon
+                                            v-if="isEarlyRelease(torrent.pub_date, episode.air_date)"
+                                            v-bind="props"
+                                            icon="mdi-alert-circle"
+                                            color="warning"
+                                            size="18"
+                                            class="warning-icon ms-1"
+                                          />
+                                        </template>
+                                        <span>该种子发布时间早于番剧放送时间，系统认为该种子不合理，所以不会自动下载</span>
+                                      </v-tooltip>
                                     </div>
                                   </td>
 
@@ -1426,6 +1443,26 @@
   align-items: center;
   justify-content: center;
 }
+
+/* 警示图标样式 */
+.warning-icon {
+  opacity: 0.9;
+  transition: all 0.3s ease;
+}
+
+.warning-icon:hover {
+  transform: scale(1.1);
+  opacity: 1;
+}
+
+:deep(.warning-tooltip) {
+  background: rgba(var(--v-theme-warning), 0.9) !important;
+  color: rgba(0, 0, 0, 0.87) !important;
+  font-weight: 500;
+  font-size: 0.8rem;
+  padding: 6px 12px;
+  border-radius: 6px;
+}
 </style>
 
 <script lang="ts" setup>
@@ -1659,55 +1696,6 @@ const getResolutionColor = (resolution: string) => {
   }
 }
 
-// 获取状态图标
-const getStatusIcon = (status: string | null) => {
-  switch (status) {
-    case 'Pending':
-      return 'mdi-progress-download'
-    case 'Downloading':
-      return 'mdi-check-circle'
-    case 'Failed':
-      return 'mdi-alert-circle'
-    default:
-      return 'mdi-download-circle-outline'
-  }
-}
-
-// 获取状态颜色
-const getStatusColor = (status: string | null) => {
-  switch (status) {
-    case DownloadStatus.Pending:
-      return 'info'
-    case DownloadStatus.Downloading:
-      return 'success'
-    case DownloadStatus.Failed:
-      return 'error'
-    default:
-      return 'grey'
-  }
-}
-
-// 格式化下载状态
-const formatDownloadStatus = (status: string | null) => {
-  switch (status) {
-    case DownloadStatus.Downloading:
-      return '下载中'
-    case DownloadStatus.Completed:
-      return '已完成'
-    case DownloadStatus.Failed:
-      return '下载失败'
-    case DownloadStatus.Pending:
-      return '等待下载'
-    default:
-      return '未下载'
-  }
-}
-
-// 格式化日期时间
-const formatDateTime = (dateStr: string) => {
-  return new Date(dateStr).toLocaleString('zh-CN')
-}
-
 // 获取操作按钮颜色
 const getActionButtonColor = (status: string | null) => {
   switch (status) {
@@ -1884,6 +1872,12 @@ const currentSubscribeSettings = computed(() => {
     release_group_filter: anime.value.release_group_filter
   }
 })
+
+// 添加判断种子发布时间是否早于放送时间的方法
+const isEarlyRelease = (pubDate: string, airDate: string | null) => {
+  if (!airDate) return false
+  return new Date(pubDate) < new Date(airDate)
+}
 
 onMounted(() => {
   fetchAnimeDetail()

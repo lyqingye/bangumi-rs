@@ -41,6 +41,8 @@ pub struct Config {
     pub download_dir: PathBuf,
     /// 下载缓存 TTL
     pub download_cache_ttl: Duration,
+    /// 离线下载超时时间
+    pub offline_download_timeout: Duration,
 }
 
 impl Default for Config {
@@ -52,6 +54,8 @@ impl Default for Config {
             retry_processor_interval: Duration::from_secs(5),
             download_dir: PathBuf::from("/"),
             download_cache_ttl: Duration::from_secs(60 * 30),
+            // 离线下载超时时间 5分钟
+            offline_download_timeout: Duration::from_secs(5 * 60),
         }
     }
 }
@@ -161,6 +165,19 @@ impl Downloader for Pan115Downloader {
             }
             None => Err(anyhow::anyhow!("该下载器不支持下载文件")),
         }
+    }
+
+    async fn cancel_task(&self, info_hash: &str) -> Result<()> {
+        let task = self.tasks.get_by_info_hash(info_hash).await?;
+        if let Some(task) = task {
+            self.tasks
+                .update_task_status(info_hash, DownloadStatus::Cancelled, None, None)
+                .await?;
+            if let Err(e) = self.pan115.delete_offline_task(&[info_hash], true).await {
+                warn!("删除离线下载任务失败: {} - {}", info_hash, e);
+            }
+        }
+        Ok(())
     }
 }
 
@@ -561,14 +578,32 @@ impl Pan115Downloader {
                     )
                 };
 
-            if status != local_task.download_status {
+            if status.clone() != local_task.download_status {
                 info!(
                     "更新任务状态: info_hash={}, old_status={:?}, new_status={:?}, err_msg={:?}",
                     info_hash, local_task.download_status, status, err_msg
                 );
                 self.tasks
-                    .update_task_status(&info_hash, status, err_msg, context)
+                    .update_task_status(&info_hash, status.clone(), err_msg, context)
                     .await?;
+            }
+
+            // 处理离线下载超时
+            if status == DownloadStatus::Pending || status == DownloadStatus::Retrying {
+                let now = Local::now().naive_utc();
+                let timeout = now - self.config.offline_download_timeout;
+                if local_task.created_at < timeout {
+                    warn!("离线下载超时: info_hash={}, 删除任务", info_hash);
+                    self.tasks
+                        .update_task_status(
+                            &info_hash,
+                            DownloadStatus::Failed,
+                            Some("离线下载超时".to_string()),
+                            None,
+                        )
+                        .await?;
+                    self.pan115.delete_offline_task(&[&info_hash], true).await?;
+                }
             }
         }
 
