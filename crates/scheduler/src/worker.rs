@@ -168,7 +168,6 @@ impl BangumiWorker {
         let mut unused_torrents = Vec::new();
         for (torrent, ps) in torrent_pairs {
             if already_used_info_hashes.contains(&torrent.info_hash) {
-                debug!("种子 {} 已被使用过，跳过", torrent.info_hash);
                 continue;
             }
             unused_torrents.push((torrent, ps));
