@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use reqwest::{header::USER_AGENT, Client as ReqwestClient};
-use tracing::{instrument, trace};
+use tracing::instrument;
 
 use super::model::{CalendarResponse, EpisodeList, EpisodeType, Subject};
 
@@ -36,7 +36,8 @@ impl Client {
             .await?
             .text()
             .await?;
-        let resp: Vec<CalendarResponse> = serde_json::from_str(&response).with_context(|| response)?;
+        let resp: Vec<CalendarResponse> =
+            serde_json::from_str(&response).with_context(|| response)?;
         Ok(resp)
     }
 
@@ -77,9 +78,6 @@ impl Client {
             .text()
             .await?;
         let resp: Subject = serde_json::from_str(&response).with_context(|| response)?;
-        if resp.id != subject_id {
-            return Ok(None);
-        }
         Ok(Some(resp))
     }
 }
