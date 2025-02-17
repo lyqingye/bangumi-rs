@@ -23,7 +23,6 @@ FROM debian:bookworm-slim
 WORKDIR /app
 
 COPY --from=builder /usr/src/app/target/release/bangumi /app/
-COPY --from=builder /usr/src/app/config.toml /app/
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
