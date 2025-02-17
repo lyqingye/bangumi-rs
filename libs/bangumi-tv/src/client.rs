@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use reqwest::{header::USER_AGENT, Client as ReqwestClient};
 use tracing::{instrument, trace};
 
@@ -28,10 +28,15 @@ impl Client {
     #[instrument(name = "获取放送列表")]
     pub async fn get_calendar(&self) -> Result<Vec<CalendarResponse>> {
         let url = format!("{}/calendar", self.base_url);
-        let response = self.cli.get(&url).header(USER_AGENT, UA).send().await?;
-        let text = response.text().await?;
-        trace!("Response: {}", text);
-        let resp: Vec<CalendarResponse> = serde_json::from_str(&text)?;
+        let response = self
+            .cli
+            .get(&url)
+            .header(USER_AGENT, UA)
+            .send()
+            .await?
+            .text()
+            .await?;
+        let resp: Vec<CalendarResponse> = serde_json::from_str(&response).with_context(|| response)?;
         Ok(resp)
     }
 
@@ -54,10 +59,10 @@ impl Client {
                 ("offset", offset),
             ])
             .send()
+            .await?
+            .text()
             .await?;
-        let text = response.text().await?;
-        trace!("Response: {}", text);
-        let resp: EpisodeList = serde_json::from_str(&text)?;
+        let resp: EpisodeList = serde_json::from_str(&response).with_context(|| response)?;
         Ok(resp)
     }
 
@@ -68,10 +73,10 @@ impl Client {
             .get(format!("{}/v0/subjects/{}", self.base_url, subject_id))
             .header(USER_AGENT, UA)
             .send()
+            .await?
+            .text()
             .await?;
-        let text = response.text().await?;
-        trace!("Response: {}", text);
-        let resp: Subject = serde_json::from_str(&text)?;
+        let resp: Subject = serde_json::from_str(&response).with_context(|| response)?;
         if resp.id != subject_id {
             return Ok(None);
         }
