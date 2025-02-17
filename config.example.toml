@@ -2,7 +2,7 @@
 [server]
 listen_addr = "127.0.0.1:3001"
 database_url = "mysql://user:pass@localhost:3306/bangumi"
-assets_path = "assets"
+assets_path = "/app/assets"
 
 # 日志配置
 [log]
