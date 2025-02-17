@@ -1,6 +1,6 @@
 use anyhow::Result;
 use reqwest::{header::USER_AGENT, Client as ReqwestClient};
-use tracing::instrument;
+use tracing::{instrument, trace};
 
 use super::model::{CalendarResponse, EpisodeList, EpisodeType, Subject};
 
@@ -25,16 +25,13 @@ impl Client {
         Self::new_with_client(ReqwestClient::builder().user_agent(UA).build()?, &base_url)
     }
 
+    #[instrument(name = "获取放送列表")]
     pub async fn get_calendar(&self) -> Result<Vec<CalendarResponse>> {
         let url = format!("{}/calendar", self.base_url);
-        let resp: Vec<CalendarResponse> = self
-            .cli
-            .get(&url)
-            .header(USER_AGENT, UA)
-            .send()
-            .await?
-            .json()
-            .await?;
+        let response = self.cli.get(&url).header(USER_AGENT, UA).send().await?;
+        let text = response.text().await?;
+        trace!("Response: {}", text);
+        let resp: Vec<CalendarResponse> = serde_json::from_str(&text)?;
         Ok(resp)
     }
 
@@ -46,7 +43,7 @@ impl Client {
         limit: i32,
         offset: i32,
     ) -> Result<EpisodeList> {
-        let resp: EpisodeList = self
+        let response = self
             .cli
             .get(format!("{}/v0/episodes", self.base_url))
             .header(USER_AGENT, UA)
@@ -57,22 +54,24 @@ impl Client {
                 ("offset", offset),
             ])
             .send()
-            .await?
-            .json()
             .await?;
+        let text = response.text().await?;
+        trace!("Response: {}", text);
+        let resp: EpisodeList = serde_json::from_str(&text)?;
         Ok(resp)
     }
 
     #[instrument(name = "获取番剧信息", skip(self), fields(subject_id = %subject_id))]
     pub async fn get_subject(&self, subject_id: i32) -> Result<Option<Subject>> {
-        let resp: Subject = self
+        let response = self
             .cli
             .get(format!("{}/v0/subjects/{}", self.base_url, subject_id))
             .header(USER_AGENT, UA)
             .send()
-            .await?
-            .json()
             .await?;
+        let text = response.text().await?;
+        trace!("Response: {}", text);
+        let resp: Subject = serde_json::from_str(&text)?;
         if resp.id != subject_id {
             return Ok(None);
         }

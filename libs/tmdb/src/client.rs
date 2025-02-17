@@ -9,6 +9,7 @@ use tmdb_api::{
     prelude::Command,
     tvshow::{details::TVShowDetails, search::TVShowSearch, SeasonShort, TVShow},
 };
+use tracing::instrument;
 
 #[derive(Clone)]
 pub struct Client {
@@ -69,6 +70,7 @@ impl Client {
         Self::new(client, &api_key, &base_url, &image_base_url, &language)
     }
 
+    #[instrument(name = "TMDB 匹配番剧", skip(self), fields(name = %name, air_date = %air_date))]
     pub async fn match_bangumi(
         &self,
         name: &str,
