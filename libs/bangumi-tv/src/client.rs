@@ -10,7 +10,8 @@ pub struct Client {
     cli: ReqwestClient,
 }
 
-const UA: &str = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36 Edg/108.0.1462.54";
+/// ref: https://github.com/bangumi/api/blob/master/docs-raw/user%20agent.md
+const UA: &str = "lyqingye/bangumi-rs";
 
 impl Client {
     pub fn new_with_client(cli: ReqwestClient, base_url: &str) -> Result<Self> {
@@ -36,8 +37,9 @@ impl Client {
             .await?
             .text()
             .await?;
-        let resp: Vec<CalendarResponse> =
-            serde_json::from_str(&response).with_context(|| response)?;
+        let resp: Vec<CalendarResponse> = serde_json::from_str(&response).with_context(|| {
+            format!("解析放送列表失败: {}", response)
+        })?;
         Ok(resp)
     }
 
@@ -63,7 +65,9 @@ impl Client {
             .await?
             .text()
             .await?;
-        let resp: EpisodeList = serde_json::from_str(&response).with_context(|| response)?;
+        let resp: EpisodeList = serde_json::from_str(&response).with_context(|| {
+            format!("解析剧集信息失败: {}", response)
+        })?;
         Ok(resp)
     }
 
@@ -77,7 +81,9 @@ impl Client {
             .await?
             .text()
             .await?;
-        let resp: Subject = serde_json::from_str(&response).with_context(|| response)?;
+        let resp: Subject = serde_json::from_str(&response).with_context(|| {
+            format!("解析番剧信息失败: {}", response)
+        })?;
         Ok(Some(resp))
     }
 }
