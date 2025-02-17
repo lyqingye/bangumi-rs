@@ -53,12 +53,12 @@ export enum State {
 // 订阅参数
 export interface SubscribeParams {
   status: SubscribeStatus
-  start_episode_number?: number
-  resolution_filter?: string
-  language_filter?: string
-  release_group_filter?: string
-  collector_interval?: number
-  metadata_interval?: number
+  start_episode_number?: number | undefined
+  resolution_filter?: string | undefined
+  language_filter?: string | undefined
+  release_group_filter?: string | undefined
+  collector_interval?: number | undefined
+  metadata_interval?: number | undefined
 }
 
 // 番剧信息
