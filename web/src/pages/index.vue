@@ -48,9 +48,6 @@ const currentRoute = computed(() => route.path)
 const navItems = [
   { title: '首页', icon: 'mdi-home', to: '/' },
   { title: '下载', icon: 'mdi-download', to: '/downloads' },
-  { title: '电影', icon: 'mdi-movie', to: '/movies' },
-  { title: '电视剧', icon: 'mdi-television-classic', to: '/tv' },
-  { title: '动画', icon: 'mdi-animation', to: '/anime' }
 ]
 </script>
 

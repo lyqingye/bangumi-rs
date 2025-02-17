@@ -30,9 +30,7 @@ services:
       - bangumi-network
 
   backend:
-    build:
-      context: .
-      dockerfile: crates/cli-app/Dockerfile
+    image: ghcr.io/lyqingye/bangumi-rs/backend:master
     volumes:
       - ./assets:/app/assets
       - ./config.toml:/app/config.toml
@@ -45,9 +43,7 @@ services:
       - bangumi-network
 
   frontend:
-    build:
-      context: ./web
-      dockerfile: Dockerfile
+    image: ghcr.io/lyqingye/bangumi-rs/frontend:master
     ports:
       - "80:80"
     depends_on:
