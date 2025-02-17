@@ -21,6 +21,14 @@ pub struct Config {
     pub parser: ParserConfig,
     pub pan115: Pan115Config,
     pub notify: NotifyConfig,
+    pub proxy: ProxyConfig,
+}
+
+#[derive(Debug, Deserialize, Clone, Default)]
+pub struct ProxyConfig {
+    pub enabled: bool,
+    pub http: String,
+    pub https: String,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]

@@ -53,7 +53,15 @@ impl Server {
         let db = crate::db::Db::new(&config.server.database_url).await?;
 
         // HTTP Client
-        let client = reqwest::Client::new();
+        let client;
+        if config.proxy.enabled {
+            client = reqwest::Client::builder()
+                .proxy(reqwest::Proxy::http(&config.proxy.http)?)
+                .proxy(reqwest::Proxy::https(&config.proxy.https)?)
+                .build()?;
+        } else {
+            client = reqwest::Client::new();
+        }
 
         // Mikan
         let mikan = Client::new_with_client(client.clone(), &config.mikan.endpoint)?;

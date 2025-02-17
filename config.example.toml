@@ -8,6 +8,12 @@ assets_path = "/app/assets"
 [log]
 level = "debug" # debug, info, warn, error
 
+# 代理配置
+[proxy]
+enabled = false
+http = "http://127.0.0.1:7890"
+https = "http://127.0.0.1:7890"
+
 # TMDB API 配置
 [tmdb]
 api_key = "your_tmdb_api_key"
