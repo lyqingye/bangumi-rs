@@ -1,4 +1,6 @@
 
+create database if not exists bangumi;
+use bangumi;
 create table if not exists bangumi (
     id int primary key auto_increment,
     name varchar(255) not null comment '动漫名称',

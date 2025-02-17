@@ -1,23 +1,9 @@
-import { ref } from 'vue'
-
-interface SnackbarOptions {
-  text: string
-  color?: string
-  timeout?: number
-  location?: string
-}
-
-const snackbarRef = ref()
+import { useSnackbarStore } from '../stores/snackbar'
+export type { SnackbarOptions } from '../stores/snackbar'
 
 export function useSnackbar() {
-  const showSnackbar = (options: SnackbarOptions) => {
-    if (snackbarRef.value) {
-      snackbarRef.value.showSnackbar(options)
-    }
-  }
-
+  const { showSnackbar } = useSnackbarStore()
   return {
-    snackbarRef,
     showSnackbar
   }
 }

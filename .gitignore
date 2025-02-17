@@ -28,3 +28,4 @@ Thumbs.db
 
 /web/.vite
 config.toml
+/data/
