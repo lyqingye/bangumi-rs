@@ -1,21 +1,34 @@
 # Bangumi 下载管理器
 
-一个基于 Rust + Vue 3 开发的动漫下载管理工具,支持订阅番剧、自动下载、元数据管理等功能。
+<div align="center">
+  <img src="docs/screenshot/home.png" width="80%" />
+</div>
+
+基于 Rust + Vue 3 开发的动漫追番,支持订阅番剧、自动下载, 在线播放等功能。
 
 ## 功能特性
 
-- 🎯 番剧订阅管理
+- 🎯 番剧订阅
+
   - 支持订阅/取消订阅番剧
   - 可配置分辨率、字幕组、语言等过滤条件
   - 支持自定义订阅更新间隔
 
-- 📥 自动下载管理 
-  - 自动选择最佳下载源
-  - 支持 115 网盘下载
-  - 支持下载状态跟踪
-  - 支持失败重试
+- 🔍 资源解析
+
+  - 采用 ChatGPT 进行解析，支持多个 API 服务提供商 (SiliconFlow、OpenAI、Claude、DeepSeek)
+
+- 📥 自动下载
+
+  - 自动选择最佳种子 (根据分辨率以及语言字幕优先选择)
+  - 支持 115 网盘 离线下载
+
+- 🎬 在线播放
+
+  - 支持在线播放, 唤起 IINA 播放器
 
 - 📚 元数据管理
+
   - 自动获取番剧信息
   - 支持从多个数据源获取(TMDB、Bangumi.tv、Mikan)
   - 支持手动刷新元数据
@@ -23,8 +36,6 @@
 
 - 🔔 通知提醒
   - 支持 Telegram 通知
-  - 支持下载完成提醒
-  - 支持订阅更新提醒
 
 ## 技术栈
 
@@ -33,17 +44,15 @@
 - Rust
 - tokio (异步运行时)
 - sea-orm (ORM)
-- MySQL (数据库)
 - actix-web (Web 框架)
+- MySQL (数据库)
 
-### 前端 
+### 前端
 
 - Vue 3
 - TypeScript
 - Vuetify 3
 - Vite
-- Vue Router
-- WebSocket
 
 ## 构建说明
 
@@ -172,4 +181,5 @@ model = "gpt-4"
 
 ## 许可证
 
-MIT License 
+MIT License
+

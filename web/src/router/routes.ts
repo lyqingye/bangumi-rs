@@ -14,21 +14,6 @@ export const routes = [
         name: 'downloads',
         component: () => import('@/pages/downloads.vue')
       },
-      {
-        path: 'movies',
-        name: 'movies',
-        component: () => import('@/pages/movies.vue')
-      },
-      {
-        path: 'tv',
-        name: 'tv',
-        component: () => import('@/pages/tv.vue')
-      },
-      {
-        path: 'anime',
-        name: 'anime',
-        component: () => import('@/pages/anime.vue')
-      }
     ]
   },
   {
