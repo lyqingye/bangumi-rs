@@ -1,16 +1,34 @@
 <template>
   <div class="home-content">
     <!-- 搜索框 -->
-    <div class="search-container mb-6">
-      <v-text-field
-        density="compact"
-        hide-details
-        prepend-inner-icon="mdi-magnify"
-        placeholder="搜索..."
-        variant="solo-filled"
-        class="search-field"
-        bg-color="rgba(32, 32, 32, 0.95)"
-      />
+    <div class="position-relative mb-6">
+      <div class="search-container">
+        <v-text-field
+          density="compact"
+          hide-details
+          prepend-inner-icon="mdi-magnify"
+          placeholder="搜索..."
+          variant="solo-filled"
+          class="search-field"
+          bg-color="rgba(32, 32, 32, 0.95)"
+        />
+      </div>
+      <v-btn
+        :loading="refreshing"
+        :disabled="loading || refreshing"
+        variant="tonal"
+        class="refresh-btn"
+        size="40"
+        icon
+        @click="handleRefresh"
+      >
+        <v-icon>mdi-refresh</v-icon>
+        <v-tooltip
+          activator="parent"
+          location="bottom"
+          text="刷新放送列表"
+        />
+      </v-btn>
     </div>
 
     <v-row>
@@ -62,13 +80,14 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
-import { fetchCalendar } from '@/api/api'
+import { fetchCalendar, refreshCalendar } from '@/api/api'
 import { type Bangumi } from '@/api/model'
 import MediaCard from '@/components/MediaCard.vue'
 
 const selectedWeekday = ref(String(new Date().getDay()))
 const calendarItems = ref<Bangumi[]>([])
 const loading = ref(false)
+const refreshing = ref(false)
 const error = ref('')
 
 const filteredCalendarItems = computed(() => {
@@ -87,6 +106,18 @@ const loadCalendarData = async () => {
     error.value = e instanceof Error ? e.message : '获取数据失败'
   } finally {
     loading.value = false
+  }
+}
+
+const handleRefresh = async () => {
+  refreshing.value = true
+  try {
+    await refreshCalendar()
+    await loadCalendarData()
+  } catch (e) {
+    // 错误已经在 API 层处理
+  } finally {
+    refreshing.value = false
   }
 }
 
@@ -112,6 +143,10 @@ onMounted(() => {
   max-width: 1920px;
   margin: 0 auto;
   padding: 24px;
+}
+
+.position-relative {
+  position: relative;
 }
 
 .search-container {
@@ -207,5 +242,13 @@ onMounted(() => {
 
 .media-card-col {
   transition: transform 0.2s ease;
+}
+
+.refresh-btn {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  border-radius: 50% !important;
 }
 </style>

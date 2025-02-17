@@ -151,3 +151,13 @@ export async function fetchDownloadTasks(params: QueryDownloadTask): Promise<Dow
     return handleError(error, '获取下载任务列表失败')
   }
 }
+
+// 刷新放送列表
+export async function refreshCalendar(): Promise<void> {
+  try {
+    const response = await api.get<ApiResponse<null>>('/calendar/refresh')
+    handleResponse(response, '刷新放送列表失败')
+  } catch (error) {
+    handleError(error, '刷新放送列表失败')
+  }
+}
