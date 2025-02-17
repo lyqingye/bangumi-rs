@@ -91,4 +91,7 @@ dict_code! {
     group bangumi {
         CurrentSeasonSchedule => ("current_season_schedule", "当前季度番剧放送表", 100),
     }
+    group system {
+        FirstRun => ("first_run", "是否首次运行", 100),
+    }
 }

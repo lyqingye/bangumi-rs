@@ -18,7 +18,7 @@ const { showSnackbar } = useSnackbar()
 
 // 创建 axios 实例
 const api = axios.create({
-  baseURL: 'http://localhost:80/api',
+  baseURL: '/api',
   timeout: 5000
 })
 
