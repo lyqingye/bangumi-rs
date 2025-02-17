@@ -2,6 +2,7 @@ use actix_cors::Cors;
 use actix_files::Files;
 use actix_web::{web, App, HttpServer};
 use dict::DictCode;
+use metadata::worker::RefreshKind;
 use parser::Parser;
 use std::sync::Arc;
 use std::{net::SocketAddr, path::PathBuf, str::FromStr};
@@ -36,7 +37,7 @@ pub struct Server {
     state: Arc<AppState>,
 }
 
-pub const ASSETS_MOUNT_PATH: &'static str = "/assets";
+pub const ASSETS_MOUNT_PATH: &'static str = "/api/assets";
 
 impl Server {
     pub async fn new(config: Config) -> Result<Self> {
@@ -301,7 +302,7 @@ impl Server {
     fn configure_app(cfg: &mut web::ServiceConfig, state: Arc<AppState>) {
         cfg.app_data(web::Data::new(state.clone()))
             .service(
-                Files::new("/assets", state.assets_path.clone())
+                Files::new(ASSETS_MOUNT_PATH, state.assets_path.clone())
                     .show_files_listing()
                     .prefer_utf8(true),
             )
@@ -315,6 +316,7 @@ impl Server {
             .service(api::delete_bangumi_download_tasks)
             .service(api::list_download_tasks)
             .service(api::manual_select_torrent)
+            .service(api::refresh_calendar)
             .service(api::health)
             .route("/ws", web::get().to(ws_handler));
     }
@@ -334,7 +336,10 @@ impl Server {
     }
 
     async fn do_first_run(state: &Arc<AppState>) -> Result<()> {
-        state.metadata.refresh_calendar().await?;
+        state
+            .metadata
+            .request_refresh(None, RefreshKind::Calendar)
+            .await?;
         Ok(())
     }
 }
