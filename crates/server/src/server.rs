@@ -1,6 +1,7 @@
 use actix_cors::Cors;
 use actix_files::Files;
 use actix_web::{web, App, HttpServer};
+use dict::DictCode;
 use parser::Parser;
 use std::sync::Arc;
 use std::{net::SocketAddr, path::PathBuf, str::FromStr};
@@ -40,6 +41,7 @@ pub const ASSETS_MOUNT_PATH: &'static str = "/assets";
 impl Server {
     pub async fn new(config: Config) -> Result<Self> {
         let state = Self::init_state(&config).await?;
+        Self::after_init(&state).await?;
         Ok(Self { config, state })
     }
 
@@ -307,6 +309,25 @@ impl Server {
             .service(api::manual_select_torrent)
             .service(api::health)
             .route("/ws", web::get().to(ws_handler));
+    }
+
+    async fn after_init(state: &Arc<AppState>) -> Result<()> {
+        let first_run = state.dict.get_value_as::<bool>(DictCode::FirstRun).await?;
+
+        if first_run.is_none() || first_run.unwrap() {
+            info!("检测到首次运行，开始执行初始化...");
+            Self::do_first_run(state).await?;
+            state
+                .dict
+                .set_value_as::<bool>(DictCode::FirstRun, &false)
+                .await?;
+        }
+        Ok(())
+    }
+
+    async fn do_first_run(state: &Arc<AppState>) -> Result<()> {
+        state.metadata.refresh_calendar().await?;
+        Ok(())
     }
 }
 
