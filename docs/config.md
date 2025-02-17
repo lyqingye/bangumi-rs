@@ -14,6 +14,15 @@ assets_path = "assets"          # 资源文件路径
 level = "debug"                 # 日志级别
 ```
 
+## 代理配置
+
+````toml
+[proxy]
+enabled = false
+http = "http://127.0.0.1:7890"
+https = "http://127.0.0.1:7890"
+````
+
 ## 外部 API 配置
 
 ```toml
@@ -28,7 +37,7 @@ endpoint = "https://api.bgm.tv/v0"
 
 [mikan]
 endpoint = "https://mikanani.me"
-```
+````
 
 ## 下载器配置
 
@@ -57,3 +66,4 @@ api_key = "your_api_key"
 base_url = "https://api.siliconflow.com"
 model = "gpt-4"
 ```
+
