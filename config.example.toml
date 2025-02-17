@@ -1,12 +1,12 @@
 # 服务器配置
 [server]
-listen_addr = "127.0.0.1:3001"
-database_url = "mysql://user:pass@localhost:3306/bangumi"
+listen_addr = "0.0.0.0:3001"
+database_url = "mysql://user:pass@mysql:3306/bangumi"
 assets_path = "/app/assets"
 
 # 日志配置
 [log]
-level = "debug"  # debug, info, warn, error
+level = "debug" # debug, info, warn, error
 
 # TMDB API 配置
 [tmdb]
@@ -54,4 +54,4 @@ model = "deepseek-chat"
 enabled = false
 api_key = "your_api_key"
 base_url = "https://api.deepbricks.com"
-model = "gpt-4" 
+model = "gpt-4"
