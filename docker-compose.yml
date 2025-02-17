@@ -41,6 +41,8 @@ services:
         condition: service_healthy
     networks:
       - bangumi-network
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
 
   frontend:
     image: ghcr.io/lyqingye/bangumi-rs/frontend:master
@@ -48,6 +50,16 @@ services:
       - "80:80"
     depends_on:
       - backend
+    networks:
+      - bangumi-network
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+
+  watchtower:
+    image: containrrr/watchtower:latest
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: --interval 60 --cleanup --label-enable
     networks:
       - bangumi-network
 
