@@ -70,7 +70,7 @@ impl Client {
         Self::new(client, &api_key, &base_url, &image_base_url, &language)
     }
 
-    #[instrument(name = "TMDB 匹配番剧", skip(self), fields(name = %name, air_date = %air_date))]
+    #[instrument(name = "TMDB 匹配番剧", skip(self), fields(name = %name))]
     pub async fn match_bangumi(
         &self,
         name: &str,
