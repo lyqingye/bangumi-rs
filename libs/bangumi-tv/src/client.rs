@@ -37,9 +37,8 @@ impl Client {
             .await?
             .text()
             .await?;
-        let resp: Vec<CalendarResponse> = serde_json::from_str(&response).with_context(|| {
-            format!("解析放送列表失败: {}", response)
-        })?;
+        let resp: Vec<CalendarResponse> = serde_json::from_str(&response)
+            .with_context(|| format!("解析放送列表失败: {}", response))?;
         Ok(resp)
     }
 
@@ -65,9 +64,8 @@ impl Client {
             .await?
             .text()
             .await?;
-        let resp: EpisodeList = serde_json::from_str(&response).with_context(|| {
-            format!("解析剧集信息失败: {}", response)
-        })?;
+        let resp: EpisodeList = serde_json::from_str(&response)
+            .with_context(|| format!("解析剧集信息失败: {}", response))?;
         Ok(resp)
     }
 
@@ -81,9 +79,8 @@ impl Client {
             .await?
             .text()
             .await?;
-        let resp: Subject = serde_json::from_str(&response).with_context(|| {
-            format!("解析番剧信息失败: {}", response)
-        })?;
+        let resp: Subject = serde_json::from_str(&response)
+            .with_context(|| format!("解析番剧信息失败: {}", response))?;
         Ok(Some(resp))
     }
 }

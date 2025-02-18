@@ -120,10 +120,10 @@ impl Fetcher {
                 .await?;
         } else {
             warn!("未在 bangumi.tv 找到番剧信息: {}", bgm.name);
-            // 如果没有封面，尝试从 mikan 获取
-            if bgm.poster_image_url.is_none() {
-                self.fetch_image_from_mikan(bgm, mikan_info).await?;
-            }
+        }
+        // 如果没有封面，尝试从 mikan 获取
+        if bgm.poster_image_url.is_none() {
+            self.fetch_image_from_mikan(bgm, mikan_info).await?;
         }
         Ok(())
     }

@@ -1,5 +1,5 @@
 use anyhow::Result;
-use chrono::NaiveDate;
+use chrono::{Datelike, NaiveDate};
 use lazy_static::lazy_static;
 use regex;
 use reqwest::Url;
@@ -7,9 +7,12 @@ use std::{path::Path, sync::Arc};
 use tmdb_api::{
     client::reqwest::ReqwestExecutor,
     prelude::Command,
-    tvshow::{details::TVShowDetails, search::TVShowSearch, SeasonShort, TVShow},
+    tvshow::{
+        details::TVShowDetails, episode::details::TVShowEpisodeDetails, search::TVShowSearch,
+        SeasonShort, TVShow, TVShowShort,
+    },
 };
-use tracing::instrument;
+use tracing::{debug, instrument};
 
 #[derive(Clone)]
 pub struct Client {
@@ -36,6 +39,11 @@ fn extract_anime_name(name: &str) -> String {
 
     for pattern in PATTERNS.iter() {
         result = pattern.replace(&result, "").to_string();
+    }
+
+    let index = result.find(" ");
+    if let Some(index) = index {
+        result = result[..index].to_string();
     }
     result.trim().to_string()
 }
@@ -70,6 +78,52 @@ impl Client {
         Self::new(client, &api_key, &base_url, &image_base_url, &language)
     }
 
+    async fn try_match_tv_show(
+        &self,
+        air_date: NaiveDate,
+        tv_shows: &Vec<TVShowShort>,
+    ) -> Result<Vec<TVShowShort>> {
+        let mut tv_candidates = Vec::new();
+        for result in tv_shows {
+            debug!(tv_name = %result.inner.name, air_date = %air_date);
+            if let Some(first_air_date) = result.inner.first_air_date {
+                // 检查年月是否完全匹配
+                if first_air_date.year() == air_date.year()
+                    && first_air_date.month() == air_date.month()
+                {
+                    tv_candidates.push(result.clone());
+                    debug!(
+                        tv_name = %result.inner.name,
+                        tv_date = %first_air_date,
+                        "找到年月完全匹配的TV"
+                    );
+                }
+            }
+        }
+        Ok(tv_candidates)
+    }
+
+    async fn try_match_seasons(
+        &self,
+        seasons: &Vec<SeasonShort>,
+        air_date: NaiveDate,
+    ) -> Result<Option<SeasonShort>> {
+        for season in seasons {
+            debug!(
+                season_name = %season.inner.name,
+                season_air_date = %season.inner.air_date.unwrap_or_default()
+            );
+            if let Some(season_air_date) = season.inner.air_date {
+                if season_air_date.year() == air_date.year()
+                    && season_air_date.month() == air_date.month()
+                {
+                    return Ok(Some(season.clone()));
+                }
+            }
+        }
+        Ok(None)
+    }
+
     #[instrument(name = "TMDB 匹配番剧", skip(self), fields(name = %name))]
     pub async fn match_bangumi(
         &self,
@@ -77,6 +131,8 @@ impl Client {
         air_date: Option<NaiveDate>,
     ) -> Result<Option<(TVShow, SeasonShort)>> {
         let clean_name = extract_anime_name(name);
+        debug!(name = %clean_name, "清理后的番剧名称");
+
         // 1. 执行搜索
         let search_results = TVShowSearch::new(clean_name)
             .with_language(Some(self.language.clone()))
@@ -84,56 +140,88 @@ impl Client {
             .await
             .map_err(|e| anyhow::anyhow!("TMDB搜索失败: {}", e))?;
 
-        // 2. 如果有air_date就按日期匹配，否则取第一个结果
-        let tv_id = if let Some(air_date) = air_date {
-            let mut candidates = Vec::new();
-            for result in search_results.results {
-                if let Some(first_air_date) = result.inner.first_air_date {
-                    let days_diff = (first_air_date.signed_duration_since(air_date))
-                        .num_days()
-                        .abs();
-                    candidates.push((result.inner.id, days_diff));
+        debug!(results_count = %search_results.results.len(), "搜索结果数量");
+
+        if search_results.results.is_empty() {
+            debug!("未找到匹配的结果");
+            return Ok(None);
+        }
+
+        // 如果没有放送时间，直接返回第一个结果的第一季
+        if air_date.is_none() {
+            debug!("未提供放送时间，使用第一个搜索结果");
+
+            let tv = &search_results.results[0].inner;
+            let details = TVShowDetails::new(tv.id)
+                .with_language(Some(self.language.clone()))
+                .execute(&self.client)
+                .await
+                .map_err(|e| anyhow::anyhow!("获取详情失败: {}", e))?;
+
+            return Ok(details
+                .seasons
+                .first()
+                .map(|season| (details.clone(), season.clone())));
+        }
+
+        let air_date = air_date.unwrap();
+
+        // 1. 匹配TV
+        debug!("尝试匹配TV: {}", air_date);
+        let mut tv_shows = self
+            .try_match_tv_show(air_date, &search_results.results)
+            .await?;
+        if tv_shows.is_empty() {
+            debug!("未找到匹配的TV，使用所有搜索结果");
+            tv_shows = search_results.results;
+        }
+
+        // 2. 匹配Season
+        debug!("尝试匹配Season: {}", air_date);
+        let mut tv_details_cache = Vec::new();
+        for tv in tv_shows {
+            let details = TVShowDetails::new(tv.inner.id)
+                .with_language(Some(self.language.clone()))
+                .execute(&self.client)
+                .await
+                .map_err(|e| anyhow::anyhow!("获取详情失败: {}", e))?;
+
+            tv_details_cache.push(details.clone());
+
+            let season = self.try_match_seasons(&details.seasons, air_date).await?;
+            if let Some(season) = season {
+                return Ok(Some((details.clone(), season.clone())));
+            }
+        }
+
+        // 3. 匹配Episode
+        debug!("尝试匹配Episode: {}", air_date);
+        for tv in tv_details_cache {
+            for season in tv.seasons.iter() {
+                for i in 1..=season.episode_count {
+                    let episode =
+                        TVShowEpisodeDetails::new(tv.inner.id, season.inner.season_number, i)
+                            .with_language(Some(self.language.clone()))
+                            .execute(&self.client)
+                            .await
+                            .map_err(|e| anyhow::anyhow!("获取详情失败: {}", e))?;
+
+                    debug!(
+                        episode_name = %episode.inner.name,
+                        episode_number = %episode.inner.episode_number,
+                        episode_air_date = %episode.inner.air_date
+                    );
+                    if episode.inner.air_date.year() == air_date.year()
+                        && episode.inner.air_date.month() == air_date.month()
+                    {
+                        return Ok(Some((tv.clone(), season.clone())));
+                    }
                 }
             }
-            candidates
-                .iter()
-                .min_by_key(|(_, diff)| *diff)
-                .map(|(id, _)| *id)
-        } else {
-            search_results.results.first().map(|r| r.inner.id)
-        };
+        }
 
-        let Some(tv_id) = tv_id else {
-            return Ok(None);
-        };
-
-        // 4. 获取剧集详情
-        let details = TVShowDetails::new(tv_id)
-            .with_language(Some(self.language.clone()))
-            .execute(&self.client)
-            .await
-            .map_err(|e| anyhow::anyhow!("获取详情失败: {}", e))?;
-
-        // 5. 如果有air_date就按日期匹配季数，否则取第一季
-        let matched_season = if air_date.is_some() {
-            details
-                .seasons
-                .iter()
-                .filter_map(|season| {
-                    season.inner.air_date.map(|date| {
-                        let days_diff = (date.signed_duration_since(air_date.unwrap()))
-                            .num_days()
-                            .abs();
-                        (season, days_diff)
-                    })
-                })
-                .min_by_key(|(_, diff)| *diff)
-                .map(|(season, _)| season)
-        } else {
-            details.seasons.first()
-        };
-
-        Ok(matched_season.map(|season| (details.clone(), season.clone())))
+        debug!("未找到匹配的结果");
+        Ok(None)
     }
 
     pub async fn download_image(&self, file_path: &str, path: impl AsRef<Path>) -> Result<()> {
@@ -155,13 +243,18 @@ mod tests {
     #[tokio::test]
     async fn test_tmdb_search_movie() -> Result<()> {
         dotenv::dotenv()?;
+        tracing_subscriber::fmt()
+            .with_max_level(tracing::Level::DEBUG)
+            .with_target(true) // 不显示目标模块
+            .init();
         let tmdb = Client::new_from_env()?;
-        let test_date = NaiveDate::from_ymd_opt(2025, 1, 5).unwrap(); // 进击的巨人首播日期
+        let test_date = NaiveDate::from_ymd_opt(2025, 1, 4).unwrap(); // 进击的巨人首播日期
         let rs = tmdb
-            .match_bangumi("想变成猫的田万川君", Some(test_date))
+            .match_bangumi("我独自升级 第二季 -起于暗影-", Some(test_date))
             .await?
             .unwrap();
-        println!("{:?}", rs);
+        println!("tv: {}", rs.0.inner.name);
+        println!("season: {} {}", rs.1.inner.name, rs.1.inner.season_number);
         Ok(())
     }
 
@@ -173,5 +266,9 @@ mod tests {
         assert_eq!(extract_anime_name("咒术回战season 2"), "咒术回战");
         assert_eq!(extract_anime_name("BLEACH S1"), "BLEACH");
         assert_eq!(extract_anime_name("进击的巨人"), "进击的巨人");
+        assert_eq!(
+            extract_anime_name("期待在地下城邂逅有错吗 第五季 丰饶的女神篇"),
+            "期待在地下城邂逅有错吗"
+        );
     }
 }
