@@ -23,7 +23,8 @@ language = "zh-CN"
 
 # Bangumi.tv API 配置
 [bangumi_tv]
-endpoint = "https://api.bgm.tv/v0"
+endpoint = "https://api.bgm.tv"
+image_base_url = "https://lain.bgm.tv"
 
 # Mikan 配置
 [mikan]

@@ -183,7 +183,7 @@ impl Fetcher {
 
         if bgm.poster_image_url.is_none() {
             match self
-                .download_image(
+                .download_image_from_bangumi_tv(
                     &subject.images.common,
                     format!("bangumi_{}", bgm.id).as_str(),
                 )
@@ -307,5 +307,57 @@ impl Fetcher {
             .await?;
 
         Ok(write_file_name)
+    }
+
+    async fn download_image_from_bangumi_tv(
+        &self,
+        bgm_tv_file_path: &str,
+        file_name: &str,
+    ) -> Result<String> {
+        let ext = std::path::Path::new(bgm_tv_file_path)
+            .extension()
+            .and_then(|os_str| os_str.to_str())
+            .unwrap_or("jpg");
+
+        info!(
+            "尝试从 bangumi.tv 中下载图片: {} {}",
+            bgm_tv_file_path, file_name
+        );
+
+        fs::create_dir_all(&self.assets_path).await?;
+
+        let write_file_name = format!("{}.{}", file_name, ext);
+        let write_path = format!("{}/{}", &self.assets_path, write_file_name);
+        if fs::try_exists(&write_path).await? {
+            return Ok(write_file_name);
+        }
+        self.bgm_tv
+            .download_image(bgm_tv_file_path, &write_path)
+            .await?;
+
+        Ok(write_file_name)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_download_image_from_bangumi_tv() -> Result<()> {
+        dotenv::dotenv()?;
+        tracing_subscriber::fmt()
+            .with_max_level(tracing::Level::INFO)
+            .with_target(true)
+            .init();
+        let fetcher = Fetcher::new_from_env()?;
+        let file_name = fetcher
+            .download_image_from_bangumi_tv(
+                "http://lain.bgm.tv/pic/cover/l/37/17/455626_6hH1b.jpg",
+                "testttt",
+            )
+            .await?;
+        println!("{}", file_name);
+        Ok(())
     }
 }
