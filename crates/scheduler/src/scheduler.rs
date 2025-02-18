@@ -101,6 +101,10 @@ impl Scheduler {
         let mut workers = self.workers.lock().await;
         if let Some(worker) = workers.get_mut(&bangumi_id) {
             worker.trigger_collection();
+        } else {
+            self.metadata
+                .request_refresh(Some(bangumi_id), metadata::worker::RefreshKind::Metadata)
+                .await?;
         }
         Ok(())
     }
