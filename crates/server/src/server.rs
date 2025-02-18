@@ -80,6 +80,7 @@ impl Server {
         let bgm_tv = bangumi_tv::client::Client::new_with_client(
             client.clone(),
             &config.bangumi_tv.endpoint,
+            &config.bangumi_tv.image_base_url,
         )?;
 
         let dict = dict::Dict::new(db.conn_pool());
