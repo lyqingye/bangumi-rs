@@ -119,6 +119,7 @@ pub struct TMDBConfig {
 pub struct BangumiTvConfig {
     #[serde(default = "default_bangumi_tv_endpoint")]
     pub endpoint: String,
+    pub image_base_url: String,
 }
 
 fn default_log_level() -> String {

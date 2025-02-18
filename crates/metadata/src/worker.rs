@@ -297,7 +297,7 @@ mod test {
             .request_refresh(Some(91), RefreshKind::Torrents)
             .await?;
         tokio::time::sleep(Duration::from_secs(30)).await;
-        worker.stop().await;
+        worker.shutdown().await?;
         Ok(())
     }
 }

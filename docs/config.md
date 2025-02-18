@@ -16,12 +16,12 @@ level = "debug"                 # 日志级别
 
 ## 代理配置
 
-````toml
+```toml
 [proxy]
 enabled = false
 http = "http://127.0.0.1:7890"
 https = "http://127.0.0.1:7890"
-````
+```
 
 ## 外部 API 配置
 
@@ -33,11 +33,11 @@ image_base_url = "https://image.tmdb.org/t/p"
 language = "zh-CN"
 
 [bangumi_tv]
-endpoint = "https://api.bgm.tv/v0"
-
+endpoint = "https://api.bgm.tv"
+image_base_url = "https://lain.bgm.tv"
 [mikan]
 endpoint = "https://mikanani.me"
-````
+```
 
 ## 下载器配置
 

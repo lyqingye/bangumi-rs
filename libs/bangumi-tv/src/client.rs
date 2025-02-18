@@ -1,5 +1,7 @@
+use std::path::Path;
+
 use anyhow::{Context, Result};
-use reqwest::{header::USER_AGENT, Client as ReqwestClient};
+use reqwest::{header::USER_AGENT, Client as ReqwestClient, Url};
 use tracing::instrument;
 
 use super::model::{CalendarResponse, EpisodeList, EpisodeType, Subject};
@@ -7,6 +9,7 @@ use super::model::{CalendarResponse, EpisodeList, EpisodeType, Subject};
 #[derive(Debug, Clone)]
 pub struct Client {
     base_url: String,
+    image_base_url: String,
     cli: ReqwestClient,
 }
 
@@ -14,16 +17,26 @@ pub struct Client {
 const UA: &str = "lyqingye/bangumi-rs";
 
 impl Client {
-    pub fn new_with_client(cli: ReqwestClient, base_url: &str) -> Result<Self> {
+    pub fn new_with_client(
+        cli: ReqwestClient,
+        base_url: &str,
+        image_base_url: &str,
+    ) -> Result<Self> {
         Ok(Self {
             base_url: base_url.to_string(),
+            image_base_url: image_base_url.to_string(),
             cli,
         })
     }
 
     pub fn new_from_env() -> Result<Self> {
         let base_url = std::env::var("BANGUMI_TV_BASE_URL")?;
-        Self::new_with_client(ReqwestClient::builder().user_agent(UA).build()?, &base_url)
+        let image_base_url = std::env::var("BANGUMI_TV_IMAGE_BASE_URL")?;
+        Self::new_with_client(
+            ReqwestClient::builder().user_agent(UA).build()?,
+            &base_url,
+            &image_base_url,
+        )
     }
 
     #[instrument(name = "获取放送列表")]
@@ -83,6 +96,16 @@ impl Client {
             .with_context(|| format!("解析番剧信息失败: {}", response))?;
         Ok(Some(resp))
     }
+
+    pub async fn download_image(&self, file_path: &str, path: impl AsRef<Path>) -> Result<()> {
+        let base = self.image_base_url.as_str().trim_end_matches('/');
+        let url = Url::parse(file_path)?;
+        let proxyed_url = format!("{}{}", base, url.path());
+        let response = self.cli.get(proxyed_url).send().await?;
+        let bytes = response.bytes().await?;
+        tokio::fs::write(path, bytes).await?;
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -117,6 +140,17 @@ mod test {
         let cli = create_client().await?;
         let resp = cli.get_subject(525733).await?;
         println!("{:?}", resp);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_download_image() -> Result<()> {
+        let cli = create_client().await?;
+        cli.download_image(
+            "http://lain.bgm.tv/pic/cover/l/37/17/455626_6hH1b.jpg",
+            "/Users/lyqingye/Desktop/test.jpg",
+        )
+        .await?;
         Ok(())
     }
 }
