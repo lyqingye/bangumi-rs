@@ -4603,6 +4603,7 @@ dependencies = [
  "tmdb-api",
  "tokio",
  "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]
