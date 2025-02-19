@@ -513,6 +513,7 @@ pub async fn update_bangumi_mdb(
             params.tmdb_id,
             params.mikan_id,
             params.bangumi_tv_id,
+            params.season_number,
         )
         .await?;
     Ok(Json(Resp::ok(())))
