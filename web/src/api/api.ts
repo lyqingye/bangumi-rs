@@ -9,7 +9,9 @@ import type {
   SubscribeParams,
   DownloadTask,
   QueryDownloadTask,
-  PaginatedResponse
+  PaginatedResponse,
+  TMDBMetadata,
+  UpdateMDBParams
 } from './model'
 import { ApiError } from './model'
 import { useSnackbar } from '../composables/useSnackbar'
@@ -159,5 +161,25 @@ export async function refreshCalendar(): Promise<void> {
     handleResponse(response, '刷新放送列表失败')
   } catch (error) {
     handleError(error, '刷新放送列表失败')
+  }
+}
+
+// TMDB 搜索相关 API
+export async function searchBangumiAtTMDB(name: string): Promise<TMDBMetadata[]> {
+  try {
+    const response = await api.get<ApiResponse<TMDBMetadata[]>>(`/tmdb/search/${encodeURIComponent(name)}`)
+    return handleResponse(response, '搜索 TMDB 数据失败')
+  } catch (error) {
+    return handleError(error, '搜索 TMDB 数据失败')
+  }
+}
+
+// 更新番剧元数据
+export async function updateBangumiMDB(params: UpdateMDBParams): Promise<void> {
+  try {
+    const response = await api.post<ApiResponse<null>>(`/bangumi/${params.bangumi_id}/mdb/update`, params)
+    handleResponse(response, '更新番剧元数据失败')
+  } catch (error) {
+    handleError(error, '更新番剧元数据失败')
   }
 }

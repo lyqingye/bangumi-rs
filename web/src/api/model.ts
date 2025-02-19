@@ -150,3 +150,27 @@ export interface DownloadTask {
   err_msg: string | null
   retry_count: number
 }
+
+// TMDB 元数据信息
+export interface TMDBMetadata {
+  id: number
+  name: string
+  poster_image_url: string | null
+  air_date: string | null
+  seasons: TMDBSeason[]
+}
+
+// TMDB 季度信息
+export interface TMDBSeason {
+  number: number
+  name: string
+  air_date: string | null
+}
+
+// 更新番剧元数据参数
+export interface UpdateMDBParams {
+  bangumi_id: number
+  tmdb_id?: number | null
+  mikan_id?: number | null
+  bangumi_tv_id?: number | null
+}
