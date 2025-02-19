@@ -7,14 +7,17 @@ pub enum ServerError {
     #[error("bangumi not found")]
     BangumiNotFound,
 
-    #[error("internal error: {0}")]
-    Internal(#[from] actix_web::Error),
+    #[error("actix error: {0}")]
+    ActixError(#[from] actix_web::Error),
 
     #[error("internal error: {0}")]
-    Internal2(#[from] anyhow::Error),
+    Internal(#[from] anyhow::Error),
 
-    #[error("internal error: {0}")]
-    Internal3(#[from] sea_orm::DbErr),
+    #[error("db error: {0}")]
+    DbError(#[from] sea_orm::DbErr),
+
+    #[error("network error: {0}")]
+    NetworkError(#[from] reqwest::Error),
 }
 
 impl ResponseError for ServerError {

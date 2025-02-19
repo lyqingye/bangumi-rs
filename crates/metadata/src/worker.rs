@@ -274,7 +274,39 @@ impl Worker {
         Ok(())
     }
 
-    pub async fn fetcher(&self) -> &Fetcher {
+    pub async fn update_bangumi_mdb(
+        &self,
+        bgm_id: i32,
+        tmdb_id: Option<u64>,
+        mikan_id: Option<i32>,
+        banugmi_tv_id: Option<i32>,
+    ) -> Result<()> {
+        let mut bgm = self
+            .db
+            .get_bangumi_by_id(bgm_id)
+            .await?
+            .context("番剧未找到")?;
+        info!(
+            "正在更新番剧MDB {} TMDB ID: {:?}, mikan ID: {:?}, bgm.tv ID: {:?}",
+            bgm.name, tmdb_id, mikan_id, banugmi_tv_id
+        );
+        if mikan_id.is_some() {
+            bgm.mikan_id = mikan_id;
+        }
+        if banugmi_tv_id.is_some() {
+            bgm.bangumi_tv_id = banugmi_tv_id;
+        }
+        if tmdb_id.is_some() {
+            bgm.tmdb_id = tmdb_id;
+        }
+        self.db.update_bangumi(bgm).await?;
+
+        self.request_refresh(Some(bgm_id), RefreshKind::Metadata)
+            .await?;
+        Ok(())
+    }
+
+    pub fn fetcher(&self) -> &Fetcher {
         &self.fetcher
     }
 }

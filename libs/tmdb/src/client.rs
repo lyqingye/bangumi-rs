@@ -124,6 +124,25 @@ impl Client {
         Ok(None)
     }
 
+    pub async fn search_bangumi(&self, name: &str) -> Result<Vec<TVShow>> {
+        let clean_name = extract_anime_name(name);
+        let search_results = TVShowSearch::new(clean_name)
+            .with_language(Some(self.language.clone()))
+            .execute(&self.client)
+            .await
+            .map_err(|e| anyhow::anyhow!("TMDB搜索失败: {}", e))?;
+        let mut tv_shows = Vec::new();
+        for tv in search_results.results {
+            let details = TVShowDetails::new(tv.inner.id)
+                .with_language(Some(self.language.clone()))
+                .execute(&self.client)
+                .await
+                .map_err(|e| anyhow::anyhow!("获取详情失败: {}", e))?;
+            tv_shows.push(details);
+        }
+        Ok(tv_shows)
+    }
+
     #[instrument(name = "TMDB 匹配番剧", skip(self), fields(name = %name))]
     pub async fn match_bangumi(
         &self,
@@ -225,13 +244,18 @@ impl Client {
     }
 
     pub async fn download_image(&self, file_path: &str, path: impl AsRef<Path>) -> Result<()> {
+        let response = self.download_image_as_response(file_path).await?;
+        let bytes = response.bytes().await?;
+        tokio::fs::write(path, bytes).await?;
+        Ok(())
+    }
+
+    pub async fn download_image_as_response(&self, file_path: &str) -> Result<reqwest::Response> {
         let base = self.image_base_url.as_str().trim_end_matches('/');
         let file_path = file_path.trim_start_matches('/');
         let url = format!("{}/{}", base, file_path);
         let response = self.http_client.get(url).send().await?;
-        let bytes = response.bytes().await?;
-        tokio::fs::write(path, bytes).await?;
-        Ok(())
+        Ok(response)
     }
 }
 
@@ -253,6 +277,7 @@ mod tests {
             .match_bangumi("我独自升级 第二季 -起于暗影-", Some(test_date))
             .await?
             .unwrap();
+        println!("rs: {:?}", rs.1);
         println!("tv: {}", rs.0.inner.name);
         println!("season: {} {}", rs.1.inner.name, rs.1.inner.season_number);
         Ok(())

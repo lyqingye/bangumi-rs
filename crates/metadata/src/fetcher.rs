@@ -337,6 +337,17 @@ impl Fetcher {
 
         Ok(write_file_name)
     }
+
+    pub async fn seach_bangumi_at_tmdb(&self, name: &str) -> Result<Vec<TVShow>> {
+        self.tmdb.search_bangumi(name).await
+    }
+
+    pub async fn download_image_from_tmdb_as_response(
+        &self,
+        file_path: &str,
+    ) -> Result<reqwest::Response> {
+        self.tmdb.download_image_as_response(file_path).await
+    }
 }
 
 #[cfg(test)]

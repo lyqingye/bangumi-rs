@@ -318,6 +318,9 @@ impl Server {
             .service(api::list_download_tasks)
             .service(api::manual_select_torrent)
             .service(api::refresh_calendar)
+            .service(api::seach_bangumi_at_tmdb)
+            .service(api::update_bangumi_mdb)
+            .service(api::tmdb_image_proxy)
             .service(api::health)
             .route("/ws", web::get().to(ws_handler));
     }
