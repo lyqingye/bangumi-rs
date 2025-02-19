@@ -19,6 +19,17 @@
         <!-- 悬浮操作按钮 -->
         <div class="image-overlay">
           <div class="action-buttons">
+            <!-- 刷新按钮 -->
+            <v-btn
+              variant="text"
+              size="small"
+              class="action-btn"
+              @click.stop="handleRefresh"
+              :loading="isRefreshing"
+            >
+              <v-icon icon="mdi-refresh" size="20" />
+              <v-tooltip activator="parent" location="top">刷新元数据</v-tooltip>
+            </v-btn>
             <!-- 订阅按钮 -->
             <v-btn variant="text" size="small" class="action-btn" @click.stop="toggleSubscribe">
               <v-icon
@@ -94,7 +105,7 @@
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { SubscribeStatus, type Bangumi, type SubscribeParams } from '@/api/model'
-import { subscribeBangumi } from '@/api/api'
+import { subscribeBangumi, refreshBangumi } from '@/api/api'
 import { useSnackbar } from '../composables/useSnackbar'
 import SubscribeDialog from '../components/SubscribeDialog.vue'
 import TMDBSearchDialog from '../components/TMDBSearchDialog.vue'
@@ -110,6 +121,9 @@ const { showSnackbar } = useSnackbar()
 // 订阅状态
 const isSubscribed = ref(props.item.subscribe_status === SubscribeStatus.Subscribed)
 const showSubscribeDialog = ref(false)
+
+// 添加刷新状态
+const isRefreshing = ref(false)
 
 // TMDB 搜索相关
 const showTMDBSearchDialog = ref(false)
@@ -138,6 +152,36 @@ const handleSubscribe = async (params: SubscribeParams) => {
     })
   } catch (error) {
     console.error('订阅操作失败:', error)
+  }
+}
+
+// 处理刷新操作
+const handleRefresh = async (event: Event) => {
+  event.stopPropagation()
+  if (!props.item || isRefreshing.value) return
+
+  try {
+    isRefreshing.value = true
+    // 调用刷新 API
+    await refreshBangumi(props.item.id)
+    // 显示成功提示
+    showSnackbar({
+      text: '已经加入刷新队列',
+      color: 'success',
+      location: 'top right',
+      timeout: 3000
+    })
+  } catch (error) {
+    console.error('刷新失败:', error)
+    // 显示错误提示
+    showSnackbar({
+      text: '刷新失败',
+      color: 'error',
+      location: 'top right',
+      timeout: 3000
+    })
+  } finally {
+    isRefreshing.value = false
   }
 }
 
