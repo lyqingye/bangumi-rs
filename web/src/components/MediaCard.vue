@@ -30,6 +30,14 @@
                 {{ isSubscribed ? '已追番' : '追番' }}
               </v-tooltip>
             </v-btn>
+
+            <!-- TMDB 搜索按钮 -->
+            <v-btn variant="text" size="small" class="action-btn" @click.stop="showTMDBSearch">
+              <v-icon icon="mdi-magnify" size="20" />
+              <v-tooltip activator="parent" location="top">
+                搜索 TMDB
+              </v-tooltip>
+            </v-btn>
           </div>
         </div>
       </v-img>
@@ -71,6 +79,14 @@
       :release-groups="[]"
       @subscribe="handleSubscribe"
     />
+
+    <!-- TMDB 搜索对话框 -->
+    <TMDBSearchDialog
+      v-model="showTMDBSearchDialog"
+      :bangumi-id="item.id"
+      :initial-query="item.name"
+      @selected="handleTMDBSelected"
+    />
   </v-card>
 </template>
 
@@ -81,6 +97,7 @@ import { SubscribeStatus, type Bangumi, type SubscribeParams } from '@/api/model
 import { subscribeBangumi } from '@/api/api'
 import { useSnackbar } from '../composables/useSnackbar'
 import SubscribeDialog from '../components/SubscribeDialog.vue'
+import TMDBSearchDialog from '../components/TMDBSearchDialog.vue'
 
 const props = defineProps<{
   item: Bangumi
@@ -93,6 +110,9 @@ const { showSnackbar } = useSnackbar()
 // 订阅状态
 const isSubscribed = ref(props.item.subscribe_status === SubscribeStatus.Subscribed)
 const showSubscribeDialog = ref(false)
+
+// TMDB 搜索相关
+const showTMDBSearchDialog = ref(false)
 
 // 切换订阅状态
 const toggleSubscribe = (event: Event) => {
@@ -130,6 +150,15 @@ const goToDetail = () => {
   router.push({
     path: `/detail/${props.item.id}`
   })
+}
+
+const showTMDBSearch = (event: Event) => {
+  event.stopPropagation()
+  showTMDBSearchDialog.value = true
+}
+
+const handleTMDBSelected = () => {
+  // 可以在这里添加刷新卡片信息的逻辑
 }
 </script>
 

@@ -280,6 +280,7 @@ impl Worker {
         tmdb_id: Option<u64>,
         mikan_id: Option<i32>,
         banugmi_tv_id: Option<i32>,
+        season_number: Option<u64>,
     ) -> Result<()> {
         let mut bgm = self
             .db
@@ -298,6 +299,9 @@ impl Worker {
         }
         if tmdb_id.is_some() {
             bgm.tmdb_id = tmdb_id;
+        }
+        if season_number.is_some() {
+            bgm.season_number = season_number;
         }
         self.db.update_bangumi(bgm).await?;
 

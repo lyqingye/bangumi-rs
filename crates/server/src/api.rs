@@ -539,6 +539,7 @@ pub async fn seach_bangumi_at_tmdb(
                 .poster_path
                 .map(|path| format!("/api/tmdb/image/{}", path.trim_start_matches('/'))),
             air_date: tv_show.inner.first_air_date,
+            description: tv_show.inner.overview,
             seasons: Vec::new(),
         };
         for season in tv_show.seasons {
@@ -546,6 +547,7 @@ pub async fn seach_bangumi_at_tmdb(
                 number: season.inner.season_number,
                 name: season.inner.name,
                 air_date: season.inner.air_date,
+                ep_count: season.episode_count,
             });
         }
         metadatas.push(metadata);
