@@ -18,7 +18,6 @@ pub struct Fetcher {
     pub tmdb: tmdb::client::Client,
     pub bgm_tv: bangumi_tv::client::Client,
     pub mikan: mikan::client::Client,
-    pub assets_path: String,
     pub client: reqwest::Client,
 }
 
@@ -27,14 +26,12 @@ impl Fetcher {
         tmdb: tmdb::client::Client,
         bgm_tv: bangumi_tv::client::Client,
         mikan: mikan::client::Client,
-        assets_path: String,
         client: reqwest::Client,
     ) -> Self {
         Self {
             tmdb,
             bgm_tv,
             mikan,
-            assets_path,
             client,
         }
     }
@@ -44,8 +41,7 @@ impl Fetcher {
         let bgm_tv = bangumi_tv::client::Client::new_from_env()?;
         let mikan = mikan::client::Client::from_env()?;
         let client = reqwest::Client::new();
-        let assets_path = std::env::var("ASSETS_PATH")?;
-        Ok(Self::new(tmdb, bgm_tv, mikan, assets_path, client))
+        Ok(Self::new(tmdb, bgm_tv, mikan, client))
     }
 }
 

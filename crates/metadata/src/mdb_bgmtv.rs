@@ -1,4 +1,4 @@
-use crate::{format_poster_image_file_name, MetadataDb};
+use crate::{format_poster_image_file_name, MetadataAttr, MetadataAttrSet, MetadataDb};
 use anyhow::Result;
 use async_trait::async_trait;
 use model::bangumi;
@@ -13,7 +13,12 @@ pub struct MdbBgmTV {
 
 #[async_trait]
 impl MetadataDb for MdbBgmTV {
-    async fn update_bangumi_metadata(&self, bgm: &mut bangumi::Model, force: bool) -> Result<()> {
+    async fn update_bangumi_metadata(
+        &self,
+        bgm: &mut bangumi::Model,
+        attrs: MetadataAttrSet,
+        force: bool,
+    ) -> Result<()> {
         info!("使用bgm.tv填充番剧元数据: {}", bgm.name);
         if bgm.bangumi_tv_id.is_none() {
             return Err(anyhow::anyhow!("番剧TV ID为空"));
@@ -38,27 +43,27 @@ impl MetadataDb for MdbBgmTV {
             .await?
             .ok_or(anyhow::anyhow!("获取bgm.tv subject失败"))?;
 
-        if bgm.ep_count == 0 || force {
+        if attrs.is_required(MetadataAttr::EpCount) && (bgm.ep_count == 0 || force) {
             bgm.ep_count = subject.get_eps();
         }
 
-        if bgm.description.is_none() || force {
+        if attrs.is_required(MetadataAttr::Description) && (bgm.description.is_none() || force) {
             bgm.description = Some(subject.summary.clone());
         }
 
-        if bgm.rating.is_none() || force {
+        if attrs.is_required(MetadataAttr::Rating) && (bgm.rating.is_none() || force) {
             bgm.rating = Some(subject.rating.score);
         }
 
-        if bgm.air_date.is_none() || force {
+        if attrs.is_required(MetadataAttr::AirDate) && (bgm.air_date.is_none() || force) {
             bgm.air_date = subject.get_air_date();
         }
 
-        if bgm.name.is_empty() || force {
+        if attrs.is_required(MetadataAttr::Name) && (bgm.name.is_empty() || force) {
             bgm.name = subject.name_cn.clone().unwrap_or(subject.name.clone());
         }
 
-        if bgm.poster_image_url.is_none() || force {
+        if attrs.is_required(MetadataAttr::Poster) && (bgm.poster_image_url.is_none() || force) {
             match self
                 .download_image_from_bangumi_tv(
                     &subject.images.common,
@@ -71,6 +76,17 @@ impl MetadataDb for MdbBgmTV {
             }
         }
         Ok(())
+    }
+
+    fn supports(&self) -> MetadataAttrSet {
+        MetadataAttrSet(vec![
+            MetadataAttr::Name,
+            MetadataAttr::Description,
+            MetadataAttr::Rating,
+            MetadataAttr::EpCount,
+            MetadataAttr::AirDate,
+            MetadataAttr::Poster,
+        ])
     }
 }
 

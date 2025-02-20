@@ -4,7 +4,7 @@ use model::bangumi;
 use tokio::fs;
 use tracing::{error, info};
 
-use crate::{format_poster_image_file_name, MetadataDb};
+use crate::{format_poster_image_file_name, MetadataAttr, MetadataAttrSet, MetadataDb};
 
 pub struct MdbMikan {
     pub mikan: mikan::client::Client,
@@ -14,7 +14,12 @@ pub struct MdbMikan {
 
 #[async_trait]
 impl MetadataDb for MdbMikan {
-    async fn update_bangumi_metadata(&self, bgm: &mut bangumi::Model, force: bool) -> Result<()> {
+    async fn update_bangumi_metadata(
+        &self,
+        bgm: &mut bangumi::Model,
+        attrs: MetadataAttrSet,
+        force: bool,
+    ) -> Result<()> {
         info!("使用mikan填充番剧元数据: {}", bgm.name);
 
         if bgm.mikan_id.is_none() {
@@ -29,13 +34,13 @@ impl MetadataDb for MdbMikan {
         }
 
         let mut cache = None;
-        if bgm.bangumi_tv_id.is_none() || force {
+        if attrs.is_required(MetadataAttr::BgmTvId) && (bgm.bangumi_tv_id.is_none() || force) {
             let info = self.mikan.get_bangumi_info(bgm.mikan_id.unwrap()).await?;
             bgm.bangumi_tv_id = info.bangumi_tv_id;
             cache = Some(info);
         }
 
-        if bgm.poster_image_url.is_none() || force {
+        if attrs.is_required(MetadataAttr::Poster) && (bgm.poster_image_url.is_none() || force) {
             let info = match cache {
                 Some(info) => info,
                 None => self.mikan.get_bangumi_info(bgm.mikan_id.unwrap()).await?,
@@ -52,6 +57,10 @@ impl MetadataDb for MdbMikan {
             }
         }
         Ok(())
+    }
+
+    fn supports(&self) -> MetadataAttrSet {
+        MetadataAttrSet(vec![MetadataAttr::BgmTvId, MetadataAttr::Poster])
     }
 }
 

@@ -103,14 +103,9 @@ impl Server {
             db.conn_pool(),
             client.clone(),
             mikan.clone(),
-            metadata::fetcher::Fetcher::new(
-                tmdb,
-                bgm_tv,
-                mikan.clone(),
-                config.server.assets_path.clone(),
-                client.clone(),
-            ),
+            metadata::fetcher::Fetcher::new(tmdb, bgm_tv, mikan.clone(), client.clone()),
             dict.clone(),
+            config.server.assets_path.clone(),
         )?;
         metadata_worker.spawn().await?;
 

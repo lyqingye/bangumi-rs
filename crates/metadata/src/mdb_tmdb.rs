@@ -1,4 +1,7 @@
-use crate::{format_backdrop_image_file_name, format_poster_image_file_name, MetadataDb};
+use crate::{
+    format_backdrop_image_file_name, format_poster_image_file_name, MetadataAttr, MetadataAttrSet,
+    MetadataDb,
+};
 use anyhow::{Context, Result};
 use async_trait::async_trait;
 use model::bangumi;
@@ -14,7 +17,12 @@ pub struct MdbTmdb {
 
 #[async_trait]
 impl MetadataDb for MdbTmdb {
-    async fn update_bangumi_metadata(&self, bgm: &mut bangumi::Model, force: bool) -> Result<()> {
+    async fn update_bangumi_metadata(
+        &self,
+        bgm: &mut bangumi::Model,
+        attrs: MetadataAttrSet,
+        force: bool,
+    ) -> Result<()> {
         info!("使用TMDB填充番剧元数据: {}", bgm.name);
         let mut cache = None;
         if bgm.tmdb_id.is_none() {
@@ -54,11 +62,11 @@ impl MetadataDb for MdbTmdb {
 
         let (tv, season) = cache.unwrap();
 
-        if bgm.season_number.is_none() || force {
+        if attrs.is_required(MetadataAttr::SeasonNumber) && (bgm.season_number.is_none() || force) {
             bgm.season_number = Some(season.inner.season_number);
         }
 
-        if bgm.poster_image_url.is_none() || force {
+        if attrs.is_required(MetadataAttr::Poster) && (bgm.poster_image_url.is_none() || force) {
             if let Some(poster_path) = tv.inner.poster_path {
                 bgm.poster_image_url = Some(
                     self.download_image_from_tmdb(
@@ -71,7 +79,8 @@ impl MetadataDb for MdbTmdb {
             }
         }
 
-        if bgm.backdrop_image_url.is_none() || force {
+        if attrs.is_required(MetadataAttr::Backdrop) && (bgm.backdrop_image_url.is_none() || force)
+        {
             if let Some(backdrop_path) = tv.inner.backdrop_path {
                 bgm.backdrop_image_url = Some(
                     self.download_image_from_tmdb(
@@ -84,7 +93,7 @@ impl MetadataDb for MdbTmdb {
             }
         }
 
-        if bgm.description.is_none() || force {
+        if attrs.is_required(MetadataAttr::Description) && (bgm.description.is_none() || force) {
             if let Some(overview) = tv.inner.overview {
                 bgm.description = Some(overview);
             }
@@ -93,6 +102,15 @@ impl MetadataDb for MdbTmdb {
         info!("TMDB元数据更新完成");
 
         Ok(())
+    }
+
+    fn supports(&self) -> MetadataAttrSet {
+        MetadataAttrSet(vec![
+            MetadataAttr::SeasonNumber,
+            MetadataAttr::Poster,
+            MetadataAttr::Backdrop,
+            MetadataAttr::Description,
+        ])
     }
 }
 

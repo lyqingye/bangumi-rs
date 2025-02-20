@@ -11,7 +11,10 @@ use std::{
 };
 use tokio::sync::{mpsc, oneshot, Mutex};
 
-use crate::{db::Db, fetcher::Fetcher, MetadataDb};
+use crate::{
+    db::Db, fetcher::Fetcher, mdb_bgmtv::MdbBgmTV, mdb_mikan::MdbMikan, mdb_tmdb::MdbTmdb,
+    MetadataAttr, MetadataAttrSet, MetadataDb,
+};
 use anyhow::{Context, Result};
 use chrono::NaiveDateTime;
 use tracing::{error, info, warn};
@@ -33,6 +36,12 @@ enum Cmd {
     Shutdown(oneshot::Sender<()>),
 }
 
+struct Metadatabases {
+    bgmtv: MdbBgmTV,
+    mikan: MdbMikan,
+    tmdb: MdbTmdb,
+}
+
 #[derive(Clone)]
 pub struct Worker {
     db: Db,
@@ -41,6 +50,7 @@ pub struct Worker {
     fetcher: Fetcher,
     sender: Option<mpsc::Sender<Cmd>>,
     dict: dict::Dict,
+    assets_path: String,
 }
 
 impl Worker {
@@ -50,6 +60,7 @@ impl Worker {
         mikan: mikan::client::Client,
         fetcher: Fetcher,
         dict: dict::Dict,
+        assets_path: String,
     ) -> Self {
         Self {
             db,
@@ -58,6 +69,7 @@ impl Worker {
             fetcher,
             sender: None,
             dict,
+            assets_path,
         }
     }
 
@@ -67,21 +79,41 @@ impl Worker {
         mikan: mikan::client::Client,
         fetcher: Fetcher,
         dict: dict::Dict,
+        assets_path: String,
     ) -> Result<Self> {
         let db = Db::new(conn);
-        Ok(Self::new(db, client, mikan, fetcher, dict))
+        Ok(Self::new(db, client, mikan, fetcher, dict, assets_path))
     }
 
     pub async fn new_from_env() -> Result<Self> {
         let db = Db::new_from_env().await?;
-
+        let assets_path = std::env::var("ASSETS_PATH")?;
         Ok(Self::new(
             db,
             reqwest::Client::new(),
             mikan::client::Client::from_env()?,
             Fetcher::new_from_env()?,
             dict::Dict::new_from_env().await?,
+            assets_path,
         ))
+    }
+
+    fn new_mdbs(&self) -> Arc<Metadatabases> {
+        Arc::new(Metadatabases {
+            bgmtv: MdbBgmTV {
+                bgm_tv: self.fetcher.bgm_tv.clone(),
+                assets_path: self.assets_path.clone(),
+            },
+            mikan: MdbMikan {
+                mikan: self.mikan.clone(),
+                client: self.client.clone(),
+                assets_path: self.assets_path.clone(),
+            },
+            tmdb: MdbTmdb {
+                tmdb: self.fetcher.tmdb.clone(),
+                assets_path: self.assets_path.clone(),
+            },
+        })
     }
 
     pub async fn spawn(&mut self) -> Result<()> {
@@ -98,13 +130,15 @@ impl Worker {
             let refresh_times: Arc<Mutex<HashMap<Inner, NaiveDateTime>>> =
                 Arc::new(Mutex::new(HashMap::new()));
 
+            let mdbs = worker.new_mdbs();
+
             while let Some(msg) = receiver.recv().await {
                 match msg {
                     Cmd::Refresh(inner) => {
                         if !worker.should_process(&inner, &refresh_times).await {
                             continue;
                         }
-                        match worker.process(inner).await {
+                        match worker.process(inner, &mdbs).await {
                             Ok(_) => {}
                             Err(e) => error!("处理刷新请求失败: {}", e),
                         }
@@ -174,13 +208,13 @@ impl Worker {
         Ok(())
     }
 
-    async fn process(&self, request: Inner) -> Result<()> {
+    async fn process(&self, request: Inner, mdbs: &Arc<Metadatabases>) -> Result<()> {
         match request {
             Inner::Torrents(id) => {
                 self.handle_collect_torrents(id).await?;
             }
             Inner::Metadata(id, force) => {
-                self.handle_refresh_metadata(id, force).await?;
+                self.handle_refresh_metadata(id, force, mdbs).await?;
             }
             Inner::Calendar => {
                 self.handle_refresh_calendar().await?;
@@ -194,7 +228,12 @@ impl Worker {
 /// Handlers
 impl Worker {
     /// 处理元数据刷新请求
-    pub async fn handle_refresh_metadata(&self, bangmui_id: i32, force: bool) -> Result<()> {
+    async fn handle_refresh_metadata(
+        &self,
+        bangmui_id: i32,
+        force: bool,
+        mdbs: &Arc<Metadatabases>,
+    ) -> Result<()> {
         let mut bgm = self
             .db
             .get_bangumi_by_id(bangmui_id)
@@ -202,7 +241,69 @@ impl Worker {
             .context("番剧未找到")?;
         info!("正在刷新番剧元数据: {}", bgm.name);
 
-        // 填充番剧元数据 TODO
+        // NOTE: 这里需要考虑外部服务被重复访问
+
+        // 1. 先使用 mikan 填充 bgm_tv_id
+        match mdbs
+            .mikan
+            .update_bangumi_metadata(
+                &mut bgm,
+                MetadataAttrSet(vec![MetadataAttr::BgmTvId]),
+                force,
+            )
+            .await
+        {
+            Ok(_) => {}
+            Err(e) => {
+                error!("使用mikan填充bgm_tv_id失败: {}", e);
+            }
+        }
+
+        // 2. 使用Tmdb填充绝大部分信息
+        match mdbs
+            .tmdb
+            .update_bangumi_metadata(&mut bgm, mdbs.tmdb.supports(), force)
+            .await
+        {
+            Ok(_) => {}
+            Err(e) => {
+                error!("使用tmdb填充元数据失败: {}", e);
+            }
+        }
+
+        // 3. 使用bgm.tv作为Fallback, 如果TMDB 无法提供封面，那么则使用bgm.tv提供
+        let mut attrs = mdbs.bgmtv.supports();
+        if bgm.poster_image_url.is_some() {
+            attrs.remove(MetadataAttr::Poster);
+        }
+        match mdbs
+            .bgmtv
+            .update_bangumi_metadata(&mut bgm, attrs, force)
+            .await
+        {
+            Ok(_) => {}
+            Err(e) => {
+                error!("使用bgm.tv填充元数据失败: {}", e);
+            }
+        }
+
+        // 4. 如果前两者都无法提供封面，那么则使用Mikan提供
+        if bgm.poster_image_url.is_none() {
+            match mdbs
+                .mikan
+                .update_bangumi_metadata(
+                    &mut bgm,
+                    MetadataAttrSet(vec![MetadataAttr::Poster]),
+                    force,
+                )
+                .await
+            {
+                Ok(_) => {}
+                Err(e) => {
+                    error!("使用mikan填充封面失败: {}", e);
+                }
+            }
+        }
 
         // 收集剧集列表
         let episodes = self.fetcher.collect_episodes(&bgm).await?;
@@ -212,7 +313,7 @@ impl Worker {
     }
 
     /// 处理放送列表刷新请求
-    pub async fn handle_refresh_calendar(&self) -> Result<()> {
+    async fn handle_refresh_calendar(&self) -> Result<()> {
         info!("正在刷新放送列表");
         let calendar = self.mikan.get_calendar().await?;
         info!(
@@ -239,7 +340,7 @@ impl Worker {
     }
 
     /// 处理番剧种子信息收集请求
-    pub async fn handle_collect_torrents(&self, bangumi_id: i32) -> Result<()> {
+    async fn handle_collect_torrents(&self, bangumi_id: i32) -> Result<()> {
         let bgm = self
             .db
             .get_bangumi_by_id(bangumi_id)
