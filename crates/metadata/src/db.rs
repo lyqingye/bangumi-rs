@@ -207,18 +207,6 @@ impl Db {
 
 /// Torrents 相关
 impl Db {
-    pub async fn list_torrent_info_hash_by_hashes(&self, hash: Vec<String>) -> Result<Vec<String>> {
-        let db = self.conn();
-        let result = torrents::Entity::find()
-            .select_only()
-            .column(torrents::Column::InfoHash)
-            .filter(torrents::Column::InfoHash.is_in(hash))
-            .into_tuple()
-            .all(db)
-            .await?;
-        Ok(result)
-    }
-
     pub async fn batch_upsert_torrent(&self, torrents: Vec<torrents::Model>) -> Result<()> {
         if torrents.is_empty() {
             return Ok(());
