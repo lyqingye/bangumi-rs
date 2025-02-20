@@ -12,7 +12,7 @@ use parser::{Language, VideoResolution};
 use sea_orm::{prelude::Expr, Condition};
 use tracing::{info, instrument};
 
-use crate::model::{DownloadTask, QueryDownloadTask};
+use crate::model::{DownloadTask, QueryDownloadTask, TMDBMetadata, TMDBSeason, UpdateMDBParams};
 use crate::{
     error::ServerError,
     model::{Bangumi, Episode, Resp, SubscribeParams, Torrent},
@@ -73,8 +73,7 @@ pub async fn calendar(
         .order_by_asc(BangumiColumn::AirDate)
         .into_model::<Bangumi>()
         .all(state.db.conn())
-        .await
-        .map_err(|e| ServerError::Internal3(e))?;
+        .await?;
 
     // 处理图片路径
     let bangumis = bangumis
@@ -141,8 +140,7 @@ pub async fn get_bangumi_by_id(
         .order_by_asc(BangumiColumn::AirDate)
         .into_model::<Bangumi>()
         .one(state.db.conn())
-        .await
-        .map_err(|e| ServerError::Internal3(e))?;
+        .await?;
 
     match bangumi {
         Some(mut bgm) => {
@@ -209,8 +207,7 @@ pub async fn get_bangumi_episodes_by_id(
         .order_by_asc(EpisodeColumn::Number)
         .into_model::<Episode>()
         .all(state.db.conn())
-        .await
-        .map_err(|e| ServerError::Internal3(e))?;
+        .await?;
 
     Ok(Json(Resp::ok(episodes)))
 }
@@ -308,8 +305,7 @@ pub async fn get_bangumi_torrents_by_id(
     let bangumi = Bangumis::find()
         .filter(BangumiColumn::Id.eq(bangumi_id))
         .one(state.db.conn())
-        .await
-        .map_err(|e| ServerError::Internal3(e))?
+        .await?
         .ok_or(ServerError::BangumiNotFound)?;
 
     let min_ep = bangumi.ep_start_number;
@@ -352,8 +348,7 @@ pub async fn get_bangumi_torrents_by_id(
         .order_by_desc(TorrentColumn::PubDate)
         .into_model::<Torrent>()
         .all(state.db.conn())
-        .await
-        .map_err(|e| ServerError::Internal3(e))?;
+        .await?;
 
     // let episodes = Episodes::find()
     //     .filter(EpisodeColumn::BangumiId.eq(bangumi_id))
@@ -433,12 +428,12 @@ pub async fn online_watch(
         .filter(TaskColumn::State.eq(State::Downloaded))
         .one(state.db.conn())
         .await?
-        .ok_or_else(|| ServerError::Internal2(anyhow::anyhow!("剧集未下载")))?;
+        .ok_or_else(|| ServerError::Internal(anyhow::anyhow!("剧集未下载")))?;
 
     // 获取种子信息
     let info_hash = task
         .ref_torrent_info_hash
-        .ok_or_else(|| ServerError::Internal2(anyhow::anyhow!("种子未找到")))?;
+        .ok_or_else(|| ServerError::Internal(anyhow::anyhow!("种子未找到")))?;
 
     // 获取下载信息
     let download_info = state
@@ -504,4 +499,93 @@ pub async fn refresh_calendar(
 #[get("/health")]
 pub async fn health() -> Result<Json<Resp<()>>, ServerError> {
     Ok(Json(Resp::ok(())))
+}
+
+#[post("/api/bangumi/{bangumi_id}/mdb/update")]
+pub async fn update_bangumi_mdb(
+    state: web::Data<Arc<AppState>>,
+    params: Json<UpdateMDBParams>,
+) -> Result<Json<Resp<()>>, ServerError> {
+    state
+        .metadata
+        .update_bangumi_mdb(
+            params.bangumi_id,
+            params.tmdb_id,
+            params.mikan_id,
+            params.bangumi_tv_id,
+            params.season_number,
+        )
+        .await?;
+    Ok(Json(Resp::ok(())))
+}
+
+#[get("/api/tmdb/search/{name}")]
+pub async fn seach_bangumi_at_tmdb(
+    state: web::Data<Arc<AppState>>,
+    name: web::Path<String>,
+) -> Result<Json<Resp<Vec<TMDBMetadata>>>, ServerError> {
+    let name = name.into_inner();
+    let tv_shows = state
+        .metadata
+        .fetcher()
+        .seach_bangumi_at_tmdb(&name)
+        .await?;
+    let mut metadatas = Vec::new();
+    for tv_show in tv_shows {
+        let mut metadata = TMDBMetadata {
+            id: tv_show.inner.id,
+            name: tv_show.inner.name,
+            poster_image_url: tv_show
+                .inner
+                .poster_path
+                .map(|path| format!("/api/tmdb/image/{}", path.trim_start_matches('/'))),
+            air_date: tv_show.inner.first_air_date,
+            description: tv_show.inner.overview,
+            seasons: Vec::new(),
+        };
+        for season in tv_show.seasons {
+            metadata.seasons.push(TMDBSeason {
+                number: season.inner.season_number,
+                name: season.inner.name,
+                air_date: season.inner.air_date,
+                ep_count: season.episode_count,
+            });
+        }
+        metadatas.push(metadata);
+    }
+
+    let movies = state.metadata.fetcher().seach_movie_at_tmdb(&name).await?;
+    for movie in movies {
+        let metadata = TMDBMetadata {
+            id: movie.inner.id,
+            name: movie.inner.title,
+            poster_image_url: movie
+                .inner
+                .poster_path
+                .map(|path| format!("/api/tmdb/image/{}", path.trim_start_matches('/'))),
+            air_date: movie.inner.release_date,
+            description: Some(movie.inner.overview),
+            seasons: Vec::new(),
+        };
+        metadatas.push(metadata);
+    }
+    Ok(Json(Resp::ok(metadatas)))
+}
+
+#[get("/api/tmdb/image/{path}")]
+pub async fn tmdb_image_proxy(
+    state: web::Data<Arc<AppState>>,
+    path: web::Path<String>,
+) -> Result<HttpResponse, ServerError> {
+    let path = path.into_inner();
+    let response = state
+        .metadata
+        .fetcher()
+        .download_image_from_tmdb_as_response(&path)
+        .await?;
+    let bytes = response.bytes().await?;
+    Ok(HttpResponse::Ok()
+        .content_type("image/jpeg")
+        .append_header(("Cache-Control", "public, max-age=86400")) // 1天缓存
+        .body(bytes))
 }

@@ -137,3 +137,31 @@ pub struct QueryDownloadTask {
     pub limit: u64,
     pub status: Option<DownloadStatus>,
 }
+
+// TMDB Metadata
+#[derive(Debug, Serialize, Deserialize)]
+pub struct TMDBMetadata {
+    pub id: u64,
+    pub name: String,
+    pub poster_image_url: Option<String>,
+    pub air_date: Option<NaiveDate>,
+    pub seasons: Vec<TMDBSeason>,
+    pub description: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct TMDBSeason {
+    pub number: u64,
+    pub name: String,
+    pub air_date: Option<NaiveDate>,
+    pub ep_count: u64,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct UpdateMDBParams {
+    pub bangumi_id: i32,
+    pub tmdb_id: Option<u64>,
+    pub mikan_id: Option<i32>,
+    pub bangumi_tv_id: Option<i32>,
+    pub season_number: Option<u64>,
+}
