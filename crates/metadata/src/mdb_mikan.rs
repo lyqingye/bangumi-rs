@@ -20,7 +20,7 @@ impl MetadataDb for MdbMikan {
         attrs: MetadataAttrSet,
         force: bool,
     ) -> Result<()> {
-        info!("使用mikan填充番剧元数据: {}", bgm.name);
+        info!("[MIKAN] 填充番剧元数据: {}", bgm.name);
 
         if bgm.mikan_id.is_none() {
             return Err(anyhow::anyhow!("番剧缺少mikan_id"));
@@ -29,7 +29,7 @@ impl MetadataDb for MdbMikan {
         let need_update = bgm.bangumi_tv_id.is_none() || bgm.poster_image_url.is_none() || force;
 
         if !need_update {
-            info!("mikan元数据已是最新，跳过更新");
+            info!("[MIKAN] 元数据已是最新，跳过更新");
             return Ok(());
         }
 

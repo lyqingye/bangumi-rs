@@ -19,7 +19,7 @@ impl MetadataDb for MdbBgmTV {
         attrs: MetadataAttrSet,
         force: bool,
     ) -> Result<()> {
-        info!("使用bgm.tv填充番剧元数据: {}", bgm.name);
+        info!("[bgm.tv] 填充番剧元数据: {}", bgm.name);
         if bgm.bangumi_tv_id.is_none() {
             return Err(anyhow::anyhow!("番剧TV ID为空"));
         }
@@ -33,7 +33,7 @@ impl MetadataDb for MdbBgmTV {
             || force;
 
         if !need_update {
-            info!("bgm.tv元数据已是最新，跳过更新");
+            info!("[bgm.tv] 元数据已是最新，跳过更新");
             return Ok(());
         }
 

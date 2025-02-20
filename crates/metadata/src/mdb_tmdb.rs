@@ -7,7 +7,7 @@ use async_trait::async_trait;
 use model::bangumi;
 use tmdb::api::tvshow::{SeasonShort, TVShow};
 use tokio::fs;
-use tracing::{debug, info};
+use tracing::{debug, info, warn};
 
 #[derive(Clone)]
 pub struct MdbTmdb {
@@ -23,7 +23,7 @@ impl MetadataDb for MdbTmdb {
         attrs: MetadataAttrSet,
         force: bool,
     ) -> Result<()> {
-        info!("使用TMDB填充番剧元数据: {}", bgm.name);
+        info!("[TMDB] 填充番剧元数据: {}, tmdb_id: {:?}", bgm.name, bgm.tmdb_id);
         let mut cache = None;
         if bgm.tmdb_id.is_none() {
             cache = self.match_tmdb(bgm).await?;
@@ -40,13 +40,17 @@ impl MetadataDb for MdbTmdb {
             || force;
 
         if !need_update {
-            debug!("TMDB元数据已是最新，跳过更新");
+            debug!("[TMDB]元数据已是最新，跳过更新");
             return Ok(());
         }
 
         debug!("开始更新TMDB元数据");
 
         if cache.is_none() {
+            if bgm.season_number.is_none() {
+                warn!("[TMDB] 没有 season_number ，跳过更新, 可能是电影，暂不支持");
+                return Ok(())
+            }
             cache = self
                 .tmdb
                 .get_bangumi_and_season(bgm.tmdb_id.unwrap(), bgm.season_number.unwrap())
@@ -57,7 +61,7 @@ impl MetadataDb for MdbTmdb {
         }
 
         if cache.is_none() {
-            return Err(anyhow::anyhow!("TMDB 更新元数据失败，未找到匹配的番剧"));
+            return Err(anyhow::anyhow!("[TMDB] 更新元数据失败，未找到匹配的番剧"));
         }
 
         let (tv, season) = cache.unwrap();
@@ -99,7 +103,7 @@ impl MetadataDb for MdbTmdb {
             }
         }
 
-        info!("TMDB元数据更新完成");
+        info!("[TMDB] 元数据更新完成");
 
         Ok(())
     }

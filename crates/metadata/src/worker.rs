@@ -239,7 +239,8 @@ impl Worker {
             .get_bangumi_by_id(bangmui_id)
             .await?
             .context("番剧未找到")?;
-        info!("正在刷新番剧元数据: {}", bgm.name);
+        let name = bgm.name.clone();
+        info!("正在刷新番剧元数据: {}", name);
 
         // NOTE: 这里需要考虑外部服务被重复访问
 
@@ -309,6 +310,8 @@ impl Worker {
         let episodes = self.fetcher.collect_episodes(&bgm).await?;
         self.db.save_bangumi_tv_episodes(&bgm, episodes).await?;
         self.db.update_bangumi(bgm).await?;
+
+        info!("番剧 {} 元数据刷新完成", name);
         Ok(())
     }
 
@@ -419,8 +422,8 @@ mod test {
 
         let mut worker = Worker::new_from_env().await?;
         worker.spawn().await?;
-        worker.request_refresh_torrents(91).await?;
-        tokio::time::sleep(Duration::from_secs(30)).await;
+        worker.request_refresh_metadata(60, true).await?;
+        tokio::time::sleep(Duration::from_secs(120)).await;
         worker.shutdown().await?;
         Ok(())
     }
