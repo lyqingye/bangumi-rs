@@ -2,6 +2,7 @@ version: "3.8"
 
 services:
   mysql:
+    restart: unless-stopped
     image: mysql:8.0
     environment:
       MYSQL_ROOT_PASSWORD: 123456
@@ -30,7 +31,10 @@ services:
       - bangumi-network
 
   backend:
+    restart: unless-stopped
     image: ghcr.io/lyqingye/bangumi-rs/backend:master
+    ports:
+      - "3001:3001"
     volumes:
       - ./assets:/app/assets
       - ./config.toml:/app/config.toml
@@ -43,8 +47,15 @@ services:
       - bangumi-network
     labels:
       - "com.centurylinklabs.watchtower.enable=true"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
 
   frontend:
+    restart: unless-stopped
     image: ghcr.io/lyqingye/bangumi-rs/frontend:master
     ports:
       - "80:80"
@@ -56,6 +67,7 @@ services:
       - "com.centurylinklabs.watchtower.enable=true"
 
   watchtower:
+    restart: unless-stopped
     image: containrrr/watchtower:latest
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
