@@ -331,6 +331,7 @@ impl Db {
     }
 
     /// 更新或创建订阅记录
+    #[allow(clippy::too_many_arguments)]
     pub async fn upsert_subscription(
         &self,
         bangumi_id: i32,

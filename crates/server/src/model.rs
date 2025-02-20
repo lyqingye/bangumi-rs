@@ -20,7 +20,7 @@ impl<T> Resp<T> {
     }
     pub fn err(code: i32, msg: String) -> Self {
         Self {
-            code: code,
+            code,
             msg: Some(msg),
             data: None,
         }

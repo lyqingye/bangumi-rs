@@ -96,7 +96,6 @@ impl Client {
                 api_key,
                 base_url,
                 model,
-                ..Default::default()
             },
             reqwest::Client::new(),
         ))
@@ -136,15 +135,16 @@ impl Client {
 impl Parser for Client {
     async fn parse_file_names(&self, file_names: Vec<String>) -> Result<Vec<ParseResult>> {
         let params = serde_json::to_string(&file_names)?;
-        let mut messages = Vec::new();
-        messages.push(Message {
-            role: Role::System,
-            content: PROMPT_TEMPLATE.to_owned(),
-        });
-        messages.push(Message {
-            role: Role::User,
-            content: params,
-        });
+        let messages = vec![
+            Message {
+                role: Role::System,
+                content: PROMPT_TEMPLATE.to_owned(),
+            },
+            Message {
+                role: Role::User,
+                content: params,
+            },
+        ];
         let response = self.chat_completion(messages).await?;
         for choice in response.choices {
             let msg = choice.message;

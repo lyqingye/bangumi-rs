@@ -1,11 +1,9 @@
 use anyhow::{Context, Result};
 use downloader::Downloader;
-use metadata;
 use model::sea_orm_active_enums::{DownloadStatus, State};
 use model::{
     bangumi, episode_download_tasks, episodes, file_name_parse_record, subscriptions, torrents,
 };
-use parser;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -42,6 +40,7 @@ pub struct BangumiWorker {
 }
 
 impl BangumiWorker {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         sub: subscriptions::Model,
         bangumi: bangumi::Model,

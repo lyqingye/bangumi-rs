@@ -24,9 +24,10 @@ pub struct Weekday {
     pub id: i32,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Default)]
 pub enum EnglishDay {
     #[serde(rename = "Mon")]
+    #[default]
     Monday,
     #[serde(rename = "Tue")]
     Tuesday,
@@ -42,9 +43,10 @@ pub enum EnglishDay {
     Sunday,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Default)]
 pub enum ChineseDay {
     #[serde(rename = "星期一")]
+    #[default]
     Monday,
     #[serde(rename = "星期二")]
     Tuesday,
@@ -60,9 +62,10 @@ pub enum ChineseDay {
     Sunday,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Default)]
 pub enum JapaneseDay {
     #[serde(rename = "月耀日")]
+    #[default]
     Monday,
     #[serde(rename = "火耀日")]
     Tuesday,
@@ -76,25 +79,6 @@ pub enum JapaneseDay {
     Saturday,
     #[serde(rename = "日耀日")]
     Sunday,
-}
-
-// 实现 Default trait，选择一个默认值
-impl Default for EnglishDay {
-    fn default() -> Self {
-        EnglishDay::Monday
-    }
-}
-
-impl Default for ChineseDay {
-    fn default() -> Self {
-        ChineseDay::Monday
-    }
-}
-
-impl Default for JapaneseDay {
-    fn default() -> Self {
-        JapaneseDay::Monday
-    }
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -183,9 +167,10 @@ pub struct Collection {
     pub dropped: i32,
 }
 
-#[derive(Deserialize_repr, PartialEq, Debug, Clone)]
+#[derive(Deserialize_repr, PartialEq, Debug, Clone, Default)]
 #[repr(u8)]
 pub enum SubjectType {
+    #[default]
     Anime = 1,
     Manga = 2,
     Book = 3,
@@ -194,27 +179,17 @@ pub enum SubjectType {
     Movie = 6,
 }
 
-impl Default for SubjectType {
-    fn default() -> Self {
-        SubjectType::Anime
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Deserialize_repr)]
+#[derive(Debug, Clone, Copy, PartialEq, Deserialize_repr, Default)]
 #[serde(default)]
 #[repr(u8)]
 pub enum EpisodeType {
+    #[default]
     Normal = 0,
     Special = 1,
     Opening = 2,
     Ending = 3,
     Mad = 4,
     Other = 6,
-}
-impl Default for EpisodeType {
-    fn default() -> Self {
-        EpisodeType::Normal
-    }
 }
 
 impl fmt::Display for EpisodeType {
@@ -339,7 +314,7 @@ impl Subject {
     }
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Clone, Default)]
 pub enum Platform {
     #[serde(rename = "TV")]
     TV,
@@ -350,12 +325,8 @@ pub enum Platform {
     #[serde(rename = "剧场版")]
     Movie,
     #[serde(other)]
+    #[default]
     Unknown,
-}
-impl Default for Platform {
-    fn default() -> Self {
-        Platform::Unknown
-    }
 }
 
 #[cfg(test)]

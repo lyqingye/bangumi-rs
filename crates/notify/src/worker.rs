@@ -171,7 +171,7 @@ impl Topic {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct Worker {
     notifiers: Arc<Mutex<Vec<Box<dyn Notifier>>>>,
     topic_configs: HashMap<Topic, TopicConfig>,

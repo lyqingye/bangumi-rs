@@ -1,6 +1,4 @@
 #![allow(dead_code)]
-use std::usize;
-
 use crate::{ParseResult, Parser};
 use anitomy::KeywordConfig;
 use anyhow::Result;

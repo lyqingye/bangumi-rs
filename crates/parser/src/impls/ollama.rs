@@ -113,15 +113,16 @@ impl Client {
 impl Parser for Client {
     async fn parse_file_names(&self, file_names: Vec<String>) -> Result<Vec<ParseResult>> {
         let params = serde_json::to_string(&file_names)?;
-        let mut messages = Vec::new();
-        messages.push(Message {
-            role: "system".to_string(),
-            content: PROMPT_TEMPLATE.to_owned(),
-        });
-        messages.push(Message {
-            role: "user".to_string(),
-            content: params,
-        });
+        let messages = vec![
+            Message {
+                role: "system".to_string(),
+                content: PROMPT_TEMPLATE.to_owned(),
+            },
+            Message {
+                role: "user".to_string(),
+                content: params,
+            },
+        ];
         let response = self.chat_completion(messages).await?;
         let mut output: Vec<ParseResult> = parse_msg(&response.message.content)?;
         fill_file_names(file_names, &mut output)?;

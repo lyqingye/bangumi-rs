@@ -36,7 +36,7 @@ pub struct Server {
     state: Arc<AppState>,
 }
 
-pub const ASSETS_MOUNT_PATH: &'static str = "/api/assets";
+pub const ASSETS_MOUNT_PATH: &str = "/api/assets";
 
 impl Server {
     pub async fn new(config: Config) -> Result<Self> {
@@ -47,21 +47,20 @@ impl Server {
 
     async fn init_state(config: &Config) -> Result<Arc<AppState>> {
         // Logger
-        let log_tx = Self::init_logger(&config)?;
+        let log_tx = Self::init_logger(config)?;
 
         // Database
         let db = crate::db::Db::new(&config.server.database_url).await?;
 
         // HTTP Client
-        let client;
-        if config.proxy.enabled {
-            client = reqwest::Client::builder()
+        let client = if config.proxy.enabled {
+            reqwest::Client::builder()
                 .proxy(reqwest::Proxy::http(&config.proxy.http)?)
                 .proxy(reqwest::Proxy::https(&config.proxy.https)?)
-                .build()?;
+                .build()?
         } else {
-            client = reqwest::Client::new();
-        }
+            reqwest::Client::new()
+        };
 
         // Mikan
         let mikan = Client::new_with_client(client.clone(), &config.mikan.endpoint)?;
@@ -110,9 +109,9 @@ impl Server {
         metadata_worker.spawn().await?;
 
         // Parser worker
-        let parser_impl = Self::create_parser(&config, client.clone());
+        let parser_impl = Self::create_parser(config, client.clone());
         let mut parser_worker = parser::worker::Worker::new_with_conn(db.conn_pool());
-        parser_worker.spawn(Arc::new(parser_impl)).await?;
+        parser_worker.spawn(parser_impl).await?;
 
         // Downloader worker
         let mut pan115 = pan_115::client::Client::new(
@@ -157,10 +156,10 @@ impl Server {
         }))
     }
 
-    fn create_parser(config: &Config, client: reqwest::Client) -> Box<dyn Parser + Send + Sync> {
-        let parser_impl: Box<dyn Parser + Send + Sync>;
+    fn create_parser(config: &Config, client: reqwest::Client) -> Arc<dyn Parser + Send + Sync> {
+        let parser_impl: Arc<dyn Parser + Send + Sync>;
         if config.parser.siliconflow.enabled {
-            parser_impl = Box::new(parser::impls::siliconflow::Client::new(
+            parser_impl = Arc::new(parser::impls::siliconflow::Client::new(
                 parser::impls::siliconflow::Config {
                     api_key: config.parser.siliconflow.api_key.clone(),
                     base_url: config.parser.siliconflow.base_url.clone(),
@@ -170,7 +169,7 @@ impl Server {
                 client,
             ));
         } else if config.parser.deepseek.enabled {
-            parser_impl = Box::new(parser::impls::deepseek::Client::new(
+            parser_impl = Arc::new(parser::impls::deepseek::Client::new(
                 parser::impls::deepseek::Config {
                     api_key: config.parser.deepseek.api_key.clone(),
                     base_url: config.parser.deepseek.base_url.clone(),
@@ -180,12 +179,11 @@ impl Server {
                 client,
             ));
         } else if config.parser.deepbricks.enabled {
-            parser_impl = Box::new(parser::impls::deepbricks::Client::new(
+            parser_impl = Arc::new(parser::impls::deepbricks::Client::new(
                 parser::impls::deepbricks::Config {
                     api_key: config.parser.deepbricks.api_key.clone(),
                     base_url: config.parser.deepbricks.base_url.clone(),
                     model: config.parser.deepbricks.model.clone(),
-                    ..Default::default()
                 },
                 client,
             ));

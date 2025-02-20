@@ -117,7 +117,7 @@ impl TaskManager {
                 info_hash,
                 status.clone(),
                 err_msg.clone(),
-                context.clone().map(|c| c.into()),
+                context.clone().map(|c| c.try_into().unwrap_or_default()),
             )
             .await?;
 
@@ -129,7 +129,7 @@ impl TaskManager {
             _ => {
                 task.download_status = status;
                 task.err_msg = err_msg;
-                task.context = context.map(|c| c.into());
+                task.context = context.map(|c| c.try_into().unwrap_or_default());
             }
         }
 

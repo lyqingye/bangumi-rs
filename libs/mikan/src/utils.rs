@@ -37,7 +37,6 @@ pub fn smart_parse_date(date_str: &str) -> Result<NaiveDateTime> {
 }
 
 #[cfg(test)]
-
 mod test {
     use super::*;
     #[test]

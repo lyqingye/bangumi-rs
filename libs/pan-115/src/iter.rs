@@ -7,6 +7,8 @@ use super::client::Client;
 use super::errors::Pan115Error;
 use super::model::FileInfo;
 
+type PageFuture<'a> = Pin<Box<dyn Future<Output = Result<Vec<FileInfo>, Pan115Error>> + 'a>>;
+
 pub struct FileStream<'a> {
     client: &'a Client,
     cid: &'a str,
@@ -14,7 +16,7 @@ pub struct FileStream<'a> {
     page_size: i32,
     current_page: Vec<FileInfo>,
     has_more: bool,
-    current_future: Option<Pin<Box<dyn Future<Output = Result<Vec<FileInfo>, Pan115Error>> + 'a>>>,
+    current_future: Option<PageFuture<'a>>,
 }
 
 impl<'a> FileStream<'a> {
@@ -31,7 +33,7 @@ impl<'a> FileStream<'a> {
     }
 }
 
-impl<'a> Stream for FileStream<'a> {
+impl Stream for FileStream<'_> {
     type Item = Result<FileInfo, Pan115Error>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
