@@ -11,7 +11,7 @@ use std::{
 };
 use tokio::sync::{mpsc, oneshot, Mutex};
 
-use crate::{db::Db, fetcher::Fetcher};
+use crate::{db::Db, fetcher::Fetcher, MetadataDb};
 use anyhow::{Context, Result};
 use chrono::NaiveDateTime;
 use tracing::{error, info, warn};
@@ -20,46 +20,16 @@ const REFRESH_COOLDOWN: i64 = 1; // minutes
 const CHANNEL_CAPACITY: usize = 100;
 const POLL_TIMEOUT: Duration = Duration::from_secs(1);
 
-#[derive(Debug, Hash, Eq, PartialEq, Clone, Copy)]
-pub enum RefreshKind {
-    Metadata,
-    Torrents,
+#[derive(Debug, Clone, Hash, Eq, PartialEq)]
+pub enum Inner {
+    Metadata(i32, bool),
+    Torrents(i32),
     Calendar,
 }
 
-#[derive(Debug, Clone)]
-pub struct RefreshRequest {
-    pub bangumi_id: Option<i32>,
-    pub kind: RefreshKind,
-    pub timestamp: NaiveDateTime,
-}
-
-impl RefreshRequest {
-    fn new(bangumi_id: Option<i32>, kind: RefreshKind) -> Self {
-        Self {
-            bangumi_id,
-            kind,
-            timestamp: chrono::Local::now().naive_utc(),
-        }
-    }
-
-    fn key(&self) -> RefreshKey {
-        RefreshKey {
-            bangumi_id: self.bangumi_id,
-            kind: self.kind.clone(),
-        }
-    }
-}
-
-#[derive(Hash, Eq, PartialEq, Clone)]
-struct RefreshKey {
-    bangumi_id: Option<i32>,
-    kind: RefreshKind,
-}
-
 #[derive(Debug)]
-enum WorkerMessage {
-    Refresh(RefreshRequest),
+enum Cmd {
+    Refresh(Inner),
     Shutdown(oneshot::Sender<()>),
 }
 
@@ -69,8 +39,7 @@ pub struct Worker {
     mikan: mikan::client::Client,
     client: reqwest::Client,
     fetcher: Fetcher,
-    sender: Option<mpsc::Sender<WorkerMessage>>,
-    is_spawned: Arc<AtomicBool>,
+    sender: Option<mpsc::Sender<Cmd>>,
     dict: dict::Dict,
 }
 
@@ -88,7 +57,6 @@ impl Worker {
             client,
             fetcher,
             sender: None,
-            is_spawned: Arc::new(AtomicBool::new(false)),
             dict,
         }
     }
@@ -117,11 +85,7 @@ impl Worker {
     }
 
     pub async fn spawn(&mut self) -> Result<()> {
-        if !self
-            .is_spawned
-            .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
-            .is_ok()
-        {
+        if self.sender.is_some() {
             return Err(anyhow::anyhow!("Worker 已经启动"));
         }
 
@@ -129,43 +93,71 @@ impl Worker {
         self.sender = Some(sender);
 
         let worker = self.clone();
-        let is_spawned = self.is_spawned.clone();
 
         tokio::spawn(async move {
-            let refresh_times: Arc<Mutex<HashMap<RefreshKey, NaiveDateTime>>> =
+            let refresh_times: Arc<Mutex<HashMap<Inner, NaiveDateTime>>> =
                 Arc::new(Mutex::new(HashMap::new()));
 
             while let Some(msg) = receiver.recv().await {
                 match msg {
-                    WorkerMessage::Refresh(request) => {
-                        let key = request.key();
-                        if worker.should_process_request(&key, &refresh_times).await {
-                            worker.handle_refresh_request(request).await;
+                    Cmd::Refresh(inner) => {
+                        if !worker.should_process(&inner, &refresh_times).await {
+                            continue;
+                        }
+                        match worker.process(inner).await {
+                            Ok(_) => {}
+                            Err(e) => error!("处理刷新请求失败: {}", e),
                         }
                     }
-                    WorkerMessage::Shutdown(done_tx) => {
+                    Cmd::Shutdown(done_tx) => {
                         info!("元数据 Worker 收到停机信号");
                         let _ = done_tx.send(());
                         break;
                     }
                 }
             }
-            is_spawned.store(false, Ordering::SeqCst);
             info!("元数据 Worker 已停止");
         });
 
         Ok(())
     }
 
-    pub async fn request_refresh(&self, bangumi_id: Option<i32>, kind: RefreshKind) -> Result<()> {
+    /// 检查是否应该处理请求, 规则为: 一定时间段内只处理一次
+    async fn should_process(
+        &self,
+        req: &Inner,
+        refresh_times: &Arc<Mutex<HashMap<Inner, NaiveDateTime>>>,
+    ) -> bool {
+        let now = chrono::Local::now().naive_utc();
+        let mut times = refresh_times.lock().await;
+        if let Some(last_time) = times.get(req) {
+            if now.signed_duration_since(*last_time).num_minutes() < REFRESH_COOLDOWN {
+                return false;
+            }
+        }
+        times.insert(req.clone(), now);
+        true
+    }
+
+    /// 快捷命令, 外部使用
+    pub async fn request_refresh_metadata(&self, bangumi_id: i32, force: bool) -> Result<()> {
+        self.send_cmd(Cmd::Refresh(Inner::Metadata(bangumi_id, force)))
+            .await
+    }
+
+    pub async fn request_refresh_torrents(&self, bangumi_id: i32) -> Result<()> {
+        self.send_cmd(Cmd::Refresh(Inner::Torrents(bangumi_id)))
+            .await
+    }
+
+    pub async fn request_refresh_calendar(&self) -> Result<()> {
+        self.send_cmd(Cmd::Refresh(Inner::Calendar)).await
+    }
+
+    async fn send_cmd(&self, cmd: Cmd) -> Result<()> {
         let sender = self.sender.as_ref().context("Worker 未启动")?;
 
-        sender
-            .send(WorkerMessage::Refresh(RefreshRequest::new(
-                bangumi_id, kind,
-            )))
-            .await
-            .context("发送刷新请求失败")?;
+        sender.send(cmd).await.context("发送刷新请求失败")?;
 
         Ok(())
     }
@@ -175,65 +167,52 @@ impl Worker {
 
         if let Some(sender) = &self.sender {
             let (done_tx, done_rx) = oneshot::channel();
-            sender
-                .send(WorkerMessage::Shutdown(done_tx))
-                .await
-                .context("发送停机信号失败")?;
-
-            // 等待 worker 确认停止
-            done_rx.await.context("等待 worker 停止失败")?;
-
-            info!("元数据 Worker 已停止");
+            sender.send(Cmd::Shutdown(done_tx)).await?;
+            done_rx.await?;
         }
+        info!("元数据 Worker 已停止");
         Ok(())
     }
 
-    async fn should_process_request(
-        &self,
-        key: &RefreshKey,
-        refresh_times: &Arc<Mutex<HashMap<RefreshKey, NaiveDateTime>>>,
-    ) -> bool {
-        let now = chrono::Local::now().naive_utc();
-        let mut times = refresh_times.lock().await;
-        if let Some(last_time) = times.get(key) {
-            if now.signed_duration_since(*last_time).num_minutes() < REFRESH_COOLDOWN {
-                return false;
+    async fn process(&self, request: Inner) -> Result<()> {
+        match request {
+            Inner::Torrents(id) => {
+                self.handle_collect_torrents(id).await?;
             }
-        }
-        times.insert(key.clone(), now);
-        true
-    }
-
-    async fn handle_refresh_request(&self, request: RefreshRequest) {
-        if let Err(e) = self.process_refresh_request(request).await {
-            error!("处理刷新请求失败: {}", e);
-        }
-    }
-
-    async fn process_refresh_request(&self, request: RefreshRequest) -> Result<()> {
-        match (request.bangumi_id, request.kind) {
-            (Some(id), RefreshKind::Torrents) => {
-                let bgm = self.db.get_bangumi_by_id(id).await?.context("番剧未找到")?;
-                info!("正在刷新番剧种子信息: {}", bgm.name);
-                self.collect_torrents(&bgm).await?;
+            Inner::Metadata(id, force) => {
+                self.handle_refresh_metadata(id, force).await?;
             }
-            (Some(id), RefreshKind::Metadata) => {
-                let mut bgm = self.db.get_bangumi_by_id(id).await?.context("番剧未找到")?;
-                info!("正在刷新番剧元数据: {}", bgm.name);
-                self.fetcher.fill_bangumi_metadata(&mut bgm).await?;
-                let episodes = self.fetcher.collect_episodes(&bgm).await?;
-                self.db.save_bangumi_tv_episodes(&bgm, episodes).await?;
-                self.db.update_bangumi(bgm).await?;
-            }
-            (None, RefreshKind::Calendar) => {
-                self.refresh_calendar().await?;
+            Inner::Calendar => {
+                self.handle_refresh_calendar().await?;
             }
             _ => warn!("无效的刷新请求: {:?}", request),
         }
         Ok(())
     }
+}
 
-    pub async fn refresh_calendar(&self) -> Result<()> {
+/// Handlers
+impl Worker {
+    /// 处理元数据刷新请求
+    pub async fn handle_refresh_metadata(&self, bangmui_id: i32, force: bool) -> Result<()> {
+        let mut bgm = self
+            .db
+            .get_bangumi_by_id(bangmui_id)
+            .await?
+            .context("番剧未找到")?;
+        info!("正在刷新番剧元数据: {}", bgm.name);
+
+        // 填充番剧元数据 TODO
+
+        // 收集剧集列表
+        let episodes = self.fetcher.collect_episodes(&bgm).await?;
+        self.db.save_bangumi_tv_episodes(&bgm, episodes).await?;
+        self.db.update_bangumi(bgm).await?;
+        Ok(())
+    }
+
+    /// 处理放送列表刷新请求
+    pub async fn handle_refresh_calendar(&self) -> Result<()> {
         info!("正在刷新放送列表");
         let calendar = self.mikan.get_calendar().await?;
         info!(
@@ -254,14 +233,22 @@ impl Worker {
 
         let bangumis = self.db.list_bangumi_by_mikan_ids(mikan_ids).await?;
         for bgm in bangumis {
-            self.request_refresh(Some(bgm.id), RefreshKind::Metadata)
-                .await?;
+            self.request_refresh_metadata(bgm.id, false).await?;
         }
         Ok(())
     }
 
-    pub async fn collect_torrents(&self, bgm: &bangumi::Model) -> Result<()> {
-        let torrents = self.fetcher.collect_torrents(bgm).await?;
+    /// 处理番剧种子信息收集请求
+    pub async fn handle_collect_torrents(&self, bangumi_id: i32) -> Result<()> {
+        let bgm = self
+            .db
+            .get_bangumi_by_id(bangumi_id)
+            .await?
+            .context("番剧未找到")?;
+
+        info!("正在收集番剧 {} 的种子信息", bgm.name);
+
+        let torrents = self.fetcher.collect_torrents(&bgm).await?;
 
         if torrents.is_empty() {
             info!("未找到番剧 {} 的种子信息", bgm.name);
@@ -273,7 +260,10 @@ impl Worker {
         self.db.save_mikan_torrents(bgm.id, torrents).await?;
         Ok(())
     }
+}
 
+impl Worker {
+    /// 更新番剧MDB信息
     pub async fn update_bangumi_mdb(
         &self,
         bgm_id: i32,
@@ -305,8 +295,7 @@ impl Worker {
         }
         self.db.update_bangumi(bgm).await?;
 
-        self.request_refresh(Some(bgm_id), RefreshKind::Metadata)
-            .await?;
+        self.request_refresh_metadata(bgm_id, true).await?;
         Ok(())
     }
 
@@ -329,9 +318,7 @@ mod test {
 
         let mut worker = Worker::new_from_env().await?;
         worker.spawn().await?;
-        worker
-            .request_refresh(Some(91), RefreshKind::Torrents)
-            .await?;
+        worker.request_refresh_torrents(91).await?;
         tokio::time::sleep(Duration::from_secs(30)).await;
         worker.shutdown().await?;
         Ok(())

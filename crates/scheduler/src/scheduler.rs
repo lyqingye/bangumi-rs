@@ -103,7 +103,7 @@ impl Scheduler {
             worker.trigger_collection();
         } else {
             self.metadata
-                .request_refresh(Some(bangumi_id), metadata::worker::RefreshKind::Metadata)
+                .request_refresh_metadata(bangumi_id, false)
                 .await?;
         }
         Ok(())
@@ -143,7 +143,7 @@ impl Scheduler {
 
         // 刷新元数据
         self.metadata
-            .request_refresh(Some(bangumi_id), metadata::worker::RefreshKind::Metadata)
+            .request_refresh_metadata(bangumi_id, false)
             .await?;
 
         // 4. 获取所有剧集信息

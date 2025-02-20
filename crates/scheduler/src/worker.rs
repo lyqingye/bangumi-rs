@@ -117,10 +117,7 @@ impl BangumiWorker {
         // 1. 收集种子
         info!("开始收集番剧 {} 的种子", self.bangumi.name);
         self.metadata
-            .request_refresh(
-                Some(self.bangumi.id),
-                metadata::worker::RefreshKind::Torrents,
-            )
+            .request_refresh_torrents(self.bangumi.id)
             .await?;
 
         // 2. 获取并解析种子
@@ -238,7 +235,7 @@ impl BangumiWorker {
                 _ = metadata_interval.tick() => {
                     if let Err(e) = worker
                         .metadata
-                        .request_refresh(Some(worker.bangumi.id), metadata::worker::RefreshKind::Metadata)
+                        .request_refresh_metadata(worker.bangumi.id, false)
                         .await
                     {
                         error!("番剧 {} 刷新元数据失败: {}", worker.bangumi.name, e);

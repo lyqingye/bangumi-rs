@@ -157,7 +157,7 @@ impl Client {
         &self,
         tmdb_id: u64,
         season_number: u64,
-    ) -> Result<(TVShow, SeasonShort)> {
+    ) -> Result<Option<(TVShow, SeasonShort)>> {
         let details = TVShowDetails::new(tmdb_id)
             .with_language(Some(self.language.clone()))
             .execute(&self.client)
@@ -165,10 +165,10 @@ impl Client {
             .map_err(|e| anyhow::anyhow!("获取详情失败: {}", e))?;
         for season in details.seasons.iter() {
             if season.inner.season_number == season_number {
-                return Ok((details.clone(), season.clone()));
+                return Ok(Some((details.clone(), season.clone())));
             }
         }
-        Err(anyhow::anyhow!("未找到指定季"))
+        Ok(None)
     }
 
     #[instrument(name = "TMDB 匹配番剧", skip(self), fields(name = %name))]
