@@ -2,7 +2,6 @@ use actix_cors::Cors;
 use actix_files::Files;
 use actix_web::{web, App, HttpServer};
 use dict::DictCode;
-use metadata::worker::RefreshKind;
 use parser::Parser;
 use std::sync::Arc;
 use std::{net::SocketAddr, path::PathBuf, str::FromStr};
@@ -104,14 +103,9 @@ impl Server {
             db.conn_pool(),
             client.clone(),
             mikan.clone(),
-            metadata::fetcher::Fetcher::new(
-                tmdb,
-                bgm_tv,
-                mikan.clone(),
-                config.server.assets_path.clone(),
-                client.clone(),
-            ),
+            metadata::fetcher::Fetcher::new(tmdb, bgm_tv, mikan.clone(), client.clone()),
             dict.clone(),
+            config.server.assets_path.clone(),
         )?;
         metadata_worker.spawn().await?;
 
@@ -340,10 +334,7 @@ impl Server {
     }
 
     async fn do_first_run(state: &Arc<AppState>) -> Result<()> {
-        state
-            .metadata
-            .request_refresh(None, RefreshKind::Calendar)
-            .await?;
+        state.metadata.request_refresh_calendar().await?;
         Ok(())
     }
 }

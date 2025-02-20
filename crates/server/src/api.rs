@@ -6,7 +6,6 @@ use actix_web::{
     HttpRequest, HttpResponse,
 };
 use dict::DictCode;
-use metadata::worker::RefreshKind;
 use model::sea_orm_active_enums::{State, SubscribeStatus};
 use parser::{Language, VideoResolution};
 use sea_orm::{prelude::Expr, Condition};
@@ -489,10 +488,7 @@ pub async fn list_download_tasks(
 pub async fn refresh_calendar(
     state: web::Data<Arc<AppState>>,
 ) -> Result<Json<Resp<()>>, ServerError> {
-    state
-        .metadata
-        .request_refresh(None, RefreshKind::Calendar)
-        .await?;
+    state.metadata.request_refresh_calendar().await?;
     Ok(Json(Resp::ok(())))
 }
 

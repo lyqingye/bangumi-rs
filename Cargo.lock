@@ -2328,6 +2328,7 @@ name = "metadata"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "bangumi-tv",
  "chrono",
  "dict",
