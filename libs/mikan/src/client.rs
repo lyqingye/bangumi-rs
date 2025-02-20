@@ -155,12 +155,9 @@ impl Client {
                     break;
                 }
 
-                match huby::ByteSize::from_str(td.inner_html().as_str()) {
-                    Ok(size) => {
-                        item.file_size = size.in_bytes() as usize;
-                    }
-                    _ => {}
-                };
+                if let Ok(size) = huby::ByteSize::from_str(td.inner_html().as_str()) {
+                    item.file_size = size.in_bytes() as usize;
+                }
             }
             if item.validate() {
                 result.push(item);
@@ -183,7 +180,7 @@ impl Client {
         let bangumi_tv_id = document.select(&BANGUMI_TV_LINK_SELECTOR).find_map(|el| {
             el.attr("href")
                 .filter(|href| href.contains("bgm.tv/subject/"))
-                .and_then(|href| Self::extract_subject_id_from_link(href))
+                .and_then(Self::extract_subject_id_from_link)
         });
 
         let image_url = document

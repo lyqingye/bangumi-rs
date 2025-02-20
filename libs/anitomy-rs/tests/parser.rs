@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use anitomy::ElementKind;
+use anitomy::{ElementKind, KeywordConfig};
 use serde::{
     de::{value::SeqAccessDeserializer, Visitor},
     Deserialize,
@@ -168,8 +168,10 @@ fn test_json_data() {
     for (index, mut test) in tests.into_iter().enumerate() {
         let input = test.input;
         let options = test.options.into();
-        let parsed = match std::panic::catch_unwind(|| anitomy::parse_with_options(&input, options))
-        {
+        let keyword = KeywordConfig::default();
+        let parsed = match std::panic::catch_unwind(|| {
+            anitomy::parse_with_options_and_config(&input, options, &keyword)
+        }) {
             Ok(t) => t,
             Err(e) => {
                 eprintln!("---- UNEXPECTED PANIC WHILE PARSING ---");
@@ -196,10 +198,4 @@ fn test_json_data() {
             );
         }
     }
-}
-
-#[test]
-fn test_parse() {
-    let res = anitomy::parse("[Strange-Raw] 我的幸福婚约 第二季 / Watashi no Shiawase na Kekkon S02 [02] [Bilibili] [WEB-DL] [1080P AVC-8Bits AAC 2.0] [官方繁日]");
-    println!("{:?}", res);
 }

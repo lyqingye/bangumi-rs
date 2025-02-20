@@ -23,7 +23,10 @@ impl MetadataDb for MdbTmdb {
         attrs: MetadataAttrSet,
         force: bool,
     ) -> Result<()> {
-        info!("[TMDB] 填充番剧元数据: {}, tmdb_id: {:?}", bgm.name, bgm.tmdb_id);
+        info!(
+            "[TMDB] 填充番剧元数据: {}, tmdb_id: {:?}",
+            bgm.name, bgm.tmdb_id
+        );
         let mut cache = None;
         if bgm.tmdb_id.is_none() {
             cache = self.match_tmdb(bgm).await?;
@@ -49,7 +52,7 @@ impl MetadataDb for MdbTmdb {
         if cache.is_none() {
             if bgm.season_number.is_none() {
                 warn!("[TMDB] 没有 season_number ，跳过更新, 可能是电影，暂不支持");
-                return Ok(())
+                return Ok(());
             }
             cache = self
                 .tmdb

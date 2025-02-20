@@ -74,7 +74,7 @@ pub trait Parser: Send + Sync {
 }
 
 fn remove_code_block(text: &str) -> String {
-    return text.replace("```json", "").replace("```", "").to_owned();
+    text.replace("```json", "").replace("```", "").to_owned()
 }
 
 fn parse_msg(msg: &str) -> Result<Vec<ParseResult>> {
@@ -103,7 +103,7 @@ fn parse_msg(msg: &str) -> Result<Vec<ParseResult>> {
     }
 }
 
-fn fill_file_names(file_names: Vec<String>, parse_results: &mut Vec<ParseResult>) -> Result<()> {
+fn fill_file_names(file_names: Vec<String>, parse_results: &mut [ParseResult]) -> Result<()> {
     if file_names.len() != parse_results.len() {
         return Err(anyhow::anyhow!(
             "file_names and parse_results length mismatch"

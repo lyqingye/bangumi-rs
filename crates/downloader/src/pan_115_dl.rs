@@ -344,13 +344,13 @@ impl Pan115Downloader {
         let dir_cid = self
             .get_or_create_dir_cid(&PathBuf::from(&task.dir))
             .await?;
-        let magnet = Self::create_magnet_link(&info_hash);
+        let magnet = Self::create_magnet_link(info_hash);
 
         match self.pan115.add_offline_task(&[&magnet], &dir_cid).await {
             Ok(_) => {
                 info!("成功添加下载任务到网盘: {}", info_hash);
                 self.tasks
-                    .update_task_status(&info_hash, DownloadStatus::Downloading, None, None)
+                    .update_task_status(info_hash, DownloadStatus::Downloading, None, None)
                     .await?;
             }
             Err(e) => {
@@ -358,7 +358,7 @@ impl Pan115Downloader {
                     Pan115Error::OfflineTaskExisted => {
                         warn!("任务已在网盘中存在: {}", info_hash);
                         self.tasks
-                            .update_task_status(&info_hash, DownloadStatus::Downloading, None, None)
+                            .update_task_status(info_hash, DownloadStatus::Downloading, None, None)
                             .await?;
                     }
                     Pan115Error::NotLogin
@@ -367,7 +367,7 @@ impl Pan115Downloader {
                         error!("添加离线下载任务失败: {} - {}", info_hash, e);
                         self.tasks
                             .update_task_status(
-                                &info_hash,
+                                info_hash,
                                 DownloadStatus::Failed,
                                 Some(e.to_string()),
                                 None,
@@ -380,7 +380,7 @@ impl Pan115Downloader {
                         let next_retry_at = self.config.calculate_next_retry(retry_count);
                         self.tasks
                             .update_task_retry_status(
-                                &info_hash,
+                                info_hash,
                                 retry_count,
                                 next_retry_at,
                                 Some(e.to_string()),
@@ -419,7 +419,7 @@ impl Pan115Downloader {
         let now = Local::now().naive_utc();
         let mut tasks = self
             .tasks
-            .list_by_statues(&vec![DownloadStatus::Retrying])
+            .list_by_statues(&[DownloadStatus::Retrying])
             .await?;
         for task in tasks.as_mut_slice() {
             if task.retry_count >= self.config.max_retry_count {
@@ -496,7 +496,7 @@ impl Pan115Downloader {
 
         let pending_tasks = self
             .tasks
-            .list_by_statues(&vec![DownloadStatus::Pending])
+            .list_by_statues(&[DownloadStatus::Pending])
             .await?;
 
         info!("找到 {} 个未处理的任务", pending_tasks.len());
@@ -538,7 +538,7 @@ impl Pan115Downloader {
 
         let local_tasks = self
             .tasks
-            .list_by_statues(&vec![DownloadStatus::Downloading, DownloadStatus::Pending])
+            .list_by_statues(&[DownloadStatus::Downloading, DownloadStatus::Pending])
             .await?;
 
         if local_tasks.is_empty() {

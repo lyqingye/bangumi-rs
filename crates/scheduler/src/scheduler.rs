@@ -1,8 +1,6 @@
 use anyhow::{Context as _, Result};
 use downloader::Downloader;
-use metadata;
 use model::subscriptions;
-use parser;
 use sea_orm::DatabaseConnection;
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::Mutex;
@@ -59,7 +57,7 @@ impl Scheduler {
     async fn spawn_worker(&self, sub: subscriptions::Model) -> Result<()> {
         let bangumi_id = sub.bangumi_id;
         let mut workers = self.workers.lock().await;
-        if !workers.contains_key(&bangumi_id) {
+        if let std::collections::hash_map::Entry::Vacant(e) = workers.entry(bangumi_id) {
             let bangumi = self.db.get_bangumi_by_id(bangumi_id).await?;
             if bangumi.is_none() {
                 return Err(anyhow::anyhow!("未找到番剧记录"));
@@ -78,7 +76,7 @@ impl Scheduler {
             );
             let worker_clone = worker.clone();
             worker.spawn();
-            workers.insert(bangumi_id, worker_clone);
+            e.insert(worker_clone);
             info!("已为番剧 {} 创建下载任务处理器", bangumi_id);
         }
         Ok(())
@@ -110,6 +108,7 @@ impl Scheduler {
     }
 
     /// 订阅番剧
+    #[allow(clippy::too_many_arguments)]
     pub async fn subscribe(
         &self,
         bangumi_id: i32,

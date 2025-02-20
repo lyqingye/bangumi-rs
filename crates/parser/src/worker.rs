@@ -51,7 +51,7 @@ impl Worker {
             .is_ok()
     }
 
-    pub async fn spawn(&mut self, parser: Arc<Box<dyn Parser + Send + Sync>>) -> Result<()> {
+    pub async fn spawn(&mut self, parser: Arc<dyn Parser + Send + Sync>) -> Result<()> {
         if !self.try_set_spawned() {
             return Err(anyhow::anyhow!("Worker already spawned"));
         }
@@ -64,7 +64,7 @@ impl Worker {
             while let Some(msg) = receiver.recv().await {
                 match msg {
                     WorkerMessage::Parse(file_names, response_sender) => {
-                        let res = Self::handle_parse_request(&parser, &db, file_names).await;
+                        let res = Self::handle_parse_request(&*parser, &db, file_names).await;
                         let _ = response_sender.send(res);
                     }
                     WorkerMessage::Shutdown(done_tx) => {
@@ -81,7 +81,7 @@ impl Worker {
     }
 
     async fn handle_parse_request(
-        parser: &Box<dyn Parser + Send + Sync>,
+        parser: &(dyn Parser + Send + Sync),
         db: &Db,
         file_names: Vec<String>,
     ) -> Result<Vec<ParseResult>> {
@@ -214,7 +214,7 @@ mod tests {
         let db = Db::new_from_env().await?;
         let parser = crate::impls::deepbricks::Client::from_env()?;
         let mut worker = Worker::new(db.clone());
-        worker.spawn(Arc::new(Box::new(parser))).await?;
+        worker.spawn(Arc::new(parser)).await?;
 
         let file_names = vec![
             "[LoliHouse] 孤nsingle人的异世界攻略 / Hitoribocchi no Isekai Kouryaku - 12 [WebRip 1080p HEVC-10bit AAC][官方简繁内封字幕]".to_string(),

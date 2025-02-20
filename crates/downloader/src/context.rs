@@ -26,8 +26,10 @@ impl TryFrom<String> for Pan115Context {
     }
 }
 
-impl Into<String> for Pan115Context {
-    fn into(self) -> String {
-        serde_json::to_string(&self).unwrap()
+impl TryFrom<Pan115Context> for String {
+    type Error = serde_json::Error;
+
+    fn try_from(val: Pan115Context) -> Result<Self, Self::Error> {
+        serde_json::to_string(&val)
     }
 }

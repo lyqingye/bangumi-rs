@@ -156,7 +156,9 @@ mod test {
     async fn test_download_file() -> Result<()> {
         dotenv::dotenv().ok();
         let client = Client::new_from_env()?;
-        let download_info = client.download_file("1234567890", Some(USER_AGENT)).await?;
+        let download_info = client
+            .download_file("3082935494472892045", Some(USER_AGENT))
+            .await?;
         print!("{:?}", download_info);
         Ok(())
     }

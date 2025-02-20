@@ -16,7 +16,6 @@ pub use options::Options;
 ///
 /// For best results, the string should be in composed form (NFC/NFKC)
 /// for the tokenizer to work properly.
-
 pub fn parse_with_options_and_config<'a>(
     input: &'a str,
     options: Options,
