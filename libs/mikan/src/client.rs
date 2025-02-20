@@ -55,7 +55,7 @@ impl EpisodeItem {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct BangumiInfo {
     pub bangumi_tv_id: Option<i32>,
     pub image_url: Option<String>,

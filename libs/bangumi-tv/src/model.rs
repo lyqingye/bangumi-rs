@@ -130,7 +130,7 @@ pub struct LegacySubjectSmall {
     pub collection: Collection,
 }
 
-#[derive(Debug, Deserialize, Default)]
+#[derive(Debug, Deserialize, Default, Clone)]
 #[serde(default)]
 pub struct Images {
     pub large: String,
@@ -140,7 +140,7 @@ pub struct Images {
     pub grid: String,
 }
 
-#[derive(Debug, Deserialize, Default)]
+#[derive(Debug, Deserialize, Default, Clone)]
 #[serde(default)]
 pub struct Rating {
     pub total: i32,
@@ -148,7 +148,7 @@ pub struct Rating {
     pub score: f64,
 }
 
-#[derive(Debug, Deserialize, Default)]
+#[derive(Debug, Deserialize, Default, Clone)]
 #[serde(default)]
 pub struct RatingCount {
     #[serde(rename = "1")]
@@ -173,7 +173,7 @@ pub struct RatingCount {
     pub count_10: i32,
 }
 
-#[derive(Debug, Deserialize, Default)]
+#[derive(Debug, Deserialize, Default, Clone)]
 #[serde(default)]
 pub struct Collection {
     pub wish: i32,
@@ -183,7 +183,7 @@ pub struct Collection {
     pub dropped: i32,
 }
 
-#[derive(Deserialize_repr, PartialEq, Debug)]
+#[derive(Deserialize_repr, PartialEq, Debug, Clone)]
 #[repr(u8)]
 pub enum SubjectType {
     Anime = 1,
@@ -304,7 +304,7 @@ where
     }
 }
 
-#[derive(Debug, Deserialize, Default)]
+#[derive(Debug, Deserialize, Default, Clone)]
 #[serde(default)]
 pub struct Subject {
     pub id: i32,
@@ -339,7 +339,7 @@ impl Subject {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub enum Platform {
     #[serde(rename = "TV")]
     TV,

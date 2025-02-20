@@ -4,9 +4,12 @@ use bangumi_tv::{
     model::{EpisodeList, EpisodeType},
 };
 use chrono::NaiveDateTime;
-use mikan::client::EpisodeItem;
+use mikan::client::{BangumiInfo, EpisodeItem};
 use model::{bangumi, episodes, sea_orm_active_enums::SubscribeStatus};
-use tmdb::api::tvshow::{SeasonShort, TVShow};
+use tmdb::api::{
+    movie::MovieShort,
+    tvshow::{SeasonShort, TVShow},
+};
 use tokio::fs;
 use tracing::{error, info, warn};
 
@@ -121,13 +124,16 @@ impl Fetcher {
         } else {
             warn!("未在 bangumi.tv 找到番剧信息: {}", bgm.name);
         }
+
         // 如果没有封面，尝试从 mikan 获取
         if bgm.poster_image_url.is_none() {
             self.fetch_image_from_mikan(bgm, mikan_info).await?;
         }
         Ok(())
     }
+}
 
+impl Fetcher {
     pub async fn collect_episodes(&self, bgm: &bangumi::Model) -> Result<EpisodeList> {
         match bgm.bangumi_tv_id {
             Some(subject_id) => {
@@ -230,7 +236,7 @@ impl Fetcher {
 
     async fn get_or_fetch_bangumi_tv_id(
         &self,
-        bgm: &bangumi::Model,
+        bgm: &mut bangumi::Model,
     ) -> Result<(i32, Option<mikan::client::BangumiInfo>)> {
         if let Some(id) = bgm.bangumi_tv_id {
             return Ok((id, None));
@@ -267,11 +273,6 @@ impl Fetcher {
         let filename = format!("{}.{}", file_name, ext);
         let filepath = format!("{}/{}", &self.assets_path, filename);
 
-        // 检查文件是否已存在
-        if fs::try_exists(&filepath).await? {
-            return Ok(filename);
-        }
-
         // 下载图片
         let response = self.client.get(url).send().await?;
         let bytes = response.bytes().await?;
@@ -299,9 +300,7 @@ impl Fetcher {
 
         let write_file_name = format!("{}.{}", file_name, ext);
         let write_path = format!("{}/{}", &self.assets_path, write_file_name);
-        if fs::try_exists(&write_path).await? {
-            return Ok(write_file_name);
-        }
+
         self.tmdb
             .download_image(tmdb_file_path, &write_path)
             .await?;
@@ -328,9 +327,7 @@ impl Fetcher {
 
         let write_file_name = format!("{}.{}", file_name, ext);
         let write_path = format!("{}/{}", &self.assets_path, write_file_name);
-        if fs::try_exists(&write_path).await? {
-            return Ok(write_file_name);
-        }
+
         self.bgm_tv
             .download_image(bgm_tv_file_path, &write_path)
             .await?;
@@ -340,6 +337,10 @@ impl Fetcher {
 
     pub async fn seach_bangumi_at_tmdb(&self, name: &str) -> Result<Vec<TVShow>> {
         self.tmdb.search_bangumi(name).await
+    }
+
+    pub async fn seach_movie_at_tmdb(&self, name: &str) -> Result<Vec<MovieShort>> {
+        self.tmdb.seach_movie(name).await
     }
 
     pub async fn download_image_from_tmdb_as_response(

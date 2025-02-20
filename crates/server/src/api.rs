@@ -553,6 +553,22 @@ pub async fn seach_bangumi_at_tmdb(
         }
         metadatas.push(metadata);
     }
+
+    let movies = state.metadata.fetcher().seach_movie_at_tmdb(&name).await?;
+    for movie in movies {
+        let metadata = TMDBMetadata {
+            id: movie.inner.id,
+            name: movie.inner.title,
+            poster_image_url: movie
+                .inner
+                .poster_path
+                .map(|path| format!("/api/tmdb/image/{}", path.trim_start_matches('/'))),
+            air_date: movie.inner.release_date,
+            description: Some(movie.inner.overview),
+            seasons: Vec::new(),
+        };
+        metadatas.push(metadata);
+    }
     Ok(Json(Resp::ok(metadatas)))
 }
 

@@ -6,6 +6,7 @@ use reqwest::Url;
 use std::{path::Path, sync::Arc};
 use tmdb_api::{
     client::reqwest::ReqwestExecutor,
+    movie::{search::MovieSearch, MovieShort},
     prelude::Command,
     tvshow::{
         details::TVShowDetails, episode::details::TVShowEpisodeDetails, search::TVShowSearch,
@@ -143,6 +144,33 @@ impl Client {
         Ok(tv_shows)
     }
 
+    pub async fn seach_movie(&self, name: &str) -> Result<Vec<MovieShort>> {
+        let search_results = MovieSearch::new(name.to_string())
+            .with_language(Some(self.language.clone()))
+            .execute(&self.client)
+            .await
+            .map_err(|e| anyhow::anyhow!("TMDB搜索失败: {}", e))?;
+        Ok(search_results.results)
+    }
+
+    pub async fn get_bangumi_and_season(
+        &self,
+        tmdb_id: u64,
+        season_number: u64,
+    ) -> Result<(TVShow, SeasonShort)> {
+        let details = TVShowDetails::new(tmdb_id)
+            .with_language(Some(self.language.clone()))
+            .execute(&self.client)
+            .await
+            .map_err(|e| anyhow::anyhow!("获取详情失败: {}", e))?;
+        for season in details.seasons.iter() {
+            if season.inner.season_number == season_number {
+                return Ok((details.clone(), season.clone()));
+            }
+        }
+        Err(anyhow::anyhow!("未找到指定季"))
+    }
+
     #[instrument(name = "TMDB 匹配番剧", skip(self), fields(name = %name))]
     pub async fn match_bangumi(
         &self,
@@ -265,7 +293,7 @@ mod tests {
     use anyhow::Result;
 
     #[tokio::test]
-    async fn test_tmdb_search_movie() -> Result<()> {
+    async fn test_tmdb_search_tv() -> Result<()> {
         dotenv::dotenv()?;
         tracing_subscriber::fmt()
             .with_max_level(tracing::Level::DEBUG)
@@ -280,6 +308,19 @@ mod tests {
         println!("rs: {:?}", rs.1);
         println!("tv: {}", rs.0.inner.name);
         println!("season: {} {}", rs.1.inner.name, rs.1.inner.season_number);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_tmdb_search_movie() -> Result<()> {
+        dotenv::dotenv()?;
+        tracing_subscriber::fmt()
+            .with_max_level(tracing::Level::DEBUG)
+            .with_target(true) // 不显示目标模块
+            .init();
+        let tmdb = Client::new_from_env()?;
+        let rs = tmdb.seach_movie("想变成猫的田万川君").await?;
+        println!("rs: {:?}", rs);
         Ok(())
     }
 
