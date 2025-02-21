@@ -12,8 +12,8 @@ use std::{
 use tokio::sync::{mpsc, oneshot, Mutex};
 
 use crate::{
-    db::Db, fetcher::Fetcher, mdb_bgmtv::MdbBgmTV, mdb_mikan::MdbMikan, mdb_tmdb::MdbTmdb,
-    MetadataAttr, MetadataAttrSet, MetadataDb,
+    db::Db, fetcher::Fetcher, matcher::Matcher, mdb_bgmtv::MdbBgmTV, mdb_mikan::MdbMikan,
+    mdb_tmdb::MdbTmdb, MetadataAttr, MetadataAttrSet, MetadataDb,
 };
 use anyhow::{Context, Result};
 use chrono::NaiveDateTime;
@@ -50,6 +50,7 @@ pub struct Worker {
     fetcher: Fetcher,
     sender: Option<mpsc::Sender<Cmd>>,
     dict: dict::Dict,
+    matcher: Matcher,
     assets_path: String,
 }
 
@@ -62,6 +63,7 @@ impl Worker {
         dict: dict::Dict,
         assets_path: String,
     ) -> Self {
+        let matcher = Matcher::new(fetcher.tmdb.clone(), fetcher.bgm_tv.clone(), mikan.clone());
         Self {
             db,
             mikan,
@@ -69,6 +71,7 @@ impl Worker {
             fetcher,
             sender: None,
             dict,
+            matcher,
             assets_path,
         }
     }
@@ -320,8 +323,16 @@ impl Worker {
         self.db.save_mikan_calendar(calendar).await?;
 
         let bangumis = self.db.list_bangumi_by_mikan_ids(mikan_ids).await?;
-        for bgm in bangumis {
-            self.request_refresh_metadata(bgm.id, false).await?;
+        for mut bgm in bangumis {
+            let bgm_id = bgm.id;
+            if bgm.bangumi_tv_id.is_none() {
+                self.matcher.match_bgm_tv(&mut bgm, false).await?;
+                self.db.update_bangumi(bgm).await?;
+            } else if bgm.tmdb_id.is_none() {
+                self.matcher.match_tmdb(&mut bgm).await?;
+                self.db.update_bangumi(bgm).await?;
+            }
+            self.request_refresh_metadata(bgm_id, false).await?;
         }
         Ok(())
     }

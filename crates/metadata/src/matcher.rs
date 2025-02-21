@@ -12,6 +12,17 @@ pub struct Matcher {
 }
 
 impl Matcher {
+    pub fn new(
+        tmdb: tmdb::client::Client,
+        bgm_tv: bangumi_tv::client::Client,
+        mikan: mikan::client::Client,
+    ) -> Self {
+        Self {
+            tmdb,
+            bgm_tv,
+            mikan,
+        }
+    }
     pub async fn match_tmdb(
         &self,
         bgm: &mut bangumi::Model,
