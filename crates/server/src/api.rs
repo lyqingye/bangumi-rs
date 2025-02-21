@@ -15,7 +15,8 @@ use crate::model::{DownloadTask, QueryDownloadTask, TMDBMetadata, TMDBSeason, Up
 use crate::{
     error::ServerError,
     model::{Bangumi, Episode, Resp, SubscribeParams, Torrent},
-    server::{AppState, ASSETS_MOUNT_PATH},
+    router::ASSETS_MOUNT_PATH,
+    server::AppState,
 };
 
 #[instrument(skip(state))]

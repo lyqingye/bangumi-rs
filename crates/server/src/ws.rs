@@ -1,4 +1,4 @@
-use crate::{error::ServerError, server::LogMessage};
+use crate::{error::ServerError, logger::LogMessage};
 use actix_web::{web, HttpRequest, Responder};
 use actix_ws::Message;
 use anyhow::Result;

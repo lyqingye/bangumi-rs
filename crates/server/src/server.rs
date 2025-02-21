@@ -1,6 +1,5 @@
 use actix_cors::Cors;
-use actix_files::Files;
-use actix_web::{web, App, HttpServer};
+use actix_web::{App, HttpServer};
 use dict::DictCode;
 use parser::Parser;
 use std::sync::Arc;
@@ -8,18 +7,12 @@ use std::{net::SocketAddr, path::PathBuf, str::FromStr};
 use tokio::sync::broadcast;
 use tracing::{error, info};
 use tracing_actix_web::TracingLogger;
-use tracing_subscriber::layer::SubscriberExt;
-use tracing_subscriber::{EnvFilter, Layer};
 
-use crate::ws::ws_handler;
-use crate::{api, config::Config};
+use crate::config::Config;
+use crate::logger::{init_logger, LogMessage};
+use crate::router;
 use anyhow::Result;
 use mikan::client::Client;
-
-#[derive(Clone)]
-pub struct LogMessage {
-    pub content: String,
-}
 
 #[derive(Clone)]
 pub struct AppState {
@@ -36,8 +29,6 @@ pub struct Server {
     state: Arc<AppState>,
 }
 
-pub const ASSETS_MOUNT_PATH: &str = "/api/assets";
-
 impl Server {
     pub async fn new(config: Config) -> Result<Self> {
         let state = Self::init_state(&config).await?;
@@ -47,7 +38,7 @@ impl Server {
 
     async fn init_state(config: &Config) -> Result<Arc<AppState>> {
         // Logger
-        let log_tx = Self::init_logger(config)?;
+        let log_tx = init_logger(config)?;
 
         // Database
         let db = crate::db::Db::new(&config.server.database_url).await?;
@@ -193,52 +184,6 @@ impl Server {
         parser_impl
     }
 
-    fn init_logger(config: &Config) -> Result<broadcast::Sender<LogMessage>> {
-        let (log_tx, _) = broadcast::channel(4096);
-        let log_filter = tracing::level_filters::LevelFilter::from_str(&config.log.level)?;
-
-        let env_filter = EnvFilter::builder()
-            .with_default_directive(log_filter.into())
-            .parse("")?
-            .add_directive("server::api=debug".parse()?)
-            .add_directive("server=debug".parse()?)
-            .add_directive("scheduler=debug".parse()?)
-            .add_directive("parser=debug".parse()?)
-            .add_directive("metadata=debug".parse()?)
-            .add_directive("downloader=debug".parse()?)
-            .add_directive("sea_orm=debug".parse()?)
-            .add_directive("sqlx=warn".parse()?)
-            .add_directive("notify=debug".parse()?)
-            .add_directive("actix_web=debug".parse()?)
-            .add_directive("actix_server=debug".parse()?)
-            .add_directive("tracing_actix_web::middleware=debug".parse()?)
-            .add_directive("tracing_actix_web=debug".parse()?);
-
-        // let broadcast_layer = BroadcastLayer::new(log_tx.clone(), log_filter);
-        let fmt_layer = tracing_subscriber::fmt::layer()
-            .with_target(false)
-            .with_level(true)
-            .with_target(true)
-            .with_filter(env_filter)
-            .with_filter(log_filter);
-
-        #[cfg(feature = "tokio_console")]
-        {
-            let subscriber = tracing_subscriber::registry()
-                .with(console_subscriber::spawn())
-                .with(fmt_layer);
-            tracing::subscriber::set_global_default(subscriber).expect("Failed to set subscriber");
-        }
-
-        #[cfg(not(feature = "tokio_console"))]
-        {
-            let subscriber = tracing_subscriber::registry().with(fmt_layer);
-            tracing::subscriber::set_global_default(subscriber).expect("Failed to set subscriber");
-        }
-
-        Ok(log_tx)
-    }
-
     pub async fn serve(&self) -> Result<()> {
         let addr = self.config.server.listen_addr.parse::<SocketAddr>()?;
         info!("server listen at: http://{}", addr);
@@ -255,7 +200,7 @@ impl Server {
             App::new()
                 .wrap(TracingLogger::default())
                 .wrap(cors)
-                .configure(|cfg| Self::configure_app(cfg, state.clone()))
+                .configure(|cfg| router::configure_app(cfg, state.clone()))
         })
         .bind(addr)?
         .run();
@@ -290,31 +235,6 @@ impl Server {
         }
 
         Ok(())
-    }
-
-    fn configure_app(cfg: &mut web::ServiceConfig, state: Arc<AppState>) {
-        cfg.app_data(web::Data::new(state.clone()))
-            .service(
-                Files::new(ASSETS_MOUNT_PATH, state.assets_path.clone())
-                    .show_files_listing()
-                    .prefer_utf8(true),
-            )
-            .service(api::calendar)
-            .service(api::get_bangumi_by_id)
-            .service(api::get_bangumi_episodes_by_id)
-            .service(api::subscribe_bangumi)
-            .service(api::get_bangumi_torrents_by_id)
-            .service(api::refresh_bangumi)
-            .service(api::online_watch)
-            .service(api::delete_bangumi_download_tasks)
-            .service(api::list_download_tasks)
-            .service(api::manual_select_torrent)
-            .service(api::refresh_calendar)
-            .service(api::seach_bangumi_at_tmdb)
-            .service(api::update_bangumi_mdb)
-            .service(api::tmdb_image_proxy)
-            .service(api::health)
-            .route("/ws", web::get().to(ws_handler));
     }
 
     async fn after_init(state: &Arc<AppState>) -> Result<()> {
