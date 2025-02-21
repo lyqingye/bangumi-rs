@@ -244,22 +244,6 @@ impl Worker {
 
         // NOTE: 这里需要考虑外部服务被重复访问
 
-        // 1. 先使用 mikan 填充 bgm_tv_id
-        match mdbs
-            .mikan
-            .update_bangumi_metadata(
-                &mut bgm,
-                MetadataAttrSet(vec![MetadataAttr::BgmTvId]),
-                force,
-            )
-            .await
-        {
-            Ok(_) => {}
-            Err(e) => {
-                error!("使用mikan填充bgm_tv_id失败: {}", e);
-            }
-        }
-
         // 2. 使用Tmdb填充绝大部分信息
         match mdbs
             .tmdb
@@ -279,7 +263,7 @@ impl Worker {
         }
         match mdbs
             .bgmtv
-            .update_bangumi_metadata(&mut bgm, attrs, force)
+            .update_bangumi_metadata(&mut bgm, attrs, false)
             .await
         {
             Ok(_) => {}
@@ -295,7 +279,7 @@ impl Worker {
                 .update_bangumi_metadata(
                     &mut bgm,
                     MetadataAttrSet(vec![MetadataAttr::Poster]),
-                    force,
+                    false,
                 )
                 .await
             {

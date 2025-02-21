@@ -1,6 +1,7 @@
 #![allow(unused)]
 mod db;
 pub mod fetcher;
+mod matcher;
 mod mdb_bgmtv;
 mod mdb_mikan;
 mod mdb_tmdb;
