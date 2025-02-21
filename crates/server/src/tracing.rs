@@ -1,4 +1,4 @@
-use crate::server::LogMessage;
+use crate::logger::LogMessage;
 use std::fmt::Write;
 use tokio::sync::broadcast;
 use tracing_subscriber::Layer;
