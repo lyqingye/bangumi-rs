@@ -63,6 +63,8 @@ services:
       - backend
     networks:
       - bangumi-network
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf
     labels:
       - "com.centurylinklabs.watchtower.enable=true"
 
