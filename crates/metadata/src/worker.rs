@@ -12,8 +12,8 @@ use std::{
 use tokio::sync::{mpsc, oneshot, Mutex};
 
 use crate::{
-    db::Db, fetcher::Fetcher, mdb_bgmtv::MdbBgmTV, mdb_mikan::MdbMikan, mdb_tmdb::MdbTmdb,
-    MetadataAttr, MetadataAttrSet, MetadataDb,
+    db::Db, fetcher::Fetcher, matcher::Matcher, mdb_bgmtv::MdbBgmTV, mdb_mikan::MdbMikan,
+    mdb_tmdb::MdbTmdb, MetadataAttr, MetadataAttrSet, MetadataDb,
 };
 use anyhow::{Context, Result};
 use chrono::NaiveDateTime;
@@ -50,6 +50,7 @@ pub struct Worker {
     fetcher: Fetcher,
     sender: Option<mpsc::Sender<Cmd>>,
     dict: dict::Dict,
+    matcher: Matcher,
     assets_path: String,
 }
 
@@ -62,6 +63,7 @@ impl Worker {
         dict: dict::Dict,
         assets_path: String,
     ) -> Self {
+        let matcher = Matcher::new(fetcher.tmdb.clone(), fetcher.bgm_tv.clone(), mikan.clone());
         Self {
             db,
             mikan,
@@ -69,6 +71,7 @@ impl Worker {
             fetcher,
             sender: None,
             dict,
+            matcher,
             assets_path,
         }
     }
@@ -244,22 +247,6 @@ impl Worker {
 
         // NOTE: 这里需要考虑外部服务被重复访问
 
-        // 1. 先使用 mikan 填充 bgm_tv_id
-        match mdbs
-            .mikan
-            .update_bangumi_metadata(
-                &mut bgm,
-                MetadataAttrSet(vec![MetadataAttr::BgmTvId]),
-                force,
-            )
-            .await
-        {
-            Ok(_) => {}
-            Err(e) => {
-                error!("使用mikan填充bgm_tv_id失败: {}", e);
-            }
-        }
-
         // 2. 使用Tmdb填充绝大部分信息
         match mdbs
             .tmdb
@@ -279,7 +266,7 @@ impl Worker {
         }
         match mdbs
             .bgmtv
-            .update_bangumi_metadata(&mut bgm, attrs, force)
+            .update_bangumi_metadata(&mut bgm, attrs, false)
             .await
         {
             Ok(_) => {}
@@ -295,7 +282,7 @@ impl Worker {
                 .update_bangumi_metadata(
                     &mut bgm,
                     MetadataAttrSet(vec![MetadataAttr::Poster]),
-                    force,
+                    false,
                 )
                 .await
             {
@@ -336,8 +323,16 @@ impl Worker {
         self.db.save_mikan_calendar(calendar).await?;
 
         let bangumis = self.db.list_bangumi_by_mikan_ids(mikan_ids).await?;
-        for bgm in bangumis {
-            self.request_refresh_metadata(bgm.id, false).await?;
+        for mut bgm in bangumis {
+            let bgm_id = bgm.id;
+            if bgm.bangumi_tv_id.is_none() {
+                self.matcher.match_bgm_tv(&mut bgm, false).await?;
+                self.db.update_bangumi(bgm).await?;
+            } else if bgm.tmdb_id.is_none() {
+                self.matcher.match_tmdb(&mut bgm).await?;
+                self.db.update_bangumi(bgm).await?;
+            }
+            self.request_refresh_metadata(bgm_id, false).await?;
         }
         Ok(())
     }

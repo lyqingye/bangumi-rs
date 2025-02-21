@@ -3,7 +3,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use model::bangumi;
 use tokio::fs;
-use tracing::{error, info};
+use tracing::{error, info, warn};
 
 #[derive(Clone)]
 pub struct MdbBgmTV {
@@ -21,7 +21,8 @@ impl MetadataDb for MdbBgmTV {
     ) -> Result<()> {
         info!("[bgm.tv] 填充番剧元数据: {}", bgm.name);
         if bgm.bangumi_tv_id.is_none() {
-            return Err(anyhow::anyhow!("番剧TV ID为空"));
+            warn!("[bgm.tv] 没有 bangumi_tv_id，跳过更新");
+            return Ok(());
         }
 
         let need_update = bgm.ep_count == 0

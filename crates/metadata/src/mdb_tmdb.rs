@@ -27,13 +27,9 @@ impl MetadataDb for MdbTmdb {
             "[TMDB] 填充番剧元数据: {}, tmdb_id: {:?}",
             bgm.name, bgm.tmdb_id
         );
-        let mut cache = None;
         if bgm.tmdb_id.is_none() {
-            cache = self.match_tmdb(bgm).await?;
-
-            if let Some((tv, _)) = &cache {
-                bgm.tmdb_id = Some(tv.inner.id);
-            }
+            warn!("[TMDB] 没有 tmdb_id ，跳过更新");
+            return Ok(());
         }
 
         let need_update = bgm.season_number.is_none()
@@ -49,25 +45,21 @@ impl MetadataDb for MdbTmdb {
 
         debug!("开始更新TMDB元数据");
 
-        if cache.is_none() {
-            if bgm.season_number.is_none() {
-                warn!("[TMDB] 没有 season_number ，跳过更新, 可能是电影，暂不支持");
-                return Ok(());
-            }
-            cache = self
-                .tmdb
-                .get_bangumi_and_season(bgm.tmdb_id.unwrap(), bgm.season_number.unwrap())
-                .await?;
-            if cache.is_none() {
-                cache = self.match_tmdb(bgm).await.context("匹配TMDB失败")?;
-            }
+        if bgm.season_number.is_none() {
+            warn!("[TMDB] 没有 season_number ，跳过更新, 可能是电影，暂不支持");
+            return Ok(());
         }
 
-        if cache.is_none() {
-            return Err(anyhow::anyhow!("[TMDB] 更新元数据失败，未找到匹配的番剧"));
+        let metadata = self
+            .tmdb
+            .get_bangumi_and_season(bgm.tmdb_id.unwrap(), bgm.season_number.unwrap())
+            .await?;
+
+        if metadata.is_none() {
+            return Err(anyhow::anyhow!("[TMDB] 更新元数据失败，未找到元数据信息"));
         }
 
-        let (tv, season) = cache.unwrap();
+        let (tv, season) = metadata.unwrap();
 
         if attrs.is_required(MetadataAttr::SeasonNumber) && (bgm.season_number.is_none() || force) {
             bgm.season_number = Some(season.inner.season_number);
@@ -122,12 +114,6 @@ impl MetadataDb for MdbTmdb {
 }
 
 impl MdbTmdb {
-    async fn match_tmdb(&self, bgm: &mut bangumi::Model) -> Result<Option<(TVShow, SeasonShort)>> {
-        info!("尝试匹配 TMDB: {}", bgm.name);
-        let air_date = bgm.air_date.map(|dt| dt.and_utc().date_naive());
-        self.tmdb.match_bangumi(&bgm.name, air_date).await
-    }
-
     async fn download_image_from_tmdb(
         &self,
         tmdb_file_path: &str,

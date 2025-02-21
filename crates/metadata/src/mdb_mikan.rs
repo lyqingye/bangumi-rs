@@ -2,7 +2,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use model::bangumi;
 use tokio::fs;
-use tracing::{error, info};
+use tracing::{error, info, warn};
 
 use crate::{format_poster_image_file_name, MetadataAttr, MetadataAttrSet, MetadataDb};
 
@@ -23,7 +23,8 @@ impl MetadataDb for MdbMikan {
         info!("[MIKAN] 填充番剧元数据: {}", bgm.name);
 
         if bgm.mikan_id.is_none() {
-            return Err(anyhow::anyhow!("番剧缺少mikan_id"));
+            warn!("[MIKAN] 没有mikan_id，跳过更新");
+            return Ok(());
         }
 
         let need_update = bgm.bangumi_tv_id.is_none() || bgm.poster_image_url.is_none() || force;
