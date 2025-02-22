@@ -26,12 +26,14 @@ impl From<String> for SubscribeStatus {
     }
 }
 
-impl From<String> for BgmKind {
-    fn from(s: String) -> Self {
+impl TryFrom<String> for BgmKind {
+    type Error = String;
+
+    fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.as_str() {
-            "anime" => Self::Anime,
-            "movie" => Self::Movie,
-            _ => unreachable!(),
+            "anime" => Ok(Self::Anime),
+            "movie" => Ok(Self::Movie),
+            _ => Err(format!("invalid bgm kind: {}", s)),
         }
     }
 }
