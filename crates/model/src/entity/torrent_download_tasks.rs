@@ -11,15 +11,15 @@ pub struct Model {
     pub info_hash: String,
     pub download_status: DownloadStatus,
     pub downloader: Option<String>,
+    pub dir: String,
     #[sea_orm(column_type = "Text", nullable)]
     pub context: Option<String>,
-    pub created_at: DateTime,
-    pub updated_at: DateTime,
     #[sea_orm(column_type = "Text", nullable)]
     pub err_msg: Option<String>,
-    pub dir: String,
     pub retry_count: i32,
     pub next_retry_at: DateTime,
+    pub created_at: DateTime,
+    pub updated_at: DateTime,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

@@ -1,7 +1,10 @@
 use anyhow::Result;
 use bangumi_tv::model::Subject;
-use model::bangumi;
-use tmdb::api::tvshow::{SeasonShort, TVShow};
+use model::{bangumi, sea_orm_active_enums::BgmKind};
+use tmdb::api::{
+    movie::MovieShort,
+    tvshow::{SeasonShort, TVShow},
+};
 use tracing::{info, warn};
 
 #[derive(Clone)]
@@ -28,8 +31,42 @@ impl Matcher {
         bgm: &mut bangumi::Model,
     ) -> Result<Option<(TVShow, SeasonShort)>> {
         info!("尝试匹配 TMDB: {}", bgm.name);
+        let result = match (bgm.tmdb_id, bgm.season_number) {
+            (Some(tmdb_id), Some(season_number)) => {
+                self.tmdb
+                    .get_bangumi_and_season(tmdb_id, season_number)
+                    .await?
+            }
+            _ => {
+                let air_date = bgm.air_date.map(|dt| dt.and_utc().date_naive());
+                self.tmdb.match_bangumi(&bgm.name, air_date).await?
+            }
+        };
+
+        if let Some((tv, season)) = result {
+            bgm.tmdb_id = Some(tv.inner.id);
+            bgm.bgm_kind = Some(BgmKind::Anime);
+            Ok(Some((tv, season)))
+        } else {
+            Ok(None)
+        }
+    }
+
+    pub async fn match_tmdb_movie(&self, bgm: &mut bangumi::Model) -> Result<Option<MovieShort>> {
+        info!("尝试匹配 TMDB 电影: {}", bgm.name);
         let air_date = bgm.air_date.map(|dt| dt.and_utc().date_naive());
-        self.tmdb.match_bangumi(&bgm.name, air_date).await
+        let movies = self.tmdb.seach_movie(&bgm.name, air_date).await?;
+        if movies.is_empty() {
+            return Ok(None);
+        }
+        let movie = movies.first();
+        if movie.is_none() {
+            return Ok(None);
+        }
+        let movie = movie.unwrap();
+        bgm.tmdb_id = Some(movie.inner.id);
+        bgm.bgm_kind = Some(BgmKind::Movie);
+        Ok(Some(movie.clone()))
     }
 
     pub async fn match_bgm_tv(

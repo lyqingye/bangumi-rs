@@ -6,7 +6,7 @@ use reqwest::Url;
 use std::{path::Path, sync::Arc};
 use tmdb_api::{
     client::reqwest::ReqwestExecutor,
-    movie::{search::MovieSearch, MovieShort},
+    movie::{details::MovieDetails, search::MovieSearch, Movie, MovieShort},
     prelude::Command,
     tvshow::{
         details::TVShowDetails, episode::details::TVShowEpisodeDetails, search::TVShowSearch,
@@ -144,9 +144,14 @@ impl Client {
         Ok(tv_shows)
     }
 
-    pub async fn seach_movie(&self, name: &str) -> Result<Vec<MovieShort>> {
+    pub async fn seach_movie(
+        &self,
+        name: &str,
+        air_date: Option<NaiveDate>,
+    ) -> Result<Vec<MovieShort>> {
         let search_results = MovieSearch::new(name.to_string())
             .with_language(Some(self.language.clone()))
+            .with_year(air_date.map(|dt| dt.year() as u16))
             .execute(&self.client)
             .await
             .map_err(|e| anyhow::anyhow!("TMDB搜索失败: {}", e))?;
@@ -169,6 +174,15 @@ impl Client {
             }
         }
         Ok(None)
+    }
+
+    pub async fn get_movie(&self, tmdb_id: u64) -> Result<Movie> {
+        let movie = MovieDetails::new(tmdb_id)
+            .with_language(Some(self.language.clone()))
+            .execute(&self.client)
+            .await
+            .map_err(|e| anyhow::anyhow!("获取详情失败: {}", e))?;
+        Ok(movie)
     }
 
     #[instrument(name = "TMDB 匹配番剧", skip(self), fields(name = %name))]
@@ -319,8 +333,10 @@ mod tests {
             .with_target(true) // 不显示目标模块
             .init();
         let tmdb = Client::new_from_env()?;
-        let rs = tmdb.seach_movie("想变成猫的田万川君").await?;
+        let rs = tmdb.seach_movie("想变成猫的田万川君", None).await?;
         println!("rs: {:?}", rs);
+        let movie = tmdb.get_movie(rs[0].inner.id).await?;
+        println!("movie: {:?}", movie);
         Ok(())
     }
 

@@ -6,17 +6,17 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq, Serialize, Deserialize)]
 #[sea_orm(table_name = "torrents")]
 pub struct Model {
+    #[sea_orm(primary_key, auto_increment = false)]
+    pub info_hash: String,
     pub bangumi_id: i32,
     pub title: String,
     pub size: i64,
-    #[sea_orm(primary_key, auto_increment = false, unique)]
-    pub info_hash: String,
     #[sea_orm(column_type = "Text")]
     pub magnet: String,
-    #[sea_orm(column_type = "Binary(255)", nullable)]
-    pub data: Option<Vec<u8>>,
-    pub pub_date: DateTime,
+    #[sea_orm(column_type = "custom(\"mediumblob\")", nullable)]
+    pub data: Option<String>,
     pub download_url: Option<String>,
+    pub pub_date: DateTime,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
