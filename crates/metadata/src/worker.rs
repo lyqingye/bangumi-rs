@@ -1,5 +1,8 @@
 use dict::DictCode;
-use model::{bangumi, sea_orm_active_enums::SubscribeStatus};
+use model::{
+    bangumi,
+    sea_orm_active_enums::{BgmKind, SubscribeStatus},
+};
 use sea_orm::DatabaseConnection;
 use std::{
     collections::HashMap,
@@ -374,6 +377,7 @@ impl Worker {
         mikan_id: Option<i32>,
         banugmi_tv_id: Option<i32>,
         season_number: Option<u64>,
+        kind: BgmKind,
     ) -> Result<()> {
         let mut bgm = self
             .db
@@ -396,6 +400,7 @@ impl Worker {
         if season_number.is_some() {
             bgm.season_number = season_number;
         }
+        bgm.bgm_kind = Some(kind);
         self.db.update_bangumi(bgm).await?;
 
         self.request_refresh_metadata(bgm_id, true).await?;

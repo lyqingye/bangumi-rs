@@ -1,6 +1,6 @@
 mod entity;
 pub mod migrator;
-use entity::sea_orm_active_enums::{Kind, SubscribeStatus};
+use entity::sea_orm_active_enums::{BgmKind, Kind, SubscribeStatus};
 pub use entity::*;
 
 impl From<String> for Kind {
@@ -22,6 +22,18 @@ impl From<String> for SubscribeStatus {
             "Subscribed" => Self::Subscribed,
             "Downloaded" => Self::Downloaded,
             _ => Self::None,
+        }
+    }
+}
+
+impl TryFrom<String> for BgmKind {
+    type Error = String;
+
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        match s.as_str() {
+            "anime" => Ok(Self::Anime),
+            "movie" => Ok(Self::Movie),
+            _ => Err(format!("invalid bgm kind: {}", s)),
         }
     }
 }

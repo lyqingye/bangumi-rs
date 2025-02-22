@@ -1,5 +1,7 @@
 use chrono::{NaiveDate, NaiveDateTime};
-use model::sea_orm_active_enums::{DownloadStatus, Kind, ParserStatus, State, SubscribeStatus};
+use model::sea_orm_active_enums::{
+    BgmKind, DownloadStatus, Kind, ParserStatus, State, SubscribeStatus,
+};
 use sea_orm::FromQueryResult;
 use serde::{Deserialize, Serialize};
 
@@ -147,6 +149,7 @@ pub struct TMDBMetadata {
     pub air_date: Option<NaiveDate>,
     pub seasons: Vec<TMDBSeason>,
     pub description: Option<String>,
+    pub kind: BgmKind,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -164,4 +167,5 @@ pub struct UpdateMDBParams {
     pub mikan_id: Option<i32>,
     pub bangumi_tv_id: Option<i32>,
     pub season_number: Option<u64>,
+    pub kind: BgmKind,
 }

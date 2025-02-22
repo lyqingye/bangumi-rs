@@ -21,7 +21,7 @@ const { showSnackbar } = useSnackbar()
 // 创建 axios 实例
 const api = axios.create({
   baseURL: '/api',
-  timeout: 5000
+  timeout: 30000
 })
 
 // 统一的错误处理函数

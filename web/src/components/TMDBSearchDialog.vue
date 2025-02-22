@@ -223,7 +223,8 @@ const selectTMDB = async (item: TMDBMetadata) => {
     await updateBangumiMDB({
       bangumi_id: props.bangumiId,
       tmdb_id: item.id,
-      season_number: selectedSeason
+      season_number: selectedSeason,
+      kind: item.kind
     })
     
     showSnackbar({
