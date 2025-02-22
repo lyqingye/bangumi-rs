@@ -1,33 +1,44 @@
 <template>
   <v-layout class="fill-height">
     <!-- 左侧导航树 -->
-    <v-navigation-drawer permanent class="navigation-drawer" elevation="0" width="280">
+    <v-navigation-drawer
+      v-model="drawer"
+      :rail="rail"
+      permanent
+      class="navigation-drawer"
+      elevation="0"
+      :width="280"
+      :rail-width="56"
+    >
       <!-- 毛玻璃背景 -->
       <div class="glass-bg"></div>
 
       <!-- 导航内容 -->
       <div class="nav-content">
-        <div class="pa-6">
-          <div class="text-h5 font-weight-semibold">Bangumi App</div>
+        <!-- 顶部标题和切换按钮 -->
+        <div class="nav-header">
+          <div class="app-title" v-show="!rail">Bangumi App</div>
+          <v-btn
+            variant="text"
+            :icon="rail ? 'mdi-menu' : 'mdi-menu-open'"
+            size="small"
+            @click.stop="rail = !rail"
+          ></v-btn>
         </div>
 
-        <v-list class="nav-list px-3" nav>
-          <v-list-item
+        <!-- 导航菜单 -->
+        <div class="nav-menu">
+          <div
             v-for="(item, i) in navItems"
             :key="i"
-            :value="item.to"
-            :prepend-icon="item.icon"
-            :title="item.title"
-            :to="item.to"
-            :active="currentRoute === item.to"
-            class="nav-item mb-2"
-            rounded="lg"
+            class="nav-item"
+            :class="{ active: currentRoute === item.to }"
+            @click="$router.push(item.to)"
           >
-            <template #title>
-              <span class="font-weight-medium">{{ item.title }}</span>
-            </template>
-          </v-list-item>
-        </v-list>
+            <v-icon :icon="item.icon" class="nav-icon" />
+            <span class="nav-text" v-show="!rail">{{ item.title }}</span>
+          </div>
+        </div>
       </div>
     </v-navigation-drawer>
 
@@ -49,6 +60,9 @@ const navItems = [
   { title: '首页', icon: 'mdi-home', to: '/' },
   { title: '下载', icon: 'mdi-download', to: '/downloads' },
 ]
+
+const drawer = ref(true)
+const rail = ref(false)
 </script>
 
 <style scoped>
@@ -76,95 +90,85 @@ const navItems = [
   position: relative;
   z-index: 1;
   height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
-.nav-list {
-  background: transparent;
+/* 导航头部 */
+.nav-header {
+  padding: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.app-title {
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: 0.025em;
+}
+
+/* 导航菜单 */
+.nav-menu {
+  padding: 0 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .nav-item {
-  min-height: 48px;
+  height: 44px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  cursor: pointer;
   transition: all 0.3s ease;
-  position: relative;
-  overflow: hidden;
-  margin-bottom: 8px;
-  padding: 0 16px;
+  user-select: none;
 }
 
-.nav-item::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+.nav-item:hover {
   background: rgba(255, 255, 255, 0.05);
-  opacity: 0;
-  transition: opacity 0.3s ease;
 }
 
-.nav-item:hover::before {
-  opacity: 1;
-}
-
-.nav-item.v-list-item--active {
+.nav-item.active {
   background: rgba(var(--v-theme-primary), 0.15);
   color: rgb(var(--v-theme-primary));
 }
 
-.nav-item.v-list-item--active::before {
-  display: none;
+.nav-icon {
+  font-size: 24px;
 }
 
-/* 优化导航项样式 */
-.nav-item :deep(.v-list-item__content) {
-  font-size: 15px !important;
-  letter-spacing: 0.025em;
-  line-height: 1.5;
+.nav-text {
+  margin-left: 12px;
+  font-weight: 500;
 }
 
-.nav-item :deep(.v-list-item__content .font-weight-medium) {
-  font-size: 15px !important;
+/* 锁进按钮动画 */
+.rotate-180 {
+  transform: rotate(180deg);
 }
 
-/* 优化图标样式 */
-.nav-item :deep(.v-list-item__prepend) {
-  opacity: 0.9;
-  font-size: 1.25rem;
-  padding-right: 20px;
+/* 锁进模式样式 */
+:deep(.v-navigation-drawer--rail) {
+  .nav-menu {
+    padding: 0;
+  }
+
+  .nav-item {
+    padding: 0;
+    justify-content: center;
+  }
+
+  .nav-icon {
+    margin: 0;
+  }
 }
 
-.nav-item.v-list-item--active :deep(.v-list-item__prepend) {
-  opacity: 1;
-}
-
-.nav-item.v-list-item--active :deep(.v-list-item__content) {
-  font-weight: unset;
-}
-
-.nav-item.v-list-item--active :deep(.font-weight-medium) {
-  font-weight: 600 !important;
-}
-
-/* 优化应用标题 */
-.text-h5 {
-  font-size: 28px !important;
-  letter-spacing: 0.025em;
-  line-height: 1.4;
-}
-
+/* 主内容区域 */
 .main-content {
   background: rgb(16, 16, 16);
 }
-
-/* 优化悬停效果 */
-.nav-item:hover :deep(.v-list-item__content) {
-  transform: translateX(4px);
-  transition: transform 0.3s ease;
-}
-
-.nav-item :deep(.v-list-item__content) {
-  transform: translateX(0);
-  transition: transform 0.3s ease;
-}
 </style>
+
