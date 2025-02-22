@@ -98,6 +98,12 @@
       :initial-query="item.name"
       @selected="handleTMDBSelected"
     />
+
+    <!-- 刷新对话框 -->
+    <RefreshDialog
+      v-model="showRefreshDialog"
+      @confirm="handleRefreshConfirm"
+    />
   </v-card>
 </template>
 
@@ -109,6 +115,7 @@ import { subscribeBangumi, refreshBangumi } from '@/api/api'
 import { useSnackbar } from '../composables/useSnackbar'
 import SubscribeDialog from '../components/SubscribeDialog.vue'
 import TMDBSearchDialog from '../components/TMDBSearchDialog.vue'
+import RefreshDialog from '../components/RefreshDialog.vue'
 
 const props = defineProps<{
   item: Bangumi
@@ -127,6 +134,9 @@ const isRefreshing = ref(false)
 
 // TMDB 搜索相关
 const showTMDBSearchDialog = ref(false)
+
+// 添加刷新对话框状态
+const showRefreshDialog = ref(false)
 
 // 切换订阅状态
 const toggleSubscribe = (event: Event) => {
@@ -159,11 +169,15 @@ const handleSubscribe = async (params: SubscribeParams) => {
 const handleRefresh = async (event: Event) => {
   event.stopPropagation()
   if (!props.item || isRefreshing.value) return
+  showRefreshDialog.value = true
+}
 
+// 处理刷新确认
+const handleRefreshConfirm = async (force: boolean) => {
   try {
     isRefreshing.value = true
-    // 调用刷新 API
-    await refreshBangumi(props.item.id)
+    // 调用刷新 API，传入 force 参数
+    await refreshBangumi(props.item.id, force)
     // 显示成功提示
     showSnackbar({
       text: '已经加入刷新队列',
@@ -182,6 +196,7 @@ const handleRefresh = async (event: Event) => {
     })
   } finally {
     isRefreshing.value = false
+    showRefreshDialog.value = false
   }
 }
 
