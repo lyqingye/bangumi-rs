@@ -141,7 +141,7 @@ export async function manualSelectTorrent(bangumiId: number, episodeNumber: numb
   }
 }
 export async function getOnlineWatchUrl(bangumiId: number, episodeId: number): Promise<string> {
-  return api.defaults.baseURL + `/bangumi/${bangumiId}/${episodeId}/online_watch`
+  return  `${window.location.origin}/api/bangumi/${bangumiId}/${episodeId}/online_watch`
 }
 
 // 下载任务相关 API

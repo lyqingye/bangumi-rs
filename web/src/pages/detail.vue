@@ -1884,5 +1884,6 @@ onMounted(() => {
   fetchAnimeDetail()
   fetchEpisodes()
   fetchTorrents()
+  console.log('getOnlineWatchUrl', getOnlineWatchUrl(10, 1))
 })
 </script>
