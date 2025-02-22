@@ -4,6 +4,14 @@ use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Eq, EnumIter, DeriveActiveEnum, Serialize, Deserialize)]
+#[sea_orm(rs_type = "String", db_type = "Enum", enum_name = "bgm_kind")]
+pub enum BgmKind {
+    #[sea_orm(string_value = "anime")]
+    Anime,
+    #[sea_orm(string_value = "movie")]
+    Movie,
+}
+#[derive(Debug, Clone, PartialEq, Eq, EnumIter, DeriveActiveEnum, Serialize, Deserialize)]
 #[sea_orm(rs_type = "String", db_type = "Enum", enum_name = "download_status")]
 pub enum DownloadStatus {
     #[sea_orm(string_value = "pending")]

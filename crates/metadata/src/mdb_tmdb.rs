@@ -4,7 +4,7 @@ use crate::{
 };
 use anyhow::{Context, Result};
 use async_trait::async_trait;
-use model::bangumi;
+use model::{bangumi, sea_orm_active_enums::BgmKind};
 use tmdb::api::tvshow::{SeasonShort, TVShow};
 use tokio::fs;
 use tracing::{debug, info, warn};
@@ -39,34 +39,60 @@ impl MetadataDb for MdbTmdb {
             || force;
 
         if !need_update {
-            debug!("[TMDB]元数据已是最新，跳过更新");
+            info!("[TMDB]元数据已是最新，跳过更新");
             return Ok(());
         }
 
         debug!("开始更新TMDB元数据");
 
-        if bgm.season_number.is_none() {
-            warn!("[TMDB] 没有 season_number ，跳过更新, 可能是电影，暂不支持");
+        let tmdb_id = bgm.tmdb_id.unwrap();
+
+        if bgm.bgm_kind == Some(BgmKind::Anime) && bgm.season_number.is_none() {
+            warn!("[TMDB] 没有 season_number, 也不是电影，跳过更新");
             return Ok(());
         }
 
-        let metadata = self
-            .tmdb
-            .get_bangumi_and_season(bgm.tmdb_id.unwrap(), bgm.season_number.unwrap())
-            .await?;
+        let poster_path;
+        let backdrop_path;
+        let overview;
+        match bgm.bgm_kind {
+            Some(BgmKind::Anime) => {
+                let metadata = self
+                    .tmdb
+                    .get_bangumi_and_season(tmdb_id, bgm.season_number.unwrap())
+                    .await?;
+                if metadata.is_none() {
+                    return Err(anyhow::anyhow!("[TMDB] 更新元数据失败，未找到元数据信息"));
+                }
+                let (tv, season) = metadata.unwrap();
+                if attrs.is_required(MetadataAttr::SeasonNumber)
+                    && (bgm.season_number.is_none() || force)
+                {
+                    bgm.season_number = Some(season.inner.season_number);
+                }
+                poster_path = tv.inner.poster_path;
+                backdrop_path = tv.inner.backdrop_path;
+                overview = tv.inner.overview;
+            }
+            Some(BgmKind::Movie) => {
+                let movie = self.tmdb.get_movie(tmdb_id).await?;
+                poster_path = movie.inner.poster_path;
+                backdrop_path = movie.inner.backdrop_path;
 
-        if metadata.is_none() {
-            return Err(anyhow::anyhow!("[TMDB] 更新元数据失败，未找到元数据信息"));
-        }
-
-        let (tv, season) = metadata.unwrap();
-
-        if attrs.is_required(MetadataAttr::SeasonNumber) && (bgm.season_number.is_none() || force) {
-            bgm.season_number = Some(season.inner.season_number);
-        }
+                if movie.inner.overview.is_empty() {
+                    overview = None;
+                } else {
+                    overview = Some(movie.inner.overview);
+                }
+            }
+            _ => {
+                warn!("[TMDB] 既不是番剧也不是电影，需要先使用Matcher进行匹配");
+                return Ok(());
+            }
+        };
 
         if attrs.is_required(MetadataAttr::Poster) && (bgm.poster_image_url.is_none() || force) {
-            if let Some(poster_path) = tv.inner.poster_path {
+            if let Some(poster_path) = poster_path {
                 bgm.poster_image_url = Some(
                     self.download_image_from_tmdb(
                         &poster_path,
@@ -80,7 +106,7 @@ impl MetadataDb for MdbTmdb {
 
         if attrs.is_required(MetadataAttr::Backdrop) && (bgm.backdrop_image_url.is_none() || force)
         {
-            if let Some(backdrop_path) = tv.inner.backdrop_path {
+            if let Some(backdrop_path) = backdrop_path {
                 bgm.backdrop_image_url = Some(
                     self.download_image_from_tmdb(
                         &backdrop_path,
@@ -93,7 +119,7 @@ impl MetadataDb for MdbTmdb {
         }
 
         if attrs.is_required(MetadataAttr::Description) && (bgm.description.is_none() || force) {
-            if let Some(overview) = tv.inner.overview {
+            if let Some(overview) = overview {
                 bgm.description = Some(overview);
             }
         }

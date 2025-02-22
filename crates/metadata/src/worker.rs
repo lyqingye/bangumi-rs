@@ -327,9 +327,13 @@ impl Worker {
             let bgm_id = bgm.id;
             if bgm.bangumi_tv_id.is_none() {
                 self.matcher.match_bgm_tv(&mut bgm, false).await?;
-                self.db.update_bangumi(bgm).await?;
-            } else if bgm.tmdb_id.is_none() {
+                self.db.update_bangumi(bgm.clone()).await?;
+            } else if bgm.tmdb_id.is_none() || bgm.bgm_kind.is_none() {
                 self.matcher.match_tmdb(&mut bgm).await?;
+                self.db.update_bangumi(bgm.clone()).await?;
+            }
+            if bgm.tmdb_id.is_none() || bgm.bgm_kind.is_none() {
+                self.matcher.match_tmdb_movie(&mut bgm).await?;
                 self.db.update_bangumi(bgm).await?;
             }
             self.request_refresh_metadata(bgm_id, false).await?;

@@ -82,7 +82,7 @@ impl Fetcher {
     }
 
     pub async fn seach_movie_at_tmdb(&self, name: &str) -> Result<Vec<MovieShort>> {
-        self.tmdb.seach_movie(name).await
+        self.tmdb.seach_movie(name, None).await
     }
 
     pub async fn download_image_from_tmdb_as_response(

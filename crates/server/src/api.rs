@@ -389,14 +389,15 @@ pub async fn get_bangumi_torrents_by_id(
     Ok(Json(Resp::ok(torrents)))
 }
 
-#[instrument(skip(state), fields(id = %id))]
-#[get("/api/bangumi/{id}/refresh")]
+#[instrument(skip(state), fields(id = %params.0))]
+#[get("/api/bangumi/{id}/refresh/{force}")]
 pub async fn refresh_bangumi(
     state: web::Data<Arc<AppState>>,
-    id: web::Path<i32>,
+    params: web::Path<(i32, bool)>,
 ) -> Result<Json<Resp<()>>, ServerError> {
-    let id = id.into_inner();
+    let (id, force) = params.into_inner();
     state.scheduler.trigger_collection(id).await?;
+    state.metadata.request_refresh_metadata(id, force).await?;
     Ok(Json(Resp::ok(())))
 }
 

@@ -113,9 +113,9 @@ export async function getBangumiTorrents(id: number): Promise<Torrent[]> {
 }
 
 // 刷新番剧元数据
-export async function refreshBangumi(id: number): Promise<void> {
+export async function refreshBangumi(id: number, force: boolean): Promise<void> {
   try {
-    const response = await api.get<ApiResponse<null>>(`/bangumi/${id}/refresh`)
+    const response = await api.get<ApiResponse<null>>(`/bangumi/${id}/refresh/${force}`)
     handleResponse(response, '刷新元数据失败')
   } catch (error) {
     handleError(error, '刷新元数据失败')

@@ -403,6 +403,12 @@
       :current-subscribe-settings="currentSubscribeSettings"
       @subscribe="handleSubscribe"
     />
+
+    <!-- 刷新对话框 -->
+    <RefreshDialog
+      v-model="showRefreshDialog"
+      @confirm="handleRefreshConfirm"
+    />
   </div>
 </template>
 
@@ -1489,6 +1495,7 @@ import {
 } from '@/api/model'
 import { useSnackbar } from '../composables/useSnackbar'
 import SubscribeDialog from '../components/SubscribeDialog.vue'
+import RefreshDialog from '../components/RefreshDialog.vue'
 
 const route = useRoute()
 const anime = ref<Bangumi>()
@@ -1547,14 +1554,21 @@ const isNewEpisode = (airDate: string) => {
 // 添加刷新状态
 const isRefreshing = ref(false)
 
+// 添加刷新对话框状态
+const showRefreshDialog = ref(false)
+
 // 处理刷新操作
 const handleRefresh = async () => {
   if (!anime.value || isRefreshing.value) return
+  showRefreshDialog.value = true
+}
 
+// 处理刷新确认
+const handleRefreshConfirm = async (force: boolean) => {
   try {
     isRefreshing.value = true
-    // 调用刷新 API
-    await refreshBangumi(anime.value.id)
+    // 调用刷新 API，传入 force 参数
+    await refreshBangumi(anime.value!.id, force)
     // 重新加载数据
     await Promise.all([fetchAnimeDetail(), fetchEpisodes(), fetchTorrents()])
     // 显示成功提示
@@ -1575,6 +1589,7 @@ const handleRefresh = async () => {
     })
   } finally {
     isRefreshing.value = false
+    showRefreshDialog.value = false
   }
 }
 
