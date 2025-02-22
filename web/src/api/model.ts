@@ -159,6 +159,7 @@ export interface TMDBMetadata {
   air_date: string | null
   seasons: TMDBSeason[]
   description: string | null
+  kind: BgmKind
 }
 
 // TMDB 季度信息
@@ -169,9 +170,16 @@ export interface TMDBSeason {
   ep_count: number
 }
 
+// 番剧类型
+export enum BgmKind {
+  Anime = 'anime',
+  Movie = 'movie'
+}
+
 // 更新番剧元数据参数
 export interface UpdateMDBParams {
   bangumi_id: number
+  kind: BgmKind
   tmdb_id?: number | null
   mikan_id?: number | null
   bangumi_tv_id?: number | null

@@ -6,7 +6,7 @@ use actix_web::{
     HttpRequest, HttpResponse,
 };
 use dict::DictCode;
-use model::sea_orm_active_enums::{State, SubscribeStatus};
+use model::sea_orm_active_enums::{BgmKind, State, SubscribeStatus};
 use parser::{Language, VideoResolution};
 use sea_orm::{prelude::Expr, Condition};
 use tracing::{info, instrument};
@@ -512,6 +512,7 @@ pub async fn update_bangumi_mdb(
             params.mikan_id,
             params.bangumi_tv_id,
             params.season_number,
+            params.kind.clone(),
         )
         .await?;
     Ok(Json(Resp::ok(())))
@@ -539,6 +540,7 @@ pub async fn seach_bangumi_at_tmdb(
                 .map(|path| format!("/api/tmdb/image/{}", path.trim_start_matches('/'))),
             air_date: tv_show.inner.first_air_date,
             description: tv_show.inner.overview,
+            kind: BgmKind::Anime,
             seasons: Vec::new(),
         };
         for season in tv_show.seasons {
@@ -563,6 +565,7 @@ pub async fn seach_bangumi_at_tmdb(
                 .map(|path| format!("/api/tmdb/image/{}", path.trim_start_matches('/'))),
             air_date: movie.inner.release_date,
             description: Some(movie.inner.overview),
+            kind: BgmKind::Movie,
             seasons: Vec::new(),
         };
         metadatas.push(metadata);

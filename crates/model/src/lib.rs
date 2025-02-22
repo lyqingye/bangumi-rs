@@ -1,6 +1,6 @@
 mod entity;
 pub mod migrator;
-use entity::sea_orm_active_enums::{Kind, SubscribeStatus};
+use entity::sea_orm_active_enums::{BgmKind, Kind, SubscribeStatus};
 pub use entity::*;
 
 impl From<String> for Kind {
@@ -22,6 +22,16 @@ impl From<String> for SubscribeStatus {
             "Subscribed" => Self::Subscribed,
             "Downloaded" => Self::Downloaded,
             _ => Self::None,
+        }
+    }
+}
+
+impl From<String> for BgmKind {
+    fn from(s: String) -> Self {
+        match s.as_str() {
+            "anime" => Self::Anime,
+            "movie" => Self::Movie,
+            _ => unreachable!(),
         }
     }
 }
