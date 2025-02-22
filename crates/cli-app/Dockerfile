@@ -15,6 +15,7 @@ RUN apt-get update && apt-get install -y \
 COPY Cargo.toml Cargo.lock ./
 COPY crates ./crates
 COPY libs ./libs
+COPY develop/migrations ./develop/migrations
 
 # 构建项目
 RUN cargo build --release -p cli-app
