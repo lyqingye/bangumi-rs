@@ -33,6 +33,7 @@ pan-115 = {path = "../../libs/pan-115" }
 model = {path = "../model"}
 scheduler = {path = "../scheduler"}
 sea-orm = {workspace = true, features = [ "sqlx-mysql", "runtime-tokio-rustls", "macros", "debug-print"]}
+sea-orm-migration = {workspace = true, features = ["sqlx-mysql", "runtime-tokio-rustls"]}
 notify = {path = "../notify"}
 dict = {path = "../dict"}
 
