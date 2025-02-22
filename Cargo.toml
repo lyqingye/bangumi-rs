@@ -5,9 +5,17 @@ members = [
     "libs/pan-115",
     "crates/server",
     "crates/parser",
-    "libs/anitomy-rs", "crates/notify", "libs/bangumi-tv", "libs/tmdb", "crates/model", "crates/downloader", "crates/scheduler", "crates/metadata", "crates/dict",
+    "libs/anitomy-rs",
+    "crates/notify",
+    "libs/bangumi-tv",
+    "libs/tmdb",
+    "crates/model",
+    "crates/downloader",
+    "crates/scheduler",
+    "crates/metadata",
+    "crates/dict",
 ]
-resolver = "2" 
+resolver = "2"
 
 
 [workspace.dependencies]
@@ -33,14 +41,14 @@ async-trait = "0.1"
 lazy_static = "1.5.0"
 
 # 命令行
-clap = { version = "4.5.27"}
+clap = { version = "4.5.27" }
 toml = "0.8.19"
 
 # 网络请求
-reqwest = { version = "0.12.7"}
+reqwest = { version = "0.12.7" }
 
 # 爬虫
-scraper = {version = "0.22.0"}
+scraper = { version = "0.22.0" }
 
 # 日期解析
 chrono = "0.4.39"
@@ -50,6 +58,8 @@ bip_metainfo = "0.12.0"
 
 # 操作数据库
 sea-orm = { version = "1.1.4" }
+sea-orm-migration = { version = "1.1.5" }
+include_dir = "0.7.4"
 
 # 序列化
 serde = { version = "1.0.217" }
@@ -76,7 +86,7 @@ tracing-actix-web = "0.7.15"
 console-subscriber = "0.4.1"
 huby = "0.2.0"
 
-teloxide =  {git = "https://github.com/teloxide/teloxide.git", rev = "e6c0e2cb7f1ff44742bb9a8606cb936b55852d4d"}
+teloxide = { git = "https://github.com/teloxide/teloxide.git", rev = "e6c0e2cb7f1ff44742bb9a8606cb936b55852d4d" }
 
 regex = "1.11.0"
 lru = "0.13.0"

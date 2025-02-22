@@ -1,4 +1,5 @@
 mod entity;
+pub mod migrator;
 use entity::sea_orm_active_enums::{Kind, SubscribeStatus};
 pub use entity::*;
 

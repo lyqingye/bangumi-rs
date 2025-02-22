@@ -13,6 +13,7 @@ use crate::logger::{init_logger, LogMessage};
 use crate::router;
 use anyhow::Result;
 use mikan::client::Client;
+use sea_orm_migration::MigratorTrait;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -42,6 +43,9 @@ impl Server {
 
         // Database
         let db = crate::db::Db::new(&config.server.database_url).await?;
+
+        // Execute migrations
+        model::migrator::Migrator::up(db.conn(), None).await?;
 
         // HTTP Client
         let client = if config.proxy.enabled {
