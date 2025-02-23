@@ -182,7 +182,7 @@ onUnmounted(() => {
             </v-row>
           </v-card-text>
           <v-card-text v-else class="text-center pa-4">
-            暂无 系统组件 数据
+            暂无数据
           </v-card-text>
         </v-card>
       </v-col>
