@@ -15,6 +15,9 @@ on:
       RELEASE_TOKEN:
         required: true
 
+permissions:
+  contents: write
+
 jobs:
   build:
     name: Build Frontend
