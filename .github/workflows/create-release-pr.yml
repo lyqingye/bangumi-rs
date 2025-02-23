@@ -77,8 +77,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
           PR_NUMBER: ${{ needs.create-release-pr.outputs.pr_number }}
         run: |
-          # 检查 PR 状态，最多等待 60 分钟
-          for i in {1..60}; do
+          # 检查 PR 状态，最多等待 30 分钟
+          for i in {1..30}; do
             PR_STATE=$(gh pr view $PR_NUMBER --json state,mergedAt -q '.state')
             if [ "$PR_STATE" = "MERGED" ]; then
               echo "merged=true" >> $GITHUB_OUTPUT
@@ -88,7 +88,7 @@ jobs:
               echo "PR was closed without merging"
               exit 1
             fi
-            echo "Waiting for PR to be merged... Attempt $i/60"
+            echo "Waiting for PR to be merged... Attempt $i/30"
             sleep 60
           done
           echo "Timeout waiting for PR to be merged"
