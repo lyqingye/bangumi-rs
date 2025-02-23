@@ -1,7 +1,6 @@
 use std::str::FromStr;
 
 use crate::config::Config;
-use crate::tracing::BroadcastLayer;
 use anyhow::Result;
 use tokio::sync::broadcast;
 use tracing_subscriber::prelude::__tracing_subscriber_SubscriberExt;
@@ -49,6 +48,7 @@ pub fn init_logger(config: &Config) -> Result<broadcast::Sender<LogMessage>> {
 
     #[cfg(not(feature = "tokio_console"))]
     {
+        use crate::tracing::BroadcastLayer;
         let broadcast_layer = BroadcastLayer::new(log_tx.clone(), log_filter);
         let subscriber = tracing_subscriber::registry()
             .with(fmt_layer)
