@@ -4,7 +4,7 @@
   <img src="docs/screenshot/home.png" width="80%" />
 </div>
 
-基于 Rust + Vue 3 开发的动漫追番,支持订阅番剧、自动下载, 在线播放等功能。
+基于 Rust + Vue 3 开发的动漫追番,支持订阅番剧、智能下载, 在线播放等功能。
 
 ## 功能特性
 
@@ -26,7 +26,7 @@
 
 - 🎬 在线播放
 
-  - 支持在线播放, 支持 IINA,Infuse 播放器
+  - 支持 IINA,Infuse 播放器 在线播放
 
 - 📚 元数据管理
 
