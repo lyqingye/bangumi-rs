@@ -30,7 +30,7 @@ jobs:
     if: ${{ needs.release-please.outputs.release_created }}
     uses: ./.github/workflows/release-backend.yml
     secrets:
-      GITHUB_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+      RELEASE_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
 
   # 当 release-please 创建新的 release 时，触发前端构建
   trigger-frontend-release:
@@ -38,7 +38,7 @@ jobs:
     if: ${{ needs.release-please.outputs.release_created }}
     uses: ./.github/workflows/release-frontend.yml
     secrets:
-      GITHUB_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+      RELEASE_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
 
   # 当 release-please 创建新的 release 时，触发构建和上传
   build-and-release:
