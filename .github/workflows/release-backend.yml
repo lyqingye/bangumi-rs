@@ -5,6 +5,9 @@ on:
     tags:
       - "v*"
   workflow_call:
+    secrets:
+      GITHUB_TOKEN:
+        required: true
   workflow_dispatch:
     inputs:
       version:

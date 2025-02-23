@@ -8,6 +8,7 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  issues: write
 
 jobs:
   release-please:
@@ -19,7 +20,7 @@ jobs:
       - uses: googleapis/release-please-action@v4
         id: release
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
           config-file: .github/release-please-config.json
           manifest-file: .github/release-please-manifest.json
 
@@ -28,12 +29,16 @@ jobs:
     needs: release-please
     if: ${{ needs.release-please.outputs.release_created }}
     uses: ./.github/workflows/release-backend.yml
+    secrets:
+      GITHUB_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
 
   # 当 release-please 创建新的 release 时，触发前端构建
   trigger-frontend-release:
     needs: release-please
     if: ${{ needs.release-please.outputs.release_created }}
     uses: ./.github/workflows/release-frontend.yml
+    secrets:
+      GITHUB_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
 
   # 当 release-please 创建新的 release 时，触发构建和上传
   build-and-release:
@@ -44,12 +49,14 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
 
       # 生成完整的 changelog
       - name: Generate Changelog
         id: changelog
         uses: actions/github-script@v7
         with:
+          github-token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
           script: |
             const { data: pulls } = await github.rest.pulls.list({
               owner: context.repo.owner,
@@ -108,6 +115,7 @@ jobs:
       - name: Update Release
         uses: actions/github-script@v7
         with:
+          github-token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
           script: |
             const tag = '${{ needs.release-please.outputs.tag_name }}';
             const changelog = `${{ steps.changelog.outputs.result }}`;
