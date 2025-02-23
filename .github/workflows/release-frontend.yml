@@ -4,7 +4,7 @@ on:
   workflow_call:
     inputs:
       version:
-        description: "指定发布版本号 (例如: v0.1.0)"
+        description: "发布版本号"
         required: true
         type: string
       upload_url:
@@ -14,18 +14,18 @@ on:
     secrets:
       RELEASE_TOKEN:
         required: true
-  workflow_dispatch:
-    inputs:
-      version:
-        description: "指定发布版本号 (例如: v0.1.0)"
-        required: true
-        type: string
 
 jobs:
-  build-and-release:
+  build:
+    name: Build Frontend
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
         with:
           ref: ${{ inputs.version }}
           token: ${{ secrets.RELEASE_TOKEN }}
@@ -35,15 +35,23 @@ jobs:
         with:
           node-version: "20"
           cache: "npm"
+          cache-dependency-path: web/package-lock.json
 
       - name: Install dependencies
-        run: npm ci
+        run: |
+          npm ci
+          npm audit fix || true
 
-      - name: Build
-        run: npm run build
+      - name: Build frontend
+        run: |
+          npm run build
 
-      - name: Create archive
-        run: tar -czf bangumi-frontend.tar.gz -C dist .
+          cd dist
+          tar -czf ../../bangumi-frontend.tar.gz .
+          cd ../..
+
+          echo "SHA256 checksum:"
+          shasum -a 256 bangumi-frontend.tar.gz
 
       - name: Upload Release Asset
         uses: actions/upload-release-asset@v1
