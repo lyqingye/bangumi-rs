@@ -5,6 +5,7 @@
   "bump-minor-pre-major": true,
   "bump-patch-for-minor-pre-major": true,
   "include-v-in-tag": true,
+  "separate-pull-requests": false,
   "changelog-sections": [
     { "type": "feat", "section": "🚀 Features", "hidden": false },
     { "type": "fix", "section": "🐛 Bug Fixes", "hidden": false },
@@ -15,14 +16,15 @@
     { "type": "test", "section": "✅ Testing", "hidden": false }
   ],
   "packages": {
-    ".": {
+    "crates/cli-app": {
       "package-name": "bangumi",
       "changelog-path": "CHANGELOG.md",
       "release-type": "rust",
+      "component": "cli-app",
       "extra-files": [
         {
           "type": "json",
-          "path": "frontend/package.json",
+          "path": "web/package.json",
           "jsonpath": "$.version"
         }
       ]
