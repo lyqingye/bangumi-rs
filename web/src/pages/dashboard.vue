@@ -4,17 +4,18 @@ import { fetchMetrics } from '@/api/api'
 import type { Metrics } from '@/api/model'
 import { WorkerState } from '@/api/model'
 import { formatBytes, formatDuration } from '@/utils/format'
+import LogViewer from '@/components/LogViewer.vue'
 
 const metrics = ref<Metrics | null>(null)
 let refreshInterval: ReturnType<typeof setInterval> | null = null
 
 // 刷新间隔选项
 const refreshIntervals = [
-  { title: '1 秒', value: 1000 },
+  { title: '3 秒', value: 3000 },
   { title: '5 秒', value: 5000 },
   { title: '30 秒', value: 30000 }
 ]
-const selectedInterval = ref(1000) // 默认 1 秒
+const selectedInterval = ref(3000) // 默认 3 秒
 
 // 获取指标数据
 const loadMetrics = async () => {
@@ -184,6 +185,16 @@ onUnmounted(() => {
             暂无 系统组件 数据
           </v-card-text>
         </v-card>
+      </v-col>
+    </v-row>
+
+    <!-- 日志查看器 -->
+    <v-row>
+      <v-col cols="12">
+        <LogViewer 
+          websocketUrl="/ws" 
+          :expanded="true"
+        />
       </v-col>
     </v-row>
   </v-container>

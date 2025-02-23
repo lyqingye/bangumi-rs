@@ -22,9 +22,9 @@ where
     S: tracing::Subscriber,
 {
     fn on_event(&self, event: &tracing::Event<'_>, ctx: tracing_subscriber::layer::Context<'_, S>) {
-        let level = event.metadata().level();
+        let metadata = event.metadata();
         // 检查日志级别是否满足过滤条件
-        if !self.filter.enabled(event.metadata(), ctx) {
+        if !self.filter.enabled(metadata, ctx) {
             return;
         }
 
@@ -35,7 +35,8 @@ where
         let now = chrono::Local::now();
         write!(&mut buffer, "[{}] ", now.format("%Y-%m-%d %H:%M:%S")).ok();
 
-        write!(&mut buffer, "[{}] ", level).ok();
+        write!(&mut buffer, "[{}] ", metadata.level()).ok();
+        write!(&mut buffer, "[{}] ", metadata.target()).ok();
 
         // 写入实际的日志消息
         let mut visitor = StringVisitor(String::new());
