@@ -1,10 +1,16 @@
 name: Release Backend
 
 on:
-  push:
-    tags:
-      - "v*"
   workflow_call:
+    inputs:
+      version:
+        description: "指定发布版本号 (例如: v0.1.0)"
+        required: true
+        type: string
+      upload_url:
+        description: "Release 上传 URL"
+        required: true
+        type: string
     secrets:
       RELEASE_TOKEN:
         required: true
@@ -14,36 +20,9 @@ on:
         description: "指定发布版本号 (例如: v0.1.0)"
         required: true
         type: string
-      draft:
-        description: "是否创建草稿版本"
-        required: false
-        type: boolean
-        default: false
-      prerelease:
-        description: "是否为预发布版本"
-        required: false
-        type: boolean
-        default: false
 
 jobs:
-  create-release:
-    runs-on: ubuntu-latest
-    outputs:
-      upload_url: ${{ steps.create_release.outputs.upload_url }}
-    steps:
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
-        with:
-          tag_name: ${{ github.event.inputs.version || github.ref }}
-          release_name: Release ${{ github.event.inputs.version || github.ref }}
-          draft: ${{ github.event.inputs.draft || false }}
-          prerelease: ${{ github.event.inputs.prerelease || false }}
-
   build-and-release:
-    needs: create-release
     strategy:
       matrix:
         include:
@@ -64,7 +43,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.inputs.version || github.ref }}
+          ref: ${{ inputs.version }}
           token: ${{ secrets.RELEASE_TOKEN }}
 
       # 安装 Linux 构建依赖
@@ -120,7 +99,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
         with:
-          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          upload_url: ${{ inputs.upload_url }}
           asset_path: ./bangumi-${{ matrix.name }}.tar.gz
           asset_name: bangumi-${{ matrix.name }}.tar.gz
           asset_content_type: application/gzip
