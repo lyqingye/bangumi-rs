@@ -14,6 +14,11 @@ export const routes = [
         name: 'downloads',
         component: () => import('@/pages/downloads.vue')
       },
+      {
+        path: 'dashboard',
+        name: 'dashboard',
+        component: () => import('@/pages/dashboard.vue')
+      }
     ]
   },
   {

@@ -11,7 +11,8 @@ import type {
   QueryDownloadTask,
   PaginatedResponse,
   TMDBMetadata,
-  UpdateMDBParams
+  UpdateMDBParams,
+  Metrics
 } from './model'
 import { ApiError } from './model'
 import { useSnackbar } from '../composables/useSnackbar'
@@ -181,5 +182,15 @@ export async function updateBangumiMDB(params: UpdateMDBParams): Promise<void> {
     handleResponse(response, '更新番剧元数据失败')
   } catch (error) {
     handleError(error, '更新番剧元数据失败')
+  }
+}
+
+// 获取系统指标
+export async function fetchMetrics(): Promise<Metrics> {
+  try {
+    const response = await api.get<ApiResponse<Metrics>>('/metrics')
+    return handleResponse(response, '获取系统指标失败')
+  } catch (error) {
+    return handleError(error, '获取系统指标失败')
   }
 }

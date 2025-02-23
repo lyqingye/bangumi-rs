@@ -185,3 +185,35 @@ export interface UpdateMDBParams {
   bangumi_tv_id?: number | null
   season_number?: number | null
 }
+
+// Metrics 相关类型定义
+export enum WorkerState {
+  Collecting = 'Collecting',
+  Processing = 'Processing',
+  Idle = 'Idle'
+}
+
+export interface WorkerMetrics {
+  name: string
+  state: WorkerState
+  last_collection_time: string | null
+}
+
+export interface SchedulerMetrics {
+  workers: WorkerMetrics[]
+}
+
+export interface DownloaderMetrics {
+  num_of_tasks: number
+}
+
+export interface ProcessMetrics {
+  used: number
+  run_time_sec: number
+}
+
+export interface Metrics {
+  downloader: DownloaderMetrics
+  scheduler: SchedulerMetrics
+  process: ProcessMetrics
+}

@@ -3,7 +3,6 @@ use serde::Serialize;
 #[derive(Debug, Clone, Serialize)]
 pub enum WorkerState {
     Collecting,
-    Refreshing,
     Processing,
     Idle,
 }

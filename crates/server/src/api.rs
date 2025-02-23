@@ -601,24 +601,21 @@ pub async fn metrics(state: web::Data<Arc<AppState>>) -> Result<Json<Resp<Metric
 
     let mut sys = sysinfo::System::new();
     let pid = sysinfo::Pid::from(std::process::id() as usize);
+
     sys.refresh_processes_specifics(
         sysinfo::ProcessesToUpdate::Some(&[pid]),
         true,
-        sysinfo::ProcessRefreshKind::nothing()
-            .with_memory()
-            .with_cpu(),
+        sysinfo::ProcessRefreshKind::nothing().with_memory(),
     );
 
-    let memory = if let Some(process) = sys.process(pid) {
+    let process = if let Some(process) = sys.process(pid) {
         ProcessMetrics {
             used: process.memory(),
-            cpu_usage: process.cpu_usage(),
             run_time_sec: process.run_time(),
         }
     } else {
         ProcessMetrics {
             used: 0,
-            cpu_usage: 0.0,
             run_time_sec: 0,
         }
     };
@@ -626,6 +623,6 @@ pub async fn metrics(state: web::Data<Arc<AppState>>) -> Result<Json<Resp<Metric
     Ok(Json(Resp::ok(Metrics {
         scheduler: scheduler_metrics,
         downloader: downloader_metrics,
-        memory,
+        process,
     })))
 }
