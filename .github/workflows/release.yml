@@ -24,7 +24,9 @@ jobs:
   create-release:
     runs-on: ubuntu-latest
     outputs:
+      release_id: ${{ steps.create_release.outputs.id }}
       upload_url: ${{ steps.create_release.outputs.upload_url }}
+
     steps:
       - name: Create Release
         id: create_release
@@ -34,17 +36,12 @@ jobs:
         with:
           tag_name: ${{ inputs.version }}
           release_name: Release ${{ inputs.version }}
+          body: |
+            Release ${{ inputs.version }}
+
+            Please see the [changelog](./CHANGELOG.md) for details.
           draft: ${{ inputs.draft }}
           prerelease: ${{ inputs.prerelease }}
-
-  release-backend:
-    needs: create-release
-    uses: ./.github/workflows/release-backend.yml
-    with:
-      version: ${{ inputs.version }}
-      upload_url: ${{ needs.create-release.outputs.upload_url }}
-    secrets:
-      RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
 
   release-frontend:
     needs: create-release
@@ -52,6 +49,25 @@ jobs:
     with:
       version: ${{ inputs.version }}
       upload_url: ${{ needs.create-release.outputs.upload_url }}
+    secrets:
+      RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+
+  release-backend:
+    needs: create-release
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - { arch: linux-amd64, triple: x86_64-unknown-linux-gnu }
+          - { arch: linux-arm64, triple: aarch64-unknown-linux-gnu }
+          - { arch: macos-amd64, triple: x86_64-apple-darwin }
+          - { arch: macos-arm64, triple: aarch64-apple-darwin }
+    uses: ./.github/workflows/release-backend.yml
+    with:
+      version: ${{ inputs.version }}
+      upload_url: ${{ needs.create-release.outputs.upload_url }}
+      target: ${{ matrix.target.triple }}
+      name: ${{ matrix.target.arch }}
     secrets:
       RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
 
