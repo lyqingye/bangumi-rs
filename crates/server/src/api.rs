@@ -11,7 +11,10 @@ use parser::{Language, VideoResolution};
 use sea_orm::{prelude::Expr, Condition};
 use tracing::{info, instrument};
 
-use crate::model::{DownloadTask, QueryDownloadTask, TMDBMetadata, TMDBSeason, UpdateMDBParams};
+use crate::model::{
+    DownloadTask, Metrics, ProcessMetrics, QueryDownloadTask, TMDBMetadata, TMDBSeason,
+    UpdateMDBParams,
+};
 use crate::{
     error::ServerError,
     model::{Bangumi, Episode, Resp, SubscribeParams, Torrent},
@@ -589,4 +592,37 @@ pub async fn tmdb_image_proxy(
         .content_type("image/jpeg")
         .append_header(("Cache-Control", "public, max-age=86400")) // 1天缓存
         .body(bytes))
+}
+
+#[get("/api/metrics")]
+pub async fn metrics(state: web::Data<Arc<AppState>>) -> Result<Json<Resp<Metrics>>, ServerError> {
+    let scheduler_metrics = state.scheduler.metrics().await;
+    let downloader_metrics = state.scheduler.get_downloader().metrics().await;
+
+    let mut sys = sysinfo::System::new();
+    let pid = sysinfo::Pid::from(std::process::id() as usize);
+
+    sys.refresh_processes_specifics(
+        sysinfo::ProcessesToUpdate::Some(&[pid]),
+        true,
+        sysinfo::ProcessRefreshKind::nothing().with_memory(),
+    );
+
+    let process = if let Some(process) = sys.process(pid) {
+        ProcessMetrics {
+            used: process.memory(),
+            run_time_sec: process.run_time(),
+        }
+    } else {
+        ProcessMetrics {
+            used: 0,
+            run_time_sec: 0,
+        }
+    };
+
+    Ok(Json(Resp::ok(Metrics {
+        scheduler: scheduler_metrics,
+        downloader: downloader_metrics,
+        process,
+    })))
 }

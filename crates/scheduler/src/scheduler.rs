@@ -7,6 +7,7 @@ use tokio::sync::Mutex;
 use tracing::{error, info};
 
 use crate::db::Db;
+use crate::metrics::Metrics;
 use crate::tasks::TaskManager;
 use crate::worker::BangumiWorker;
 
@@ -280,5 +281,17 @@ impl Scheduler {
 
         info!("调度器优雅停机完成");
         Ok(())
+    }
+
+    /// 获取调度器的 metrics
+    pub async fn metrics(&self) -> Metrics {
+        let workers = self.workers.lock().await;
+        let mut metrics = Metrics::default();
+
+        for worker in workers.values() {
+            metrics.workers.push(worker.get_metrics());
+        }
+
+        metrics
     }
 }

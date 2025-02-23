@@ -21,7 +21,7 @@ use std::{
 use tokio::sync::{mpsc, Mutex};
 use tracing::{debug, error, info, warn};
 
-use crate::{context::Pan115Context, db::Db, tasks::TaskManager, Downloader};
+use crate::{context::Pan115Context, db::Db, metrics, tasks::TaskManager, Downloader};
 
 type RetryQueue = Arc<Mutex<HashMap<String, (Model, u32)>>>;
 type TaskCache = Arc<Mutex<HashMap<String, chrono::NaiveDateTime>>>;
@@ -178,6 +178,12 @@ impl Downloader for Pan115Downloader {
             }
         }
         Ok(())
+    }
+
+    async fn metrics(&self) -> metrics::Metrics {
+        metrics::Metrics {
+            num_of_tasks: self.tasks.tasks_count().await,
+        }
     }
 }
 

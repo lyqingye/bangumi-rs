@@ -175,4 +175,9 @@ impl TaskManager {
         }
         Ok(())
     }
+
+    pub async fn tasks_count(&self) -> usize {
+        let cache = self.tasks.read().await;
+        cache.len()
+    }
 }

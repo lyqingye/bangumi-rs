@@ -59,6 +59,7 @@ const currentRoute = computed(() => route.path)
 const navItems = [
   { title: '首页', icon: 'mdi-home', to: '/' },
   { title: '下载', icon: 'mdi-download', to: '/downloads' },
+  { title: '仪表盘', icon: 'mdi-chart-box', to: '/dashboard' },
 ]
 
 const drawer = ref(true)

@@ -31,7 +31,6 @@ pub fn init_logger(config: &Config) -> Result<broadcast::Sender<LogMessage>> {
         .add_directive("tracing_actix_web::middleware=debug".parse()?)
         .add_directive("tracing_actix_web=debug".parse()?);
 
-    // let broadcast_layer = BroadcastLayer::new(log_tx.clone(), log_filter);
     let fmt_layer = tracing_subscriber::fmt::layer()
         .with_target(false)
         .with_level(true)
@@ -49,7 +48,11 @@ pub fn init_logger(config: &Config) -> Result<broadcast::Sender<LogMessage>> {
 
     #[cfg(not(feature = "tokio_console"))]
     {
-        let subscriber = tracing_subscriber::registry().with(fmt_layer);
+        use crate::tracing::BroadcastLayer;
+        let broadcast_layer = BroadcastLayer::new(log_tx.clone(), log_filter);
+        let subscriber = tracing_subscriber::registry()
+            .with(fmt_layer)
+            .with(broadcast_layer);
         tracing::subscriber::set_global_default(subscriber).expect("Failed to set subscriber");
     }
 
