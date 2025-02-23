@@ -1,0 +1,68 @@
+name: Release Frontend
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_call:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "指定发布版本号 (例如: v0.1.0)"
+        required: true
+        type: string
+      draft:
+        description: "是否创建草稿版本"
+        required: false
+        type: boolean
+        default: false
+      prerelease:
+        description: "是否为预发布版本"
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.version || github.ref }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Create archive
+        run: tar -czf bangumi-frontend.tar.gz -C dist .
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.event.inputs.version || github.ref }}
+          release_name: Release ${{ github.event.inputs.version || github.ref }}
+          draft: ${{ github.event.inputs.draft || false }}
+          prerelease: ${{ github.event.inputs.prerelease || false }}
+
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./bangumi-frontend.tar.gz
+          asset_name: bangumi-frontend.tar.gz
+          asset_content_type: application/gzip
+

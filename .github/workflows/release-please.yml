@@ -1,0 +1,127 @@
+name: Release Please
+
+on:
+  push:
+    branches:
+      - master
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+    steps:
+      - uses: googleapis/release-please-action@v4
+        id: release
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          config-file: .github/release-please-config.json
+          manifest-file: .github/release-please-manifest.json
+
+  # 当 release-please 创建新的 release 时，触发后端构建
+  trigger-backend-release:
+    needs: release-please
+    if: ${{ needs.release-please.outputs.release_created }}
+    uses: ./.github/workflows/release-backend.yml
+
+  # 当 release-please 创建新的 release 时，触发前端构建
+  trigger-frontend-release:
+    needs: release-please
+    if: ${{ needs.release-please.outputs.release_created }}
+    uses: ./.github/workflows/release-frontend.yml
+
+  # 当 release-please 创建新的 release 时，触发构建和上传
+  build-and-release:
+    needs: release-please
+    if: ${{ needs.release-please.outputs.release_created }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # 生成完整的 changelog
+      - name: Generate Changelog
+        id: changelog
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: pulls } = await github.rest.pulls.list({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'closed',
+              base: 'master',
+              sort: 'updated',
+              direction: 'desc',
+              per_page: 100
+            });
+
+            const categories = {
+              'feat': '🚀 Features',
+              'fix': '🐛 Bug Fixes',
+              'docs': '📚 Documentation',
+              'chore': '🔧 Maintenance',
+              'refactor': '♻️ Refactor',
+              'perf': '⚡️ Performance',
+              'test': '✅ Testing'
+            };
+
+            const changes = {};
+            Object.values(categories).forEach(cat => changes[cat] = []);
+
+            pulls.forEach(pr => {
+              if (!pr.title) return;
+              
+              const match = pr.title.match(/^(\w+)(?:\(.*?\))?:/);
+              if (!match) return;
+              
+              const type = match[1];
+              const category = categories[type] || categories['chore'];
+              
+              changes[category].push({
+                title: pr.title,
+                number: pr.number,
+                url: pr.html_url
+              });
+            });
+
+            let changelog = '## What\'s Changed\n\n';
+
+            Object.entries(changes).forEach(([category, items]) => {
+              if (items.length === 0) return;
+              
+              changelog += `### ${category}\n\n`;
+              items.forEach(item => {
+                changelog += `* ${item.title} (#${item.number})\n`;
+              });
+              changelog += '\n';
+            });
+
+            return changelog;
+
+      # 更新 release 描述
+      - name: Update Release
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const tag = '${{ needs.release-please.outputs.tag_name }}';
+            const changelog = `${{ steps.changelog.outputs.result }}`;
+
+            const { data: release } = await github.rest.repos.getReleaseByTag({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag: tag
+            });
+
+            await github.rest.repos.updateRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              release_id: release.id,
+              body: changelog
+            });
+

@@ -1,0 +1,123 @@
+name: Release Backend
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_call:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "指定发布版本号 (例如: v0.1.0)"
+        required: true
+        type: string
+      draft:
+        description: "是否创建草稿版本"
+        required: false
+        type: boolean
+        default: false
+      prerelease:
+        description: "是否为预发布版本"
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+    steps:
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.event.inputs.version || github.ref }}
+          release_name: Release ${{ github.event.inputs.version || github.ref }}
+          draft: ${{ github.event.inputs.draft || false }}
+          prerelease: ${{ github.event.inputs.prerelease || false }}
+
+  build-and-release:
+    needs: create-release
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            name: linux-x86_64
+          - os: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+            name: linux-aarch64
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            name: macos-x86_64
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            name: macos-aarch64
+
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.version || github.ref }}
+
+      # 安装 Linux 构建依赖
+      - name: Install Linux Dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            pkg-config \
+            libssl-dev \
+            make \
+            gcc \
+            g++
+
+      # 安装 macOS 构建依赖
+      - name: Install macOS Dependencies
+        if: runner.os == 'macOS'
+        run: |
+          brew install \
+            pkg-config \
+            openssl@3
+
+      - name: Install Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          target: ${{ matrix.target }}
+          toolchain: stable
+
+      - name: Install cross-compilation tools
+        if: contains(matrix.target, 'aarch64-unknown-linux-gnu')
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu
+
+      # 设置 OpenSSL 环境变量（macOS）
+      - name: Setup OpenSSL env for macOS
+        if: runner.os == 'macOS'
+        run: |
+          echo "OPENSSL_ROOT_DIR=$(brew --prefix openssl@3)" >> $GITHUB_ENV
+          echo "OPENSSL_LIB_DIR=$(brew --prefix openssl@3)/lib" >> $GITHUB_ENV
+          echo "OPENSSL_INCLUDE_DIR=$(brew --prefix openssl@3)/include" >> $GITHUB_ENV
+
+      - name: Build Release Binary
+        run: |
+          cargo build --release --target ${{ matrix.target }}
+          cd target/${{ matrix.target }}/release
+          tar -czf ../../../bangumi-${{ matrix.name }}.tar.gz bangumi
+        env:
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
+
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ./bangumi-${{ matrix.name }}.tar.gz
+          asset_name: bangumi-${{ matrix.name }}.tar.gz
+          asset_content_type: application/gzip
+

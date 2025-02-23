@@ -1,0 +1,32 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "bootstrap-sha": "master",
+  "release-type": "rust",
+  "bump-minor-pre-major": true,
+  "bump-patch-for-minor-pre-major": true,
+  "include-v-in-tag": true,
+  "changelog-sections": [
+    { "type": "feat", "section": "🚀 Features", "hidden": false },
+    { "type": "fix", "section": "🐛 Bug Fixes", "hidden": false },
+    { "type": "docs", "section": "📚 Documentation", "hidden": false },
+    { "type": "chore", "section": "🔧 Maintenance", "hidden": false },
+    { "type": "refactor", "section": "♻️ Refactor", "hidden": false },
+    { "type": "perf", "section": "⚡️ Performance", "hidden": false },
+    { "type": "test", "section": "✅ Testing", "hidden": false }
+  ],
+  "packages": {
+    ".": {
+      "package-name": "bangumi",
+      "changelog-path": "CHANGELOG.md",
+      "release-type": "rust",
+      "extra-files": [
+        {
+          "type": "json",
+          "path": "frontend/package.json",
+          "jsonpath": "$.version"
+        }
+      ]
+    }
+  }
+}
+
