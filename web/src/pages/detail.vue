@@ -1426,41 +1426,6 @@
   border-radius: 6px;
 }
 
-.player-buttons {
-  display: flex;
-  gap: 8px;
-  margin-right: 8px;
-}
-
-.player-icon {
-  opacity: 0.9;
-  transition: all 0.3s ease;
-  width: 24px;
-  height: 24px;
-}
-
-.play-btn {
-  background: rgba(255, 255, 255, 0.1) !important;
-  border-radius: 8px !important;
-  padding: 6px !important;
-  min-width: 36px !important;
-  height: 36px !important;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.play-btn:hover {
-  background: rgba(255, 255, 255, 0.15) !important;
-  transform: translateY(-1px);
-}
-
-.play-btn:hover .player-icon {
-  opacity: 1;
-  transform: scale(1.1);
-}
-
-.play-btn:active {
-  transform: translateY(1px);
-}
 </style>
 
 <script lang="ts" setup>
