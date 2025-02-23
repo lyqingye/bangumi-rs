@@ -1,4 +1,18 @@
 {
-  "crates/cli-app": "0.1.0"
+  "crates/cli-app": "0.1.0",
+  "crates/server": "0.1.0",
+  "crates/parser": "0.1.0",
+  "crates/notify": "0.1.0",
+  "crates/model": "0.1.0",
+  "crates/downloader": "0.1.0",
+  "crates/scheduler": "0.1.0",
+  "crates/metadata": "0.1.0",
+  "crates/dict": "0.1.0",
+  "libs/mikan": "0.1.0",
+  "libs/pan-115": "0.1.0",
+  "libs/anitomy-rs": "0.1.0",
+  "libs/bangumi-tv": "0.1.0",
+  "libs/tmdb": "0.1.0",
+  "web": "0.1.0"
 }
 
