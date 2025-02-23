@@ -202,27 +202,48 @@
                             <div class="episode-name">{{ episode.name }}</div>
                           </div>
                           <div class="episode-meta d-flex align-center">
-                            <div class="meta-item me-4" v-if="episode.duration_seconds">
-                              <v-icon size="16" class="me-1">mdi-clock-outline</v-icon>
-                              {{ formatDuration(episode.duration_seconds) }}
+                            <!-- 播放按钮组 -->
+                            <div class="player-buttons" v-if="episode.download_state === State.Downloaded">
+                              <!-- IINA播放按钮 -->
+                              <v-btn
+                                variant="text"
+                                size="small"
+                                class="play-btn"
+                                @click.stop="playWithIINA(episode)"
+                              >
+                                <v-img
+                                  src="@/assets/iina.png"
+                                  width="24"
+                                  height="24"
+                                  class="player-icon"
+                                />
+                                <v-tooltip activator="parent" location="top">
+                                  在 IINA 中播放
+                                </v-tooltip>
+                              </v-btn>
+                              <!-- Infuse播放按钮 -->
+                              <v-btn
+                                variant="text"
+                                size="small"
+                                class="play-btn"
+                                @click.stop="playWithInfuse(episode)"
+                              >
+                                <v-img
+                                  src="@/assets/infuse.png"
+                                  width="24"
+                                  height="24"
+                                  class="player-icon"
+                                />
+                                <v-tooltip activator="parent" location="top">
+                                  在 Infuse 中播放
+                                </v-tooltip>
+                              </v-btn>
+                              <v-divider vertical class="mx-2"></v-divider>
                             </div>
                             <div class="meta-item me-4">
                               <v-icon size="16" class="me-1">mdi-calendar</v-icon>
                               {{ formatDate(episode.air_date) }}
                             </div>
-                            <!-- 播放按钮 -->
-                            <v-btn
-                              v-if="episode.download_state === State.Downloaded"
-                              variant="text"
-                              size="small"
-                              class="play-btn"
-                              @click.stop="playEpisode(episode)"
-                            >
-                              <v-icon icon="mdi-play" size="18" />
-                              <v-tooltip activator="parent" location="top">
-                                在 IINA 中播放
-                              </v-tooltip>
-                            </v-btn>
                             <v-icon
                               size="20"
                               :class="[
@@ -573,105 +594,40 @@
   margin-right: 8px;
 }
 
-.play-btn {
-  position: relative;
-  z-index: 2;
+.player-buttons {
+  display: flex;
+  gap: 8px;
   margin-right: 8px;
 }
 
-.play-btn {
-  opacity: 1 !important;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  width: 40px !important;
-  height: 40px !important;
-  min-width: 40px !important;
-  border-radius: 12px !important;
-  background: rgba(82, 145, 255, 0.12) !important;
-  padding: 0 !important;
+.player-icon {
+  opacity: 1;
+  transition: all 0.3s ease;
+  width: 32px;
+  height: 32px;
 }
 
-.play-btn::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(45deg, rgba(82, 145, 255, 0.12), rgba(82, 145, 255, 0.06));
-  opacity: 0;
-  transition: opacity 0.3s ease;
+.play-btn {
+  background: rgba(255, 255, 255, 0.1) !important;
+  border-radius: 8px !important;
+  padding: 1px !important;
+  min-width: 36px !important;
+  height: 36px !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .play-btn:hover {
+  background: rgba(255, 255, 255, 0.15) !important;
   transform: translateY(-1px);
-  background: rgba(82, 145, 255, 0.15) !important;
 }
 
-.play-btn:hover::before {
+.play-btn:hover .player-icon {
   opacity: 1;
-}
-
-.play-btn :deep(.v-icon) {
-  color: rgb(82, 145, 255);
-  filter: drop-shadow(0 2px 4px rgba(82, 145, 255, 0.2));
-  transition: transform 0.3s ease;
-}
-
-.play-btn:hover :deep(.v-icon) {
   transform: scale(1.1);
 }
 
 .play-btn:active {
   transform: translateY(1px);
-}
-
-.play-btn:active :deep(.v-icon) {
-  transform: scale(0.95);
-}
-
-.play-btn :deep(.v-btn__content) {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  z-index: 1;
-}
-
-/* 添加按钮组样式 */
-.episode-actions {
-  gap: 4px;
-}
-
-.episode-actions .action-btn {
-  opacity: 1 !important;
-  width: 36px !important;
-  height: 36px !important;
-  min-width: 36px !important;
-  border-radius: 8px !important;
-  background: rgba(255, 255, 255, 0.05) !important;
-  padding: 0 !important;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.episode-actions .action-btn:hover {
-  background: rgba(255, 255, 255, 0.1) !important;
-  transform: translateY(-1px);
-}
-
-.episode-actions .action-btn:active {
-  transform: translateY(1px);
-}
-
-.episode-actions .action-btn :deep(.v-icon) {
-  color: rgba(255, 255, 255, 0.9);
-  transition: transform 0.3s ease;
-}
-
-.episode-actions .action-btn:hover :deep(.v-icon) {
-  transform: scale(1.1);
-}
-
-.episode-actions .action-btn:active :deep(.v-icon) {
-  transform: scale(0.95);
 }
 
 .expand-icon {
@@ -1469,6 +1425,7 @@
   padding: 6px 12px;
   border-radius: 6px;
 }
+
 </style>
 
 <script lang="ts" setup>
@@ -1618,12 +1575,6 @@ const handleManualSelectTorrent = async (episodeNumber: number, infoHash: string
     location: 'top right',
     timeout: 3000
   })
-}
-
-// 格式化时长
-const formatDuration = (seconds: number) => {
-  const minutes = Math.floor(seconds / 60)
-  return `${minutes}分钟`
 }
 
 // 使用普通的 ref 来存储当前展开的剧集 ID
@@ -1811,15 +1762,20 @@ async function handleSubscribe(params: SubscribeParams) {
   }
 }
 
-// 播放剧集
-const playEpisode = async (episode: Episode) => {
+// 修改播放方法，分为IINA和Infuse两个
+const playWithIINA = async (episode: Episode) => {
   if (!anime.value) return
 
-  // 构建播放 URL，使用 api 的 baseURL
   const apiUrl = await getOnlineWatchUrl(anime.value.id, episode.number)
   const playUrl = `iina://weblink?url=${encodeURIComponent(apiUrl)}`
+  window.location.href = playUrl
+}
 
-  // 打开 IINA 播放器
+const playWithInfuse = async (episode: Episode) => {
+  if (!anime.value) return
+
+  const apiUrl = await getOnlineWatchUrl(anime.value.id, episode.number)
+  const playUrl = `infuse://x-callback-url/play?url=${encodeURIComponent(apiUrl)}`
   window.location.href = playUrl
 }
 
