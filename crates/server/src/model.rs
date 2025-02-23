@@ -169,3 +169,17 @@ pub struct UpdateMDBParams {
     pub season_number: Option<u64>,
     pub kind: BgmKind,
 }
+
+#[derive(Debug, Serialize)]
+pub struct Metrics {
+    pub downloader: downloader::metrics::Metrics,
+    pub scheduler: scheduler::metrics::Metrics,
+    pub memory: ProcessMetrics,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ProcessMetrics {
+    pub used: u64,
+    pub cpu_usage: f32,
+    pub run_time_sec: u64,
+}

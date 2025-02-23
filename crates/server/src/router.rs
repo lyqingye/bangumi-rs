@@ -27,5 +27,6 @@ pub fn configure_app(cfg: &mut web::ServiceConfig, state: Arc<AppState>) {
         .service(api::update_bangumi_mdb)
         .service(api::tmdb_image_proxy)
         .service(api::health)
+        .service(api::metrics)
         .route("/ws", web::get().to(ws_handler));
 }

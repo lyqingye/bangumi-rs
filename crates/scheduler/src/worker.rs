@@ -6,11 +6,12 @@ use model::{
 };
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 use tokio::sync::{broadcast, mpsc};
 use tracing::{debug, error, info, warn};
 
 use crate::db::Db;
+use crate::metrics::{WorkerMetrics, WorkerState};
 use crate::selector::TorrentSelector;
 use crate::tasks::TaskManager;
 
@@ -37,6 +38,7 @@ pub struct BangumiWorker {
     selector: TorrentSelector,
     pub(crate) bangumi: bangumi::Model,
     pub(crate) sub: subscriptions::Model,
+    pub metrics: Arc<RwLock<WorkerMetrics>>,
 }
 
 impl BangumiWorker {
@@ -51,9 +53,12 @@ impl BangumiWorker {
         task_manager: TaskManager,
         notify: notify::worker::Worker,
     ) -> Self {
-        // 创建命令通道
         let (cmd_tx, _) = broadcast::channel(16);
         let selector = TorrentSelector::new(&sub);
+        let metrics = Arc::new(RwLock::new(WorkerMetrics::new(
+            bangumi.name.clone(),
+            WorkerState::Idle,
+        )));
         Self {
             sub,
             bangumi,
@@ -65,6 +70,7 @@ impl BangumiWorker {
             cmd_tx,
             notify,
             selector,
+            metrics,
         }
     }
 
@@ -111,8 +117,18 @@ impl BangumiWorker {
         self.selector.select(episode_torrents)
     }
 
+    /// 获取当前 worker metrics
+    pub fn get_metrics(&self) -> WorkerMetrics {
+        self.metrics.read().unwrap().clone()
+    }
+
     /// 收集并解析种子，然后为任务选择合适的种子
     async fn collect_and_process_torrents(&self) -> Result<()> {
+        {
+            let mut metrics = self.metrics.write().unwrap();
+            metrics.set_state(WorkerState::Collecting);
+        }
+
         // 1. 收集种子
         info!("开始收集番剧 {} 的种子", self.bangumi.name);
         self.metadata
@@ -194,6 +210,11 @@ impl BangumiWorker {
 
         info!("番剧 {} 种子收集处理完成", self.bangumi.name);
 
+        {
+            let mut metrics = self.metrics.write().unwrap();
+            metrics.set_state(WorkerState::Idle);
+            metrics.set_last_collection_time(chrono::Utc::now());
+        }
         Ok(())
     }
 
@@ -298,6 +319,10 @@ impl BangumiWorker {
 
     /// 处理所有任务的状态转换
     async fn process_tasks(&self) -> Result<()> {
+        {
+            let mut metrics = self.metrics.write().unwrap();
+            metrics.set_state(WorkerState::Processing);
+        }
         debug!("开始处理番剧 {} 的所有任务", self.bangumi.name);
 
         // 从缓存获取该番剧所有未完成的任务
@@ -314,6 +339,11 @@ impl BangumiWorker {
         }
 
         debug!("番剧 {} 所有任务处理完成", self.bangumi.name);
+
+        {
+            let mut metrics = self.metrics.write().unwrap();
+            metrics.set_state(WorkerState::Idle);
+        }
         Ok(())
     }
 

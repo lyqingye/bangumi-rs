@@ -1,4 +1,5 @@
 mod db;
+pub mod metrics;
 mod scheduler;
 mod selector;
 mod tasks;

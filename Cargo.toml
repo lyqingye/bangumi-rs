@@ -95,3 +95,4 @@ governor = { version = "0.8", features = ["jitter", "std"] }
 
 # 内存分配
 jemallocator = "0.5.4"
+sysinfo = "0.33.1"

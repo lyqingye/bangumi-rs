@@ -36,7 +36,7 @@ sea-orm = {workspace = true, features = [ "sqlx-mysql", "runtime-tokio-rustls", 
 sea-orm-migration = {workspace = true, features = ["sqlx-mysql", "runtime-tokio-rustls"]}
 notify = {path = "../notify"}
 dict = {path = "../dict"}
-
+sysinfo = {workspace = true}
 [dev-dependencies]
 dotenv = {workspace = true}
 tracing-subscriber = { workspace = true}

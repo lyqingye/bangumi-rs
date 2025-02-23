@@ -1,6 +1,7 @@
 #![allow(unused)]
 pub mod context;
 pub mod db;
+pub mod metrics;
 pub mod pan_115_dl;
 mod tasks;
 
@@ -18,4 +19,5 @@ pub trait Downloader: Send + Sync {
     async fn list_tasks(&self, info_hashes: &[String]) -> Result<Vec<Model>>;
     async fn download_file(&self, info_hash: &str, ua: &str) -> Result<DownloadInfo>;
     async fn cancel_task(&self, info_hash: &str) -> Result<()>;
+    async fn metrics(&self) -> metrics::Metrics;
 }
