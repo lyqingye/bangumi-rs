@@ -1,0 +1,57 @@
+name: Release
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        required: true
+        type: string
+      draft:
+        description: "是否创建草稿版本"
+        required: false
+        type: boolean
+        default: false
+      prerelease:
+        description: "是否为预发布版本"
+        required: false
+        type: boolean
+        default: false
+    secrets:
+      RELEASE_TOKEN:
+        required: true
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+    steps:
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+        with:
+          tag_name: ${{ inputs.version }}
+          release_name: Release ${{ inputs.version }}
+          draft: ${{ inputs.draft }}
+          prerelease: ${{ inputs.prerelease }}
+
+  release-backend:
+    needs: create-release
+    uses: ./.github/workflows/release-backend.yml
+    with:
+      version: ${{ inputs.version }}
+      upload_url: ${{ needs.create-release.outputs.upload_url }}
+    secrets:
+      RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+
+  release-frontend:
+    needs: create-release
+    uses: ./.github/workflows/release-frontend.yml
+    with:
+      version: ${{ inputs.version }}
+      upload_url: ${{ needs.create-release.outputs.upload_url }}
+    secrets:
+      RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+
