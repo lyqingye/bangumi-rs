@@ -14,7 +14,7 @@ jobs:
   release-please:
     runs-on: ubuntu-latest
     outputs:
-      release_created: ${{ steps.release.outputs.release_created }}
+      releases_created: ${{ steps.release.outputs.releases_created }}
       tag_name: ${{ steps.release.outputs.tag_name }}
     steps:
       - uses: googleapis/release-please-action@v4
@@ -27,7 +27,7 @@ jobs:
   # 当 release-please 创建新的 release 时，触发后端构建
   trigger-backend-release:
     needs: release-please
-    if: ${{ needs.release-please.outputs.release_created }}
+    if: ${{ needs.release-please.outputs.releases_created }}
     uses: ./.github/workflows/release-backend.yml
     secrets:
       RELEASE_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
@@ -35,7 +35,7 @@ jobs:
   # 当 release-please 创建新的 release 时，触发前端构建
   trigger-frontend-release:
     needs: release-please
-    if: ${{ needs.release-please.outputs.release_created }}
+    if: ${{ needs.release-please.outputs.releases_created }}
     uses: ./.github/workflows/release-frontend.yml
     secrets:
       RELEASE_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
@@ -43,7 +43,7 @@ jobs:
   # 当 release-please 创建新的 release 时，触发构建和上传
   build-and-release:
     needs: release-please
-    if: ${{ needs.release-please.outputs.release_created }}
+    if: ${{ needs.release-please.outputs.releases_created }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
