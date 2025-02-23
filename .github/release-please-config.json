@@ -6,6 +6,111 @@
   "bump-patch-for-minor-pre-major": true,
   "include-v-in-tag": true,
   "separate-pull-requests": false,
+  "packages": {
+    "crates/cli-app": {
+      "package-name": "bangumi",
+      "changelog-path": "CHANGELOG.md",
+      "release-type": "rust",
+      "component": "bangumi"
+    },
+    "crates/server": {
+      "package-name": "bangumi-server",
+      "release-type": "rust",
+      "component": "server"
+    },
+    "crates/parser": {
+      "package-name": "bangumi-parser",
+      "release-type": "rust",
+      "component": "parser"
+    },
+    "crates/notify": {
+      "package-name": "bangumi-notify",
+      "release-type": "rust",
+      "component": "notify"
+    },
+    "crates/model": {
+      "package-name": "bangumi-model",
+      "release-type": "rust",
+      "component": "model"
+    },
+    "crates/downloader": {
+      "package-name": "bangumi-downloader",
+      "release-type": "rust",
+      "component": "downloader"
+    },
+    "crates/scheduler": {
+      "package-name": "bangumi-scheduler",
+      "release-type": "rust",
+      "component": "scheduler"
+    },
+    "crates/metadata": {
+      "package-name": "bangumi-metadata",
+      "release-type": "rust",
+      "component": "metadata"
+    },
+    "crates/dict": {
+      "package-name": "bangumi-dict",
+      "release-type": "rust",
+      "component": "dict"
+    },
+    "libs/mikan": {
+      "package-name": "mikan",
+      "release-type": "rust",
+      "component": "mikan"
+    },
+    "libs/pan-115": {
+      "package-name": "pan-115",
+      "release-type": "rust",
+      "component": "pan-115"
+    },
+    "libs/anitomy-rs": {
+      "package-name": "anitomy-rs",
+      "release-type": "rust",
+      "component": "anitomy-rs"
+    },
+    "libs/bangumi-tv": {
+      "package-name": "bangumi-tv",
+      "release-type": "rust",
+      "component": "bangumi-tv"
+    },
+    "libs/tmdb": {
+      "package-name": "tmdb",
+      "release-type": "rust",
+      "component": "tmdb"
+    },
+    "web": {
+      "package-name": "bangumi-web",
+      "release-type": "node",
+      "component": "web"
+    }
+  },
+  "plugins": [
+    {
+      "type": "cargo-workspace",
+      "merge": false
+    },
+    {
+      "type": "linked-versions",
+      "groupName": "bangumi",
+      "components": [
+        "bangumi",
+        "server",
+        "parser",
+        "notify",
+        "model",
+        "downloader",
+        "scheduler",
+        "metadata",
+        "dict",
+        "mikan",
+        "pan-115",
+        "anitomy-rs",
+        "bangumi-tv",
+        "tmdb",
+        "web"
+      ]
+    }
+  ],
   "changelog-sections": [
     { "type": "feat", "section": "🚀 Features", "hidden": false },
     { "type": "fix", "section": "🐛 Bug Fixes", "hidden": false },
@@ -14,21 +119,6 @@
     { "type": "refactor", "section": "♻️ Refactor", "hidden": false },
     { "type": "perf", "section": "⚡️ Performance", "hidden": false },
     { "type": "test", "section": "✅ Testing", "hidden": false }
-  ],
-  "packages": {
-    "crates/cli-app": {
-      "package-name": "bangumi",
-      "changelog-path": "CHANGELOG.md",
-      "release-type": "rust",
-      "component": "cli-app",
-      "extra-files": [
-        {
-          "type": "json",
-          "path": "web/package.json",
-          "jsonpath": "$.version"
-        }
-      ]
-    }
-  }
+  ]
 }
 
