@@ -18,6 +18,11 @@ export const routes = [
         path: 'dashboard',
         name: 'dashboard',
         component: () => import('@/pages/dashboard.vue')
+      },
+      {
+        path: 'settings',
+        name: 'settings',
+        component: () => import('@/pages/settings.vue')
       }
     ]
   },

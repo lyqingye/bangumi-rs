@@ -217,3 +217,100 @@ export interface Metrics {
   scheduler: SchedulerMetrics
   process: ProcessMetrics
 }
+
+// 配置相关类型定义
+export interface ProxyConfig {
+  enabled: boolean
+  http: string
+  https: string
+}
+
+export interface TelegramConfig {
+  enabled: boolean
+  token: string
+  chat_id: string
+}
+
+export interface NotifyConfig {
+  telegram: TelegramConfig
+}
+
+export interface Pan115Config {
+  cookies: string
+  download_dir: string
+  max_requests_per_second: number
+}
+
+export interface SiliconflowConfig {
+  enabled: boolean
+  api_key: string
+  model: string
+  base_url: string
+}
+
+export interface DeepseekConfig {
+  enabled: boolean
+  api_key: string
+  model: string
+  base_url: string
+}
+
+export interface DeepbricksConfig {
+  enabled: boolean
+  api_key: string
+  model: string
+  base_url: string
+}
+
+export interface ParserConfig {
+  siliconflow: SiliconflowConfig
+  deepseek: DeepseekConfig
+  deepbricks: DeepbricksConfig
+}
+
+// 日志级别枚举
+export enum LogLevel {
+  Error = 'error',
+  Warn = 'warn',
+  Info = 'info',
+  Debug = 'debug',
+  Trace = 'trace'
+}
+
+export interface LogConfig {
+  level: LogLevel
+}
+
+export interface ServerConfig {
+  assets_path: string
+  listen_addr: string
+  database_url: string
+}
+
+export interface MikanConfig {
+  endpoint: string
+}
+
+export interface TMDBConfig {
+  api_key: string
+  base_url: string
+  image_base_url: string
+  language: string
+}
+
+export interface BangumiTvConfig {
+  endpoint: string
+  image_base_url: string
+}
+
+export interface Config {
+  log: LogConfig
+  server: ServerConfig
+  mikan: MikanConfig
+  bangumi_tv: BangumiTvConfig
+  tmdb: TMDBConfig
+  parser: ParserConfig
+  pan115: Pan115Config
+  notify: NotifyConfig
+  proxy: ProxyConfig
+}
