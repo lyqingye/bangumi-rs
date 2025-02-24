@@ -24,7 +24,10 @@ jobs:
             artifact_name: bangumi-linux
           - os: macos-latest
             target: x86_64-apple-darwin
-            artifact_name: bangumi-macos
+            artifact_name: bangumi-macos-x86_64
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            artifact_name: bangumi-macos-arm64
 
     steps:
       - uses: actions/checkout@v4
@@ -51,6 +54,7 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: "crates/cli-app -> target"
+          cache-on-failure: true
 
       - name: Build Binary
         run: |
@@ -72,6 +76,7 @@ jobs:
           name: ${{ matrix.artifact_name }}
           path: target/${{ matrix.target }}/release/bangumi
           if-no-files-found: error
+          retention-days: 5
 
   build-frontend:
     name: Build Frontend
@@ -89,20 +94,20 @@ jobs:
           cache-dependency-path: "web/package-lock.json"
 
       - name: Install Dependencies
-        run: |
-          cd web
-          npm ci
+        working-directory: ./web
+        run: npm ci
 
       - name: Build Frontend
-        run: |
-          cd web
-          npm run build
+        working-directory: ./web
+        run: npm run build
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: frontend-dist
           path: web/dist
+          if-no-files-found: error
+          retention-days: 5
 
   create-release:
     name: Create Release
@@ -130,23 +135,52 @@ jobs:
       - name: Prepare Release Files
         run: |
           set -e  # 遇到错误立即退出
-          chmod +x bangumi-linux/bangumi bangumi-macos/bangumi || true
+          chmod +x bangumi-linux/bangumi bangumi-macos-x86_64/bangumi bangumi-macos-arm64/bangumi || true
           zip -r frontend-dist.zip frontend-dist/
           mv bangumi-linux/bangumi bangumi-linux-x86_64
-          mv bangumi-macos/bangumi bangumi-macos-x86_64
+          mv bangumi-macos-x86_64/bangumi bangumi-macos-x86_64
+          mv bangumi-macos-arm64/bangumi bangumi-macos-arm64
+
+          # 为每个文件生成单独的 SHA256 校验和
+          echo "生成 SHA256 校验和..."
+          for file in bangumi-linux-x86_64 bangumi-macos-x86_64 bangumi-macos-arm64 frontend-dist.zip; do
+            sha256sum "$file" > "$file.sha256"
+            echo "已生成 $file.sha256:"
+            cat "$file.sha256"
+          done
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
           files: |
             bangumi-linux-x86_64
+            bangumi-linux-x86_64.sha256
             bangumi-macos-x86_64
+            bangumi-macos-x86_64.sha256
+            bangumi-macos-arm64
+            bangumi-macos-arm64.sha256
             frontend-dist.zip
+            frontend-dist.zip.sha256
           body: |
             ## ChangeLog
             ${{ steps.changelog.outputs.content || '* No ChangeLog' }}
+
+            ## SHA256 Checksums
+            \`\`\`
+            # Linux x86_64
+            $(cat bangumi-linux-x86_64.sha256)
+
+            # macOS x86_64
+            $(cat bangumi-macos-x86_64.sha256)
+
+            # macOS ARM64
+            $(cat bangumi-macos-arm64.sha256)
+
+            # Frontend Distribution
+            $(cat frontend-dist.zip.sha256)
+            \`\`\`
           draft: false
-          prerelease: false
+          prerelease: ${{ contains(github.ref, '-rc') || contains(github.ref, '-beta') }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
