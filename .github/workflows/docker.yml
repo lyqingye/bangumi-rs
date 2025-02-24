@@ -2,14 +2,16 @@ name: Docker Build and Push
 
 on:
   push:
-    branches: [ "master" ]
+    branches: ["master"]
+    tags:
+      - "v*.*.*"
   workflow_dispatch:
     inputs:
       version:
-        description: '版本号 (例如: v1.0.0)'
+        description: "版本号 (例如: v1.0.0)"
         required: false
         type: string
-        default: 'latest'
+        default: "latest"
 
 env:
   REGISTRY: ghcr.io
@@ -39,12 +41,44 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE_NAME }}
+          tags: |
+            # 如果是手动触发并指定了版本
+            type=raw,value=${{ inputs.version }},enable=${{ github.event_name == 'workflow_dispatch' && inputs.version != 'latest' }}
+            # 如果是推送到 master，使用 latest
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/master' }}
+            # 从 git tag 生成版本标签，自动去除v前缀
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            # 添加短提交哈希
+            type=sha,format=short
+          labels: |
+            org.opencontainers.image.title=Bangumi Backend
+            org.opencontainers.image.description=Bangumi Download Manager Backend Service
+            org.opencontainers.image.vendor=lyqingye
+            maintainer=lyqingye
+            org.opencontainers.image.created={{date 'YYYY-MM-DDTHH:mm:ssZ'}}
 
       - name: Extract metadata (tags, labels) for Frontend
         id: meta-frontend
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE_NAME }}
+          tags: |
+            # 如果是手动触发并指定了版本
+            type=raw,value=${{ inputs.version }},enable=${{ github.event_name == 'workflow_dispatch' && inputs.version != 'latest' }}
+            # 如果是推送到 master，使用 latest
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/master' }}
+            # 从 git tag 生成版本标签，自动去除v前缀
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            # 添加短提交哈希
+            type=sha,format=short
+          labels: |
+            org.opencontainers.image.title=Bangumi Frontend
+            org.opencontainers.image.description=Bangumi Download Manager Frontend Service
+            org.opencontainers.image.vendor=lyqingye
+            maintainer=lyqingye
+            org.opencontainers.image.created={{date 'YYYY-MM-DDTHH:mm:ssZ'}}
 
       - name: Build and push Backend image
         uses: docker/build-push-action@v5
@@ -62,4 +96,4 @@ jobs:
           file: web/Dockerfile
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta-frontend.outputs.tags }}
-          labels: ${{ steps.meta-frontend.outputs.labels }} 
+          labels: ${{ steps.meta-frontend.outputs.labels }}
