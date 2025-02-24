@@ -2,13 +2,13 @@ use actix_cors::Cors;
 use actix_web::{App, HttpServer};
 use dict::DictCode;
 use parser::Parser;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 use std::{net::SocketAddr, path::PathBuf, str::FromStr};
 use tokio::sync::broadcast;
 use tracing::{error, info};
 use tracing_actix_web::TracingLogger;
 
-use crate::config::Config;
+use crate::config::{Config, Writer};
 use crate::logger::{init_logger, LogMessage};
 use crate::router;
 use anyhow::Result;
@@ -23,6 +23,8 @@ pub struct AppState {
     pub assets_path: PathBuf,
     pub db: crate::db::Db,
     pub dict: dict::Dict,
+    pub config_writer: Arc<Box<dyn Writer>>,
+    pub config: Arc<RwLock<Config>>,
 }
 
 pub struct Server {
@@ -31,13 +33,13 @@ pub struct Server {
 }
 
 impl Server {
-    pub async fn new(config: Config) -> Result<Self> {
-        let state = Self::init_state(&config).await?;
+    pub async fn new(config: Config, config_writer: Box<dyn Writer>) -> Result<Self> {
+        let state = Self::init_state(&config, config_writer).await?;
         Self::after_init(&state).await?;
         Ok(Self { config, state })
     }
 
-    async fn init_state(config: &Config) -> Result<Arc<AppState>> {
+    async fn init_state(config: &Config, config_writer: Box<dyn Writer>) -> Result<Arc<AppState>> {
         // Logger
         let log_tx = init_logger(config)?;
 
@@ -148,6 +150,8 @@ impl Server {
             assets_path,
             db,
             dict,
+            config_writer: Arc::new(config_writer),
+            config: Arc::new(RwLock::new(config.clone())),
         }))
     }
 
@@ -263,13 +267,13 @@ impl Server {
 
 #[cfg(test)]
 mod tests {
-    use crate::config::Config;
+    use crate::config::{Config, NopWriter};
     use crate::server::Server;
     use anyhow::Result;
 
     #[tokio::test]
     async fn test_server() -> Result<()> {
-        let server = Server::new(Config::default()).await?;
+        let server = Server::new(Config::default(), Box::new(NopWriter)).await?;
         server.serve().await
     }
 }

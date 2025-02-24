@@ -11,9 +11,12 @@ use parser::{Language, VideoResolution};
 use sea_orm::{prelude::Expr, Condition};
 use tracing::{info, instrument};
 
-use crate::model::{
-    DownloadTask, Metrics, ProcessMetrics, QueryDownloadTask, TMDBMetadata, TMDBSeason,
-    UpdateMDBParams,
+use crate::{
+    config::Config,
+    model::{
+        DownloadTask, Metrics, ProcessMetrics, QueryDownloadTask, TMDBMetadata, TMDBSeason,
+        UpdateMDBParams,
+    },
 };
 use crate::{
     error::ServerError,
@@ -625,4 +628,23 @@ pub async fn metrics(state: web::Data<Arc<AppState>>) -> Result<Json<Resp<Metric
         downloader: downloader_metrics,
         process,
     })))
+}
+
+#[get("/api/config")]
+pub async fn get_config(
+    state: web::Data<Arc<AppState>>,
+) -> Result<Json<Resp<Config>>, ServerError> {
+    let config = state.config.read().unwrap();
+    Ok(Json(Resp::ok(config.clone())))
+}
+
+#[post("/api/config")]
+pub async fn update_config(
+    state: web::Data<Arc<AppState>>,
+    body: Json<Config>,
+) -> Result<Json<Resp<()>>, ServerError> {
+    let mut config = state.config.write().unwrap();
+    *config = body.into_inner();
+    state.config_writer.write(&config)?;
+    Ok(Json(Resp::ok(())))
 }

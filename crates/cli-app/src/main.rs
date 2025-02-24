@@ -31,11 +31,11 @@ static GLOBAL: Jemalloc = Jemalloc;
 #[tokio::main]
 pub async fn main() -> Result<()> {
     let cli = Cli::parse();
-    let config = load_from_file(cli.config)?;
+    let (config, writer) = load_from_file(cli.config)?;
 
     match cli.commands {
         Commands::Start => {
-            server::Server::new(config).await?.serve().await?;
+            server::Server::new(config, writer).await?.serve().await?;
         }
     }
     Ok(())

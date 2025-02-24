@@ -1,5 +1,5 @@
-use serde::Deserialize;
-
+use anyhow::Result;
+use serde::{Deserialize, Serialize};
 const DEFAULT_LOG_LEVEL: &str = "info";
 const DEFAULT_ASSETS_PATH: &str = "./assets";
 const DEFAULT_LISTEN_ADDR: &str = "127.0.0.1:3000";
@@ -10,7 +10,7 @@ const DEFAULT_TMDB_BASE_URL: &str = "https://api.themoviedb.org/3";
 const DEFAULT_TMDB_IMAGE_BASE_URL: &str = "https://image.tmdb.org/t/p/original/";
 const DEFAULT_TMDB_LANGUAGE: &str = "zh-CN";
 
-#[derive(Debug, Deserialize, Clone, Default)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
 #[serde(default)]
 pub struct Config {
     pub log: LogConfig,
@@ -24,40 +24,40 @@ pub struct Config {
     pub proxy: ProxyConfig,
 }
 
-#[derive(Debug, Deserialize, Clone, Default)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
 pub struct ProxyConfig {
     pub enabled: bool,
     pub http: String,
     pub https: String,
 }
 
-#[derive(Debug, Deserialize, Clone, Default)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
 pub struct NotifyConfig {
     pub telegram: TelegramConfig,
 }
 
-#[derive(Debug, Deserialize, Clone, Default)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
 pub struct TelegramConfig {
     pub enabled: bool,
     pub token: String,
     pub chat_id: String,
 }
 
-#[derive(Debug, Deserialize, Clone, Default)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
 pub struct Pan115Config {
     pub cookies: String,
     pub download_dir: String,
     pub max_requests_per_second: u32,
 }
 
-#[derive(Debug, Deserialize, Clone, Default)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
 pub struct ParserConfig {
     pub siliconflow: SiliconflowConfig,
     pub deepseek: DeepseekConfig,
     pub deepbricks: DeepbricksConfig,
 }
 
-#[derive(Debug, Deserialize, Clone, Default)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
 pub struct SiliconflowConfig {
     pub enabled: bool,
     pub api_key: String,
@@ -65,7 +65,7 @@ pub struct SiliconflowConfig {
     pub base_url: String,
 }
 
-#[derive(Debug, Deserialize, Clone, Default)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
 pub struct DeepseekConfig {
     pub enabled: bool,
     pub api_key: String,
@@ -73,7 +73,7 @@ pub struct DeepseekConfig {
     pub base_url: String,
 }
 
-#[derive(Debug, Deserialize, Clone, Default)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
 pub struct DeepbricksConfig {
     pub enabled: bool,
     pub api_key: String,
@@ -81,13 +81,13 @@ pub struct DeepbricksConfig {
     pub base_url: String,
 }
 
-#[derive(Debug, Deserialize, Clone, Default)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
 pub struct LogConfig {
     #[serde(default = "default_log_level")]
     pub level: String,
 }
 
-#[derive(Debug, Deserialize, Clone, Default)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
 pub struct ServerConfig {
     #[serde(default = "default_assets_path")]
     pub assets_path: String,
@@ -97,13 +97,13 @@ pub struct ServerConfig {
     pub database_url: String,
 }
 
-#[derive(Debug, Deserialize, Clone, Default)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
 pub struct MikanConfig {
     #[serde(default = "default_mikan_endpoint")]
     pub endpoint: String,
 }
 
-#[derive(Debug, Deserialize, Clone, Default)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
 pub struct TMDBConfig {
     #[serde(default = "default_tmdb_api_key")]
     pub api_key: String,
@@ -115,7 +115,7 @@ pub struct TMDBConfig {
     pub language: String,
 }
 
-#[derive(Debug, Deserialize, Clone, Default)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
 pub struct BangumiTvConfig {
     #[serde(default = "default_bangumi_tv_endpoint")]
     pub endpoint: String,
@@ -151,4 +151,16 @@ fn default_tmdb_image_base_url() -> String {
 }
 fn default_tmdb_language() -> String {
     DEFAULT_TMDB_LANGUAGE.to_owned()
+}
+
+pub trait Writer: Send + Sync {
+    fn write(&self, config: &Config) -> Result<()>;
+}
+
+pub struct NopWriter;
+
+impl Writer for NopWriter {
+    fn write(&self, _config: &Config) -> Result<()> {
+        Ok(())
+    }
 }
