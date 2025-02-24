@@ -54,8 +54,12 @@ jobs:
 
       - name: Build Binary
         run: |
-          cd crates/cli-app
-          cargo build --release --target ${{ matrix.target }}
+          # 显示工作空间信息
+          cargo metadata --format-version=1 --no-deps
+          # 构建指定包
+          cargo build --release -p cli-app --target ${{ matrix.target }}
+          # 显示构建结果
+          ls -la target/${{ matrix.target }}/release/
         env:
           OPENSSL_DIR: ${{ matrix.os == 'macos-latest' && '/usr/local/opt/openssl@3' || '/usr' }}
           OPENSSL_LIB_DIR: ${{ matrix.os == 'ubuntu-latest' && '/usr/lib/x86_64-linux-gnu' || '' }}
@@ -66,7 +70,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact_name }}
-          path: crates/cli-app/target/${{ matrix.target }}/release/bangumi
+          path: target/${{ matrix.target }}/release/bangumi
+          if-no-files-found: error
 
   build-frontend:
     name: Build Frontend
