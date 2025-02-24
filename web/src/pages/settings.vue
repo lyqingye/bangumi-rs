@@ -22,11 +22,11 @@ const tabs = [
 
 // 日志级别选项
 const logLevelOptions = [
-  { title: '错误', value: LogLevel.Error },
-  { title: '警告', value: LogLevel.Warn },
   { title: '信息', value: LogLevel.Info },
+  { title: '追踪', value: LogLevel.Trace },
   { title: '调试', value: LogLevel.Debug },
-  { title: '追踪', value: LogLevel.Trace }
+  { title: '警告', value: LogLevel.Warn },
+  { title: '错误', value: LogLevel.Error }
 ]
 
 // 解析器类型
