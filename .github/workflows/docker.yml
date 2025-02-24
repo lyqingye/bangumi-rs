@@ -5,6 +5,14 @@ on:
     branches: ["master"]
     tags:
       - "v*.*.*"
+    paths:
+      - "crates/**"
+      - "libs/**"
+      - "web/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "crates/cli-app/Dockerfile"
+      - "web/Dockerfile"
   workflow_dispatch:
     inputs:
       version:
@@ -97,3 +105,4 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta-frontend.outputs.tags }}
           labels: ${{ steps.meta-frontend.outputs.labels }}
+
