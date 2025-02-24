@@ -1,3 +1,4 @@
+[![Rust Code Quantity](https://github.com/lyqingye/bangumi-rs/actions/workflows/checks.yml/badge.svg)](https://github.com/lyqingye/bangumi-rs/actions/workflows/checks.yml) [![Release](https://github.com/lyqingye/bangumi-rs/actions/workflows/release.yml/badge.svg)](https://github.com/lyqingye/bangumi-rs/actions/workflows/release.yml) [![Docker Build and Push](https://github.com/lyqingye/bangumi-rs/actions/workflows/docker.yml/badge.svg)](https://github.com/lyqingye/bangumi-rs/actions/workflows/docker.yml) 
 # Bangumi 下载管理器
 
 <div align="center">
