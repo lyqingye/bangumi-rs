@@ -3,7 +3,7 @@ name: Release
 on:
   push:
     tags:
-      - 'v*'
+      - "v*"
 
 permissions:
   contents: write
@@ -58,10 +58,10 @@ jobs:
           cargo build --release --target ${{ matrix.target }}
         env:
           OPENSSL_DIR: ${{ matrix.os == 'macos-latest' && '/usr/local/opt/openssl@3' || '' }}
-          MACOSX_DEPLOYMENT_TARGET: '10.15'
+          MACOSX_DEPLOYMENT_TARGET: "10.15"
 
       - name: Upload Artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact_name }}
           path: crates/cli-app/target/${{ matrix.target }}/release/bangumi
@@ -75,11 +75,11 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
-          node-version: '18'
-          cache: 'npm'
-          cache-dependency-path: 'web/package-lock.json'
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: "web/package-lock.json"
 
       - name: Install Dependencies
         run: |
@@ -92,7 +92,7 @@ jobs:
           npm run build
 
       - name: Upload Artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: frontend-dist
           path: web/dist
@@ -106,7 +106,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # 获取完整历史用于生成changelog
+          fetch-depth: 0 # 获取完整历史用于生成changelog
           submodules: recursive
 
       - name: Generate Changelog
@@ -115,10 +115,10 @@ jobs:
         with:
           config: cliff.toml
           args: --latest --strip header
-        continue-on-error: true  # 即使生成changelog失败也继续执行
+        continue-on-error: true # 即使生成changelog失败也继续执行
 
       - name: Download All Artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
 
       - name: Prepare Release Files
         run: |
@@ -142,3 +142,4 @@ jobs:
           prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
