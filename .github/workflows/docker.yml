@@ -57,8 +57,6 @@ jobs:
             # 从 git tag 生成版本标签，自动去除v前缀
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
-            # 添加短提交哈希
-            type=sha,format=short
           labels: |
             org.opencontainers.image.title=Bangumi Backend
             org.opencontainers.image.description=Bangumi Download Manager Backend Service
@@ -79,8 +77,6 @@ jobs:
             # 从 git tag 生成版本标签，自动去除v前缀
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
-            # 添加短提交哈希
-            type=sha,format=short
           labels: |
             org.opencontainers.image.title=Bangumi Frontend
             org.opencontainers.image.description=Bangumi Download Manager Frontend Service
