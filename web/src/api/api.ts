@@ -12,7 +12,8 @@ import type {
   PaginatedResponse,
   TMDBMetadata,
   UpdateMDBParams,
-  Metrics
+  Metrics,
+  Config
 } from './model'
 import { ApiError } from './model'
 import { useSnackbar } from '../composables/useSnackbar'
@@ -192,5 +193,24 @@ export async function fetchMetrics(): Promise<Metrics> {
     return handleResponse(response, '获取系统指标失败')
   } catch (error) {
     return handleError(error, '获取系统指标失败')
+  }
+}
+
+// 配置相关 API
+export async function getConfig(): Promise<Config> {
+  try {
+    const response = await api.get<ApiResponse<Config>>('/config')
+    return handleResponse(response, '获取配置失败')
+  } catch (error) {
+    return handleError(error, '获取配置失败')
+  }
+}
+
+export async function updateConfig(config: Config): Promise<void> {
+  try {
+    const response = await api.post<ApiResponse<null>>('/config', config)
+    handleResponse(response, '更新配置失败')
+  } catch (error) {
+    handleError(error, '更新配置失败')
   }
 }
