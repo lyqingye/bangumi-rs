@@ -1,0 +1,144 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  build-backend:
+    name: Build Backend
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            artifact_name: bangumi-linux
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            artifact_name: bangumi-macos
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install system dependencies
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pkg-config libssl-dev make gcc g++ protobuf-compiler
+
+      - name: Install system dependencies (macOS)
+        if: matrix.os == 'macos-latest'
+        run: |
+          brew install protobuf openssl pkg-config
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "crates/cli-app -> target"
+
+      - name: Build Binary
+        run: |
+          cd crates/cli-app
+          cargo build --release --target ${{ matrix.target }}
+        env:
+          OPENSSL_DIR: ${{ matrix.os == 'macos-latest' && '/usr/local/opt/openssl@3' || '' }}
+          MACOSX_DEPLOYMENT_TARGET: '10.15'
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: crates/cli-app/target/${{ matrix.target }}/release/bangumi
+
+  build-frontend:
+    name: Build Frontend
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: 'web/package-lock.json'
+
+      - name: Install Dependencies
+        run: |
+          cd web
+          npm ci
+
+      - name: Build Frontend
+        run: |
+          cd web
+          npm run build
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: frontend-dist
+          path: web/dist
+
+  create-release:
+    name: Create Release
+    needs: [build-backend, build-frontend]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # 获取完整历史用于生成changelog
+          submodules: recursive
+
+      - name: Generate Changelog
+        id: changelog
+        uses: orhun/git-cliff-action@v2
+        with:
+          config: cliff.toml
+          args: --latest --strip header
+        continue-on-error: true  # 即使生成changelog失败也继续执行
+
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v3
+
+      - name: Prepare Release Files
+        run: |
+          set -e  # 遇到错误立即退出
+          chmod +x bangumi-linux/bangumi bangumi-macos/bangumi || true
+          zip -r frontend-dist.zip frontend-dist/
+          mv bangumi-linux/bangumi bangumi-linux-x86_64
+          mv bangumi-macos/bangumi bangumi-macos-x86_64
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            bangumi-linux-x86_64
+            bangumi-macos-x86_64
+            frontend-dist.zip
+          body: |
+            ## ChangeLog
+            ${{ steps.changelog.outputs.content || '* No ChangeLog' }}
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
