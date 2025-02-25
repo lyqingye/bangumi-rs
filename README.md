@@ -19,7 +19,7 @@
 
 - 🌐 资源站点
 
-  - Miakn (https://mikanani.me/)
+  - Mikan (https://mikanani.me/)
 
 - 🔍 资源解析
 
