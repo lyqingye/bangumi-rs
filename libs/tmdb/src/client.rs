@@ -129,6 +129,7 @@ impl Client {
         let clean_name = extract_anime_name(name);
         let search_results = TVShowSearch::new(clean_name)
             .with_language(Some(self.language.clone()))
+            .with_include_adult(true)
             .execute(&self.client)
             .await
             .map_err(|e| anyhow::anyhow!("TMDB搜索失败: {}", e))?;
@@ -149,12 +150,14 @@ impl Client {
         name: &str,
         air_date: Option<NaiveDate>,
     ) -> Result<Vec<MovieShort>> {
-        let search_results = MovieSearch::new(name.to_string())
-            .with_language(Some(self.language.clone()))
-            .with_year(air_date.map(|dt| dt.year() as u16))
-            .execute(&self.client)
-            .await
-            .map_err(|e| anyhow::anyhow!("TMDB搜索失败: {}", e))?;
+        let search_results: tmdb_api::common::PaginatedResult<MovieShort> =
+            MovieSearch::new(name.to_string())
+                .with_language(Some(self.language.clone()))
+                .with_year(air_date.map(|dt| dt.year() as u16))
+                .with_include_adult(true)
+                .execute(&self.client)
+                .await
+                .map_err(|e| anyhow::anyhow!("TMDB搜索失败: {}", e))?;
         Ok(search_results.results)
     }
 
@@ -197,6 +200,7 @@ impl Client {
         // 1. 执行搜索
         let search_results = TVShowSearch::new(clean_name)
             .with_language(Some(self.language.clone()))
+            .with_include_adult(true)
             .execute(&self.client)
             .await
             .map_err(|e| anyhow::anyhow!("TMDB搜索失败: {}", e))?;
