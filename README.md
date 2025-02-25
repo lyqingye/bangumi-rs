@@ -7,6 +7,8 @@
 
 基于 Rust + Vue 3 开发的动漫追番,支持订阅番剧、智能下载, 在线播放等功能。
 
+---
+
 ## 功能特性
 
 - 🎯 番剧订阅
@@ -15,12 +17,17 @@
   - 可配置分辨率、字幕组、字幕语言过滤条件
   - 支持自定义订阅更新间隔
 
+- 🌐 资源站点
+
+  - Mikan (https://mikanani.me/)
+
 - 🔍 资源解析
 
   - 采用 ChatGPT 进行解析，支持多个 API 服务提供商 (SiliconFlow、OpenAI、Claude、DeepSeek)
 
 - 📥 智能下载
 
+  - 支持剧集偏移
   - 自动选择最佳种子 (根据分辨率以及语言字幕优先选择)
   - 支持用户手动选择要下载的剧集种子
   - 支持 115 网盘 离线下载
@@ -54,7 +61,7 @@ mv config.example.toml config.toml
 docker-compose up -d
 ```
 
-前端运行在: http://localhost:80
+**Enjoy** 🌐: http://localhost:80
 
 ## 许可证
 
