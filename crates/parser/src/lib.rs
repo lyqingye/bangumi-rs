@@ -35,6 +35,7 @@ Parse anime video filenames and extract structured information. Each filename ma
 
 ### Input Format
 A list of filenames containing any of these components:
+- Title: The title of the anime
 - Release Group: The group that released the video
 - Episode: Episode number (may be prefixed with E, EP, or similar)
 - Season: Season number (may be prefixed with S)
@@ -45,6 +46,7 @@ A list of filenames containing any of these components:
 1. Return a JSON array containing one object per filename.
 2. Each object must only include fields that are present in the filename.
 3. Use consistent field names:
+   - title string
    - release_group string
    - episode (as number)
    - season (as number)
@@ -61,8 +63,8 @@ A list of filenames containing any of these components:
 
 ### EXAMPLE JSON OUTPUT:
 [
-{ "release_group": "TaigaSubs", "episode": 1, "season": 0, "video_resolution": "720P", "languages": ["JPN", "CHS", "CHT"] },
-{ "release_group": "幻樱字幕组", "episode": 4, "season": 0, "video_resolution": "1080P", "languages": ["CHS","CHT] },
+{ "title": "Toradora!", "release_group": "TaigaSubs", "episode": 1, "season": 0, "video_resolution": "720P", "languages": ["JPN", "CHS", "CHT"] },
+{ "title": "魔法制造者 ~异世界魔法的制作方法~ Magic Maker ~Isekai Mahou no Tsukurikata~", "release_group": "幻樱字幕组", "episode": 4, "season": 0, "video_resolution": "1080P", "languages": ["CHS","CHT] },
 ]
 "#;
 
