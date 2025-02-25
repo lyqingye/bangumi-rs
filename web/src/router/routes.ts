@@ -23,12 +23,12 @@ export const routes = [
         path: 'settings',
         name: 'settings',
         component: () => import('@/pages/settings.vue')
+      },
+      {
+        path: 'detail/:id',
+        name: 'detail',
+        component: () => import('@/pages/detail.vue')
       }
     ]
   },
-  {
-    path: '/detail/:id',
-    name: 'detail',
-    component: () => import('@/pages/detail.vue')
-  }
 ]
