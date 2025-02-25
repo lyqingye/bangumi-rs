@@ -18,10 +18,10 @@ use std::{
     sync::Arc,
     time::Duration,
 };
-use tokio::sync::{mpsc, Mutex};
+use tokio::sync::{broadcast, mpsc, Mutex};
 use tracing::{debug, error, info, warn};
 
-use crate::{context::Pan115Context, db::Db, metrics, tasks::TaskManager, Downloader};
+use crate::{context::Pan115Context, db::Db, metrics, tasks::TaskManager, Downloader, Event};
 
 type RetryQueue = Arc<Mutex<HashMap<String, (Model, u32)>>>;
 type TaskCache = Arc<Mutex<HashMap<String, chrono::NaiveDateTime>>>;
@@ -33,6 +33,8 @@ pub struct Config {
     pub sync_interval: Duration,
     /// 请求队列大小
     pub request_queue_size: usize,
+    /// 事件队列大小
+    pub event_queue_size: usize,
     /// 最大重试次数
     pub max_retry_count: i32,
     /// 重试任务间隔
@@ -50,6 +52,7 @@ impl Default for Config {
         Self {
             sync_interval: Duration::from_secs(60),
             request_queue_size: 100,
+            event_queue_size: 100,
             max_retry_count: 5,
             retry_processor_interval: Duration::from_secs(5),
             download_dir: PathBuf::from("/"),
@@ -86,6 +89,7 @@ pub struct Pan115Downloader {
     config: Config,
     path_cache: Arc<Mutex<HashMap<PathBuf, String>>>,
     file_name_cache: Arc<Mutex<LruCache<String, (DownloadInfo, std::time::Instant)>>>,
+    event_sender: broadcast::Sender<Event>,
 }
 
 // 公共接口实现
@@ -185,6 +189,10 @@ impl Downloader for Pan115Downloader {
             num_of_tasks: self.tasks.tasks_count().await,
         }
     }
+
+    async fn subscribe(&self) -> broadcast::Receiver<Event> {
+        self.event_sender.subscribe()
+    }
 }
 
 // 初始化相关方法
@@ -195,7 +203,6 @@ impl Pan115Downloader {
         pan115: Pan115Client,
         config: Config,
     ) -> Result<Self> {
-        info!("创建下载器实例: config={:?}", config);
         let db = Db::new(conn);
         Self::new(db, pan115, config).await
     }
@@ -203,7 +210,11 @@ impl Pan115Downloader {
     /// 创建下载器实例
     pub async fn new(db: Db, pan115: Pan115Client, config: Config) -> Result<Self> {
         info!("创建下载器实例: config={:?}", config);
-        let tasks = TaskManager::new(db).await?;
+
+        // 事件队列
+        let (event_sender, _) = broadcast::channel(config.event_queue_size);
+
+        let tasks = TaskManager::new(db, event_sender.clone()).await?;
         Ok(Self {
             tasks,
             pan115,
@@ -212,6 +223,7 @@ impl Pan115Downloader {
             config,
             path_cache: Arc::new(Mutex::new(HashMap::new())),
             file_name_cache: Arc::new(Mutex::new(LruCache::new(NonZero::new(5).unwrap()))),
+            event_sender,
         })
     }
 
@@ -231,6 +243,7 @@ impl Pan115Downloader {
             return Err(anyhow!("下载服务已经启动"));
         }
 
+        // 请求队列
         let (sender, receiver) = mpsc::channel(self.config.request_queue_size);
         self.download_sender = Some(sender.clone());
 

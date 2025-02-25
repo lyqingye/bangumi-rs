@@ -2,6 +2,7 @@ mod db;
 pub mod metrics;
 mod scheduler;
 mod selector;
+mod subscribe;
 mod tasks;
 mod worker;
 

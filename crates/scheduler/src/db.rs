@@ -53,6 +53,22 @@ impl Db {
         Ok(subscription)
     }
 
+    /// 获取所有未完成下载任务
+    pub async fn get_all_unfinished_tasks(&self) -> Result<Vec<episode_download_tasks::Model>> {
+        use model::episode_download_tasks::Column as TaskColumn;
+        use model::episode_download_tasks::Entity as Tasks;
+
+        let unfinished_states = vec![State::Ready, State::Downloading, State::Retrying];
+
+        let tasks = Tasks::find()
+            .filter(Condition::all().add(TaskColumn::State.is_in(unfinished_states)))
+            .order_by_asc(TaskColumn::CreatedAt)
+            .all(self.conn())
+            .await?;
+
+        Ok(tasks)
+    }
+
     /// 获取指定番剧的未完成下载任务
     pub async fn get_unfinished_tasks_by_bangumi(
         &self,
@@ -330,6 +346,19 @@ impl Db {
         Ok(task)
     }
 
+    pub async fn get_episode_task_by_info_hash(
+        &self,
+        info_hash: &str,
+    ) -> Result<Option<episode_download_tasks::Model>> {
+        use model::episode_download_tasks::Column as TaskColumn;
+        use model::episode_download_tasks::Entity as Tasks;
+        let task = Tasks::find()
+            .filter(TaskColumn::RefTorrentInfoHash.eq(info_hash))
+            .one(self.conn())
+            .await?;
+        Ok(task)
+    }
+
     /// 更新或创建订阅记录
     #[allow(clippy::too_many_arguments)]
     pub async fn upsert_subscription(
@@ -341,7 +370,6 @@ impl Db {
         release_group_filter: Option<String>,
         collector_interval: Option<i32>,
         metadata_interval: Option<i32>,
-        task_processor_interval: Option<i32>,
     ) -> Result<()> {
         use model::subscriptions::Column as SubscriptionColumn;
         use model::subscriptions::Entity as Subscriptions;
@@ -354,7 +382,6 @@ impl Db {
             release_group_filter: Set(release_group_filter),
             collector_interval: Set(collector_interval),
             metadata_interval: Set(metadata_interval),
-            task_processor_interval: Set(task_processor_interval),
             start_episode_number: Set(start_episode_number),
             ..Default::default()
         };
@@ -369,7 +396,6 @@ impl Db {
                     .update_column(SubscriptionColumn::ReleaseGroupFilter)
                     .update_column(SubscriptionColumn::CollectorInterval)
                     .update_column(SubscriptionColumn::MetadataInterval)
-                    .update_column(SubscriptionColumn::TaskProcessorInterval)
                     .update_column(SubscriptionColumn::StartEpisodeNumber)
                     .to_owned(),
             )

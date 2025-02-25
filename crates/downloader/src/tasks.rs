@@ -3,22 +3,24 @@ use std::{collections::HashMap, sync::Arc};
 use anyhow::Result;
 use chrono::NaiveDateTime;
 use model::{sea_orm_active_enums::DownloadStatus, torrent_download_tasks};
-use tokio::sync::RwLock;
+use tokio::sync::{broadcast, RwLock};
 
-use crate::{context::Pan115Context, db::Db};
+use crate::{context::Pan115Context, db::Db, Event};
 
 /// 注意，这里只会存放待处理的任务，已失败或已结束的任务不会存放在这里
 #[derive(Clone)]
 pub struct TaskManager {
     db: Db,
     tasks: Arc<RwLock<HashMap<String, torrent_download_tasks::Model>>>,
+    event_sender: broadcast::Sender<Event>,
 }
 
 impl TaskManager {
-    pub async fn new(db: Db) -> Result<Self> {
+    pub async fn new(db: Db, event_sender: broadcast::Sender<Event>) -> Result<Self> {
         let tm = Self {
             db,
             tasks: Arc::new(RwLock::new(HashMap::new())),
+            event_sender,
         };
         tm.init_tasks().await?;
         Ok(tm)
@@ -47,13 +49,6 @@ impl TaskManager {
         let cache = self.tasks.read().await;
         let task = cache.get(info_hash);
         Ok(task.cloned())
-    }
-
-    pub async fn remove_by_info_hash(&self, info_hash: &str) -> Result<()> {
-        let mut cache = self.tasks.write().await;
-        cache.remove(info_hash);
-        self.db.remove_by_info_hash(info_hash).await?;
-        Ok(())
     }
 
     pub async fn get_by_info_hash_without_cache(
@@ -120,6 +115,13 @@ impl TaskManager {
                 context.clone().map(|c| c.try_into().unwrap_or_default()),
             )
             .await?;
+
+        // 推送事件
+        let _ = self.event_sender.send(Event::TaskUpdated((
+            task.info_hash.clone(),
+            status.clone(),
+            err_msg.clone(),
+        )));
 
         // 如果任务已经结束，则从缓存中移除
         match status {

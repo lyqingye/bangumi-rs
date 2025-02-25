@@ -156,7 +156,6 @@ impl Worker {
                     }
                 }
             }
-            info!("元数据 Worker 已停止");
         });
 
         Ok(())

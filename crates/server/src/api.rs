@@ -265,7 +265,6 @@ pub async fn subscribe_bangumi(
                     params.release_group_filter.clone(),
                     params.collector_interval,
                     params.metadata_interval,
-                    None,
                 )
                 .await?;
         }
