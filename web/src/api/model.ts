@@ -189,7 +189,6 @@ export interface UpdateMDBParams {
 // Metrics 相关类型定义
 export enum WorkerState {
   Collecting = 'Collecting',
-  Processing = 'Processing',
   Idle = 'Idle'
 }
 

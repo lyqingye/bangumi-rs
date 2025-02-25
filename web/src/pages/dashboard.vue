@@ -37,7 +37,6 @@ const workerStats = computed(() => {
 
   return [
     { state: WorkerState.Collecting, count: stats.get(WorkerState.Collecting) || 0, color: 'info' },
-    { state: WorkerState.Processing, count: stats.get(WorkerState.Processing) || 0, color: 'success' },
     { state: WorkerState.Idle, count: stats.get(WorkerState.Idle) || 0, color: 'grey' }
   ]
 })
