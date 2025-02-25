@@ -154,6 +154,7 @@ impl BangumiWorker {
             .task_manager
             .get_unfinished_tasks(self.bangumi.id)
             .await?;
+
         let missing_tasks: Vec<_> = tasks
             .into_iter()
             .filter(|t| t.state == State::Missing)
