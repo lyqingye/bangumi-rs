@@ -31,7 +31,7 @@ impl Scheduler {
         downloader: Arc<Box<dyn Downloader>>,
         notify: notify::worker::Worker,
     ) -> Self {
-        let task_manager = TaskManager::new(db.clone());
+        let task_manager = TaskManager::new(db.clone(), downloader.clone(), notify.clone());
         Self {
             db,
             parser,
@@ -71,9 +71,7 @@ impl Scheduler {
                 self.db.clone(),
                 self.parser.clone(),
                 self.metadata.clone(),
-                self.downloader.clone(),
                 self.task_manager.clone(),
-                self.notify.clone(),
             );
             let worker_clone = worker.clone();
             worker.spawn();
@@ -83,7 +81,7 @@ impl Scheduler {
         Ok(())
     }
 
-    pub async fn spawn(&self) -> Result<()> {
+    pub async fn spawn(&mut self) -> Result<()> {
         // 获取所有已订阅的番剧
         let subscriptions = self.db.get_active_subscriptions().await?;
 
@@ -91,6 +89,8 @@ impl Scheduler {
         for subscription in subscriptions {
             self.spawn_worker(subscription).await?;
         }
+
+        self.task_manager.spawn().await?;
 
         info!("启动下载调度器");
         Ok(())
@@ -123,6 +123,9 @@ impl Scheduler {
         }
         if let Err(e) = self.notify.shutdown().await {
             error!("停止通知服务时发生错误: {}", e);
+        }
+        if let Err(e) = self.task_manager.stop().await {
+            error!("停止任务管理器时发生错误: {}", e);
         }
 
         info!("调度器优雅停机完成");
@@ -163,7 +166,13 @@ impl Scheduler {
             if let Some(ref_info_hash) = old_task.ref_torrent_info_hash {
                 self.downloader.cancel_task(&ref_info_hash).await?;
             }
+        } else {
+            // 插入新的剧集下载任务
+            self.task_manager
+                .batch_create_tasks(bangumi_id, vec![episode_number])
+                .await?;
         }
+
         self.task_manager
             .update_task_ready(bangumi_id, episode_number, info_hash)
             .await?;

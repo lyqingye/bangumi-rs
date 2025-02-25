@@ -74,7 +74,6 @@ impl Worker {
                     }
                 }
             }
-            info!("解析器 Worker 已停止");
         });
 
         Ok(())

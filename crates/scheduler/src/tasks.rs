@@ -1,10 +1,12 @@
-use anyhow::Result;
-use model::episode_download_tasks;
+use anyhow::{Context, Result};
+use downloader::{Downloader, Event};
 use model::sea_orm_active_enums::State;
+use model::{episode_download_tasks, sea_orm_active_enums::DownloadStatus};
 use sea_orm::Set;
-use std::collections::HashMap;
+use std::path::PathBuf;
 use std::sync::Arc;
-use tokio::sync::RwLock;
+use tokio::sync::{mpsc, oneshot};
+use tracing::{debug, error, info, warn};
 
 use crate::db::Db;
 
@@ -12,40 +14,84 @@ use crate::db::Db;
 #[derive(Clone)]
 pub struct TaskManager {
     db: Db,
-    // 使用 RwLock 实现读写锁，优化读操作性能
-    // 外层 HashMap 的 key 是 bangumi_id
-    // 内层 HashMap 的 key 是 episode_number
-    tasks: Arc<RwLock<HashMap<i32, HashMap<i32, episode_download_tasks::Model>>>>,
+    downloader: Arc<Box<dyn Downloader>>,
+    notify: notify::worker::Worker,
+    cmd_tx: Option<mpsc::Sender<Cmd>>,
+}
+
+enum Cmd {
+    StateUpdate((i32, i32)),
+    Stop(oneshot::Sender<()>),
 }
 
 impl TaskManager {
-    pub fn new(db: Db) -> Self {
+    pub fn new(
+        db: Db,
+        downloader: Arc<Box<dyn Downloader>>,
+        notify: notify::worker::Worker,
+    ) -> Self {
         Self {
             db,
-            tasks: Arc::new(RwLock::new(HashMap::new())),
+            downloader,
+            notify,
+            cmd_tx: None,
         }
     }
 
-    /// 初始化指定番剧的任务缓存
-    pub async fn init_bangumi_tasks(&self, bangumi_id: i32) -> Result<()> {
-        // 从数据库加载任务
-        let tasks = self.db.get_unfinished_tasks_by_bangumi(bangumi_id).await?;
+    pub async fn spawn(&mut self) -> Result<()> {
+        let (cmd_tx, mut cmd_rx) = mpsc::channel(128);
+        self.cmd_tx = Some(cmd_tx);
 
-        // 更新缓存
-        let mut cache = self.tasks.write().await;
-        let bangumi_tasks = cache.entry(bangumi_id).or_default();
+        let task_manager = self.clone();
 
-        for task in tasks {
-            bangumi_tasks.insert(task.episode_number, task);
-        }
+        tokio::spawn(async move {
+            let downloader = task_manager.downloader.clone();
+            let mut task_processor_interval =
+                tokio::time::interval(std::time::Duration::from_secs(60));
+
+            let mut dl_event_rx = downloader.subscribe().await;
+
+            loop {
+                tokio::select! {
+                    _ = task_processor_interval.tick() => {
+                        if let Err(e) = task_manager.process_tasks().await {
+                            error!("处理下载任务失败: {}", e);
+                        }
+                    }
+                    Some(cmd) = cmd_rx.recv() => {
+                        match cmd {
+                            Cmd::Stop(tx) => {
+                                let _ = tx.send(());
+                                break;
+                            }
+                            _ => {
+                                if let Err(e) = task_manager.on_cmd(cmd).await {
+                                    error!("处理命令失败: {}", e);
+                                }
+                            }
+                        }
+                    }
+                    Ok(event) = dl_event_rx.recv() => {
+                        if let Err(e) = task_manager.on_download_event(event).await {
+                            error!("处理下载事件失败: {}", e);
+                        }
+                    }
+                }
+            }
+        });
 
         Ok(())
     }
 
-    /// 清除指定番剧的任务缓存
-    pub async fn clear_bangumi_tasks(&self, bangumi_id: i32) {
-        let mut cache = self.tasks.write().await;
-        cache.remove(&bangumi_id);
+    pub async fn stop(&self) -> Result<()> {
+        let (tx, rx) = oneshot::channel();
+        self.cmd_tx
+            .as_ref()
+            .expect("tasks unspawn")
+            .send(Cmd::Stop(tx))
+            .await?;
+        let _ = rx.await;
+        Ok(())
     }
 
     /// 获取指定番剧的所有未完成任务
@@ -53,53 +99,7 @@ impl TaskManager {
         &self,
         bangumi_id: i32,
     ) -> Result<Vec<episode_download_tasks::Model>> {
-        // 先尝试从缓存读取
-        let cache = self.tasks.read().await;
-        if let Some(bangumi_tasks) = cache.get(&bangumi_id) {
-            return Ok(bangumi_tasks.values().cloned().collect());
-        }
-        drop(cache);
-
-        // 缓存未命中，从数据库加载并更新缓存
-        self.init_bangumi_tasks(bangumi_id).await?;
-
-        // 再次从缓存读取
-        let cache = self.tasks.read().await;
-        Ok(cache
-            .get(&bangumi_id)
-            .map(|tasks| tasks.values().cloned().collect())
-            .unwrap_or_default())
-    }
-
-    /// 更新任务状态
-    pub async fn update_task_state(
-        &self,
-        bangumi_id: i32,
-        episode_number: i32,
-        state: State,
-    ) -> Result<()> {
-        // 先更新数据库
-        self.db
-            .update_task_state(bangumi_id, episode_number, state.clone())
-            .await?;
-
-        if state == State::Downloaded {
-            // 删除缓存
-            let mut cache = self.tasks.write().await;
-            if let Some(bangumi_tasks) = cache.get_mut(&bangumi_id) {
-                bangumi_tasks.remove(&episode_number);
-            }
-        } else {
-            // 更新缓存
-            let mut cache = self.tasks.write().await;
-            if let Some(bangumi_tasks) = cache.get_mut(&bangumi_id) {
-                if let Some(task) = bangumi_tasks.get_mut(&episode_number) {
-                    task.state = state;
-                }
-            }
-        }
-
-        Ok(())
+        self.db.get_unfinished_tasks_by_bangumi(bangumi_id).await
     }
 
     /// 更新任务状态为就绪，并设置选中的种子
@@ -114,24 +114,12 @@ impl TaskManager {
             .update_task_ready(bangumi_id, episode_number, info_hash)
             .await?;
 
-        // 更新缓存
-        let mut cache = self.tasks.write().await;
-        if let Some(bangumi_tasks) = cache.get_mut(&bangumi_id) {
-            if let Some(task) = bangumi_tasks.get_mut(&episode_number) {
-                task.state = State::Ready;
-                task.ref_torrent_info_hash = Some(info_hash.to_string());
-            } else {
-                // 缓存不存在则从数据库捞取然后插入
-                let task = self
-                    .db
-                    .get_episode_task_by_bangumi_id_and_episode_number(bangumi_id, episode_number)
-                    .await?;
-                if let Some(task) = task {
-                    bangumi_tasks.insert(episode_number, task);
-                }
-            }
-        }
-
+        // 发送状态变化命令
+        self.cmd_tx
+            .as_ref()
+            .expect("tasks unspawn")
+            .send(Cmd::StateUpdate((bangumi_id, episode_number)))
+            .await?;
         Ok(())
     }
 
@@ -156,18 +144,155 @@ impl TaskManager {
 
         // 批量插入数据库
         self.db.batch_create_tasks(tasks).await?;
+        Ok(())
+    }
+}
 
-        // 获取新创建的任务
-        let new_tasks = self.db.get_unfinished_tasks_by_bangumi(bangumi_id).await?;
+impl TaskManager {
+    /// 处理命令
+    async fn on_cmd(&self, cmd: Cmd) -> Result<()> {
+        match cmd {
+            Cmd::StateUpdate((bangumi_id, episode_number)) => {
+                self.on_state_update(bangumi_id, episode_number).await
+            }
+            _ => unreachable!(),
+        }
+    }
 
-        // 更新缓存
-        let mut cache = self.tasks.write().await;
-        let bangumi_tasks = cache.entry(bangumi_id).or_default();
+    /// 处理状态变化命令
+    async fn on_state_update(&self, bangumi_id: i32, episode_number: i32) -> Result<()> {
+        let task = self
+            .db
+            .get_episode_task_by_bangumi_id_and_episode_number(bangumi_id, episode_number)
+            .await?;
+        if let Some(task) = task {
+            self.process_task(task).await?;
+        }
+        Ok(())
+    }
 
-        for task in new_tasks {
-            bangumi_tasks.insert(task.episode_number, task);
+    /// 处理下载事件
+    async fn on_download_event(&self, event: Event) -> Result<()> {
+        match event {
+            Event::TaskUpdated((info_hash, _, _)) => {
+                info!("监听到下载状态变更事件: {}", info_hash);
+                let task = self.db.get_episode_task_by_info_hash(&info_hash).await?;
+                if let Some(task) = task {
+                    self.process_task(task).await?;
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// 处理所有任务的状态转换
+    async fn process_tasks(&self) -> Result<()> {
+        debug!("开始处理剧集下载任务");
+
+        let tasks = self.db.get_all_unfinished_tasks().await?;
+
+        // 处理所有任务
+        for task in tasks {
+            if let Err(e) = self.process_task(task).await {
+                error!("处理下载任务失败: {}", e);
+            }
         }
 
+        debug!("剧集下载任务处理完成");
+        Ok(())
+    }
+
+    /// 处理单个任务的状态转换
+    async fn process_task(&self, task: episode_download_tasks::Model) -> Result<()> {
+        let bangumi = self
+            .db
+            .get_bangumi_by_id(task.bangumi_id)
+            .await?
+            .context("番剧不存在")?;
+        match task.state {
+            State::Ready => {
+                if let Some(info_hash) = task.ref_torrent_info_hash {
+                    info!(
+                        "开始下载番剧 {} 第 {} 集",
+                        bangumi.name, task.episode_number
+                    );
+                    // 获取种子信息
+                    let torrent = self
+                        .db
+                        .get_torrent_by_info_hash(&info_hash)
+                        .await?
+                        .context("种子不存在")?;
+
+                    // 创建下载任务
+                    self.downloader
+                        .add_task(&torrent.info_hash, PathBuf::from(bangumi.name))
+                        .await?;
+
+                    // 更新状态为下载中
+                    self.db
+                        .update_task_state(task.bangumi_id, task.episode_number, State::Downloading)
+                        .await?;
+                }
+            }
+            State::Downloading => {
+                if let Some(info_hash) = task.ref_torrent_info_hash {
+                    // 检查下载状态
+                    let tasks = self.downloader.list_tasks(&[info_hash.clone()]).await?;
+                    if let Some(download_task) = tasks.first() {
+                        match download_task.download_status {
+                            DownloadStatus::Completed => {
+                                info!(
+                                    "番剧 {} 第 {} 集下载完成",
+                                    bangumi.name, task.episode_number
+                                );
+                                self.db
+                                    .update_task_state(
+                                        task.bangumi_id,
+                                        task.episode_number,
+                                        State::Downloaded,
+                                    )
+                                    .await?;
+                                self.notify
+                                    .notify(
+                                        notify::worker::Topic::Download,
+                                        "下载完成",
+                                        format!(
+                                            "番剧 [{}] 第 [{}] 集下载完成",
+                                            bangumi.name, task.episode_number
+                                        ),
+                                    )
+                                    .await?;
+                            }
+                            DownloadStatus::Failed => {
+                                warn!(
+                                    "番剧 {} 第 {} 集下载失败, 尝试重新选择种子",
+                                    bangumi.name, task.episode_number
+                                );
+                                self.db
+                                    .update_task_state(
+                                        task.bangumi_id,
+                                        task.episode_number,
+                                        State::Missing,
+                                    )
+                                    .await?;
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+            }
+            State::Retrying => {
+                // 重置状态到 Missing，重新开始整个流程
+                warn!(
+                    "番剧 {} 第 {} 集重试下载",
+                    bangumi.name, task.episode_number
+                );
+                self.db
+                    .update_task_state(task.bangumi_id, task.episode_number, State::Missing)
+                    .await?;
+            }
+            _ => {}
+        }
         Ok(())
     }
 }

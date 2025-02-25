@@ -131,7 +131,7 @@ impl Server {
         downloader_worker.spawn().await?;
 
         // Scheduler
-        let scheduler = scheduler::Scheduler::new_with_conn(
+        let mut scheduler = scheduler::Scheduler::new_with_conn(
             db.conn_pool(),
             parser_worker,
             metadata_worker.clone(),

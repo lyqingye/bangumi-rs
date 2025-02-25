@@ -53,6 +53,22 @@ impl Db {
         Ok(subscription)
     }
 
+    /// 获取所有未完成下载任务
+    pub async fn get_all_unfinished_tasks(&self) -> Result<Vec<episode_download_tasks::Model>> {
+        use model::episode_download_tasks::Column as TaskColumn;
+        use model::episode_download_tasks::Entity as Tasks;
+
+        let unfinished_states = vec![State::Ready, State::Downloading, State::Retrying];
+
+        let tasks = Tasks::find()
+            .filter(Condition::all().add(TaskColumn::State.is_in(unfinished_states)))
+            .order_by_asc(TaskColumn::CreatedAt)
+            .all(self.conn())
+            .await?;
+
+        Ok(tasks)
+    }
+
     /// 获取指定番剧的未完成下载任务
     pub async fn get_unfinished_tasks_by_bangumi(
         &self,
@@ -325,6 +341,19 @@ impl Db {
                     .add(TaskColumn::BangumiId.eq(bangumi_id))
                     .add(TaskColumn::EpisodeNumber.eq(episode_number)),
             )
+            .one(self.conn())
+            .await?;
+        Ok(task)
+    }
+
+    pub async fn get_episode_task_by_info_hash(
+        &self,
+        info_hash: &str,
+    ) -> Result<Option<episode_download_tasks::Model>> {
+        use model::episode_download_tasks::Column as TaskColumn;
+        use model::episode_download_tasks::Entity as Tasks;
+        let task = Tasks::find()
+            .filter(TaskColumn::RefTorrentInfoHash.eq(info_hash))
             .one(self.conn())
             .await?;
         Ok(task)
