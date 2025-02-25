@@ -122,7 +122,7 @@
                     </div>
                     <div class="info-content">
                       <div class="info-label">总集数</div>
-                      <div class="info-value">13集</div>
+                      <div class="info-value">{{ anime.ep_count }}集</div>
                     </div>
                   </div>
                 </div>
