@@ -8,22 +8,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { routes } from './routes'
 
-// 打印一下路由信息，帮助调试
-console.log('Current routes:', routes)
-
-// 确保 detail 路由存在并正确配置
-const detailRoute = routes.find(route => route.name === 'detail')
-if (detailRoute) {
-  detailRoute.path = '/detail/:id'
-} else {
-  // 如果没有找到 detail 路由，手动添加
-  routes.push({
-    name: 'detail',
-    path: '/detail/:id',
-    component: () => import('@/pages/detail.vue')
-  })
-}
-
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes
