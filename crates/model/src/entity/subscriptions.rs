@@ -18,7 +18,6 @@ pub struct Model {
     pub updated_at: DateTime,
     pub collector_interval: Option<i32>,
     pub metadata_interval: Option<i32>,
-    pub task_processor_interval: Option<i32>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

@@ -14,7 +14,6 @@ impl Scheduler {
         release_group_filter: Option<String>,
         collector_interval: Option<i32>,
         metadata_interval: Option<i32>,
-        task_processor_interval: Option<i32>,
     ) -> Result<()> {
         // 将分辨率列表转换为逗号分隔的字符串
         let resolution_filter_str = resolution_filter.map(|resolutions| {
@@ -81,7 +80,6 @@ impl Scheduler {
                 release_group_filter,
                 collector_interval,
                 metadata_interval,
-                task_processor_interval,
             )
             .await
             .context("更新订阅状态失败")?;

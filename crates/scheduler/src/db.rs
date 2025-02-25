@@ -370,7 +370,6 @@ impl Db {
         release_group_filter: Option<String>,
         collector_interval: Option<i32>,
         metadata_interval: Option<i32>,
-        task_processor_interval: Option<i32>,
     ) -> Result<()> {
         use model::subscriptions::Column as SubscriptionColumn;
         use model::subscriptions::Entity as Subscriptions;
@@ -383,7 +382,6 @@ impl Db {
             release_group_filter: Set(release_group_filter),
             collector_interval: Set(collector_interval),
             metadata_interval: Set(metadata_interval),
-            task_processor_interval: Set(task_processor_interval),
             start_episode_number: Set(start_episode_number),
             ..Default::default()
         };
@@ -398,7 +396,6 @@ impl Db {
                     .update_column(SubscriptionColumn::ReleaseGroupFilter)
                     .update_column(SubscriptionColumn::CollectorInterval)
                     .update_column(SubscriptionColumn::MetadataInterval)
-                    .update_column(SubscriptionColumn::TaskProcessorInterval)
                     .update_column(SubscriptionColumn::StartEpisodeNumber)
                     .to_owned(),
             )

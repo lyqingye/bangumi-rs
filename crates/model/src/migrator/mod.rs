@@ -31,7 +31,7 @@ impl MigratorTrait for Migrator {
             let file_name = file.path().file_name().unwrap().to_string_lossy();
             let contents = file.contents_utf8().unwrap();
 
-            tracing::debug!("Processing migration file: {:?}", file.path());
+            tracing::info!("loading migration file: {:?}", file.path());
 
             // 尝试匹配版本化迁移
             if let Some(captures) = version_regex.captures(&file_name) {
