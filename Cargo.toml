@@ -13,7 +13,7 @@ members = [
     "crates/downloader",
     "crates/scheduler",
     "crates/metadata",
-    "crates/dict",
+    "crates/dict", "libs/acgrip",
 ]
 resolver = "2"
 
@@ -96,3 +96,6 @@ governor = { version = "0.8", features = ["jitter", "std"] }
 # 内存分配
 jemallocator = "0.5.4"
 sysinfo = "0.33.1"
+
+
+quick-xml = { version = "0.37.2"}
