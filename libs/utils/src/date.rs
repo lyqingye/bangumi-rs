@@ -1,7 +1,12 @@
-use anyhow::{anyhow, Result};
-use chrono::{NaiveDate, NaiveDateTime};
+use anyhow::{Result, anyhow};
+use chrono::{DateTime, NaiveDate, NaiveDateTime};
 
 pub fn smart_parse_date(date_str: &str) -> Result<NaiveDateTime> {
+    // 尝试解析 RFC 2822 格式 (如 "Wed, 26 Feb 2025 05:01:02 -0800")
+    if let Ok(dt) = DateTime::parse_from_rfc2822(date_str) {
+        return Ok(dt.naive_utc());
+    }
+
     // 先尝试解析完整的日期时间格式
     let datetime_layouts = vec![
         "%Y-%m-%dT%H:%M:%S%.f", // 2006-01-02T15:04:05.000
@@ -41,6 +46,19 @@ mod test {
     use super::*;
     #[test]
     fn test_parse_date() {
-        smart_parse_date("2025/01/28").unwrap();
+        let dates = vec![
+            "2025/01/28",
+            "2025-01-28",
+            "2025-01-28T15:04:05",
+            "2025-01-28T15:04:05.000",
+            "Wed, 26 Feb 2025 05:01:02 -0800",
+            "2025/01/28 15:04",
+            "2025/01/28 15:04:05",
+            "2025/01/28 15:04:05.000",
+        ];
+        for date in dates {
+            let dt = smart_parse_date(date).unwrap();
+            println!("{}: {}", date, dt);
+        }
     }
 }

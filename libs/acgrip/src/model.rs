@@ -1,5 +1,6 @@
-use chrono::{DateTime, FixedOffset};
+use chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize};
+use utils::date::smart_parse_date;
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct RssChannel {
@@ -39,8 +40,8 @@ pub struct RssResponse {
 
 impl RssItem {
     /// 获取发布日期
-    pub fn get_pub_date(&self) -> Option<DateTime<FixedOffset>> {
-        DateTime::parse_from_rfc2822(&self.pub_date).ok()
+    pub fn get_pub_date(&self) -> Option<NaiveDateTime> {
+        smart_parse_date(&self.pub_date).ok()
     }
 
     /// 获取种子链接
