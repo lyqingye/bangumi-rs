@@ -88,6 +88,7 @@
       :bangumi-id="item.id"
       :current-status="item.subscribe_status || SubscribeStatus.None"
       :release-groups="[]"
+      :current-subscribe-settings="currentSubscribeSettings"
       @subscribe="handleSubscribe"
     />
 
@@ -144,6 +145,21 @@ const toggleSubscribe = (event: Event) => {
   if (!props.item) return
   showSubscribeDialog.value = true
 }
+
+const currentSubscribeSettings = computed(() => {
+  if (!props.item || props.item.subscribe_status !== SubscribeStatus.Subscribed) {
+    return undefined
+  }
+
+  return {
+    start_episode_number: props.item.start_episode_number ?? undefined,
+    resolution_filter: props.item.resolution_filter ?? undefined,
+    language_filter: props.item.language_filter ?? undefined,
+    release_group_filter: props.item.release_group_filter ?? undefined,
+    status: props.item.subscribe_status ?? undefined,
+    enforce_torrent_release_after_broadcast: props.item.enforce_torrent_release_after_broadcast ?? undefined
+  }
+})
 
 // 处理订阅
 const handleSubscribe = async (params: SubscribeParams) => {
