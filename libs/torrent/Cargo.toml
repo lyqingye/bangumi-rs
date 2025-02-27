@@ -1,0 +1,16 @@
+[package]
+name = "torrent"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = { workspace = true }
+serde_bencode = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_bytes = { workspace = true }
+sha1 = { workspace = true }
+hex = { workspace = true }
+urlencoding = { workspace = true }
+
+[dev-dependencies]
+dotenv = { workspace = true }
