@@ -44,7 +44,7 @@ pub struct Config {
     /// 下载缓存 TTL
     pub download_cache_ttl: Duration,
     /// 离线下载超时时间
-    pub offline_download_timeout: Duration,
+    pub offline_download_timeout: chrono::Duration,
 }
 
 impl Default for Config {
@@ -58,7 +58,7 @@ impl Default for Config {
             download_dir: PathBuf::from("/"),
             download_cache_ttl: Duration::from_secs(60 * 30),
             // 离线下载超时时间 5分钟
-            offline_download_timeout: Duration::from_secs(5 * 60),
+            offline_download_timeout: chrono::Duration::minutes(5),
         }
     }
 }
@@ -608,10 +608,13 @@ impl Pan115Downloader {
             }
 
             // 处理离线下载超时
-            if status == DownloadStatus::Pending || status == DownloadStatus::Retrying {
+            if status == DownloadStatus::Pending
+                || status == DownloadStatus::Retrying
+                || status == DownloadStatus::Downloading
+            {
                 let now = Local::now().naive_utc();
-                let timeout = now - self.config.offline_download_timeout;
-                if local_task.created_at < timeout {
+                let elapsed = now - local_task.created_at;
+                if elapsed > self.config.offline_download_timeout {
                     warn!("离线下载超时: info_hash={}, 删除任务", info_hash);
                     self.tasks
                         .update_task_status(
