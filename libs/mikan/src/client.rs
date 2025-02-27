@@ -1,11 +1,11 @@
 use std::str::FromStr;
 
-use crate::utils::smart_parse_date;
 use anyhow::Result;
 use chrono::NaiveDateTime;
 use reqwest::Url;
 use scraper::Selector;
 use tracing::{info, instrument};
+use utils::date::smart_parse_date;
 
 lazy_static::lazy_static! {
     static ref TR_SELECTOR: Selector = Selector::parse("table > tbody > tr").unwrap();

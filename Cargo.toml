@@ -13,7 +13,7 @@ members = [
     "crates/downloader",
     "crates/scheduler",
     "crates/metadata",
-    "crates/dict", "libs/acgrip",
+    "crates/dict", "libs/acgrip", "libs/utils",
 ]
 resolver = "2"
 

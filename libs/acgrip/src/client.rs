@@ -102,7 +102,7 @@ mod tests {
 
         for (i, item) in resp.iter().enumerate() {
             println!("{}. {}", i + 1, item.title);
-            println!("   发布时间: {}", item.pub_date);
+            println!("   发布时间: {}", item.get_pub_date().unwrap());
             println!("   种子链接: {}", item.get_torrent_url());
             println!();
         }

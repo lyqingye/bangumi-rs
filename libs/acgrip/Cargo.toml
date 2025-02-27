@@ -16,6 +16,6 @@ tracing = { workspace = true }
 lazy_static = { workspace = true }
 quick-xml = { version = "0.37.2", features = ["serialize"] }
 url = { version = "2.5" }
-
+utils = { path = "../utils" }
 [dev-dependencies]
 dotenv = { workspace = true }
