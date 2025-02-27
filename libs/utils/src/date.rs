@@ -1,4 +1,4 @@
-use anyhow::{Result, anyhow};
+use anyhow::{anyhow, Result};
 use chrono::{DateTime, NaiveDate, NaiveDateTime};
 
 pub fn smart_parse_date(date_str: &str) -> Result<NaiveDateTime> {

@@ -5,12 +5,12 @@ edition = "2021"
 
 [dependencies]
 anyhow = { workspace = true }
-serde_bencode = { version = "0.2.4" }
-serde = { version = "1.0", features = ["derive"] }
-serde_bytes = "0.11.12"
-sha1 = "0.10.6"
-hex = "0.4.3"
-urlencoding = "2.1.3"
+serde_bencode = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_bytes = { workspace = true }
+sha1 = { workspace = true }
+hex = { workspace = true }
+urlencoding = { workspace = true }
 
 [dev-dependencies]
 dotenv = { workspace = true }

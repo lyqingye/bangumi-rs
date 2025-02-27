@@ -1,7 +1,6 @@
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use serde_bencode::de;
-use serde_bytes;
 use sha1::{Digest, Sha1};
 use std::collections::BTreeMap;
 use std::fs::File;
@@ -87,7 +86,7 @@ impl Torrent {
     pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
         // 尝试直接解析
         match de::from_bytes::<Torrent>(bytes) {
-            Ok(torrent) => return Ok(torrent),
+            Ok(torrent) => Ok(torrent),
             Err(original_err) => {
                 // 如果直接解析失败，尝试先解析为 Value，然后手动构建 Torrent
                 match de::from_bytes::<serde_bencode::value::Value>(bytes) {
@@ -203,7 +202,7 @@ impl Torrent {
                                 };
                                 result.push_str(&format!("{}, ", key_str));
                             }
-                            result.push_str("\n");
+                            result.push('\n');
 
                             // 检查 pieces 字段
                             let pieces_key = "pieces".as_bytes().to_vec();
@@ -241,7 +240,7 @@ impl Torrent {
                         };
                         result.push_str(&format!("{}, ", key_str));
                     }
-                    result.push_str("\n");
+                    result.push('\n');
                 } else {
                     result.push_str("顶层值不是字典\n");
                 }
