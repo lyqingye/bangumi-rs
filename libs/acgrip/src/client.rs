@@ -1,5 +1,3 @@
-use std::path::Path;
-
 use anyhow::{Context, Result};
 use reqwest::{Client as ReqwestClient, Url};
 use tracing::instrument;
@@ -68,7 +66,7 @@ impl Client {
     }
 
     /// 下载种子文件
-    pub async fn download_torrent(&self, torrent_url: &str, path: impl AsRef<Path>) -> Result<()> {
+    pub async fn download_torrent(&self, torrent_url: &str) -> Result<Vec<u8>> {
         let url = if torrent_url.starts_with("http") {
             torrent_url.to_string()
         } else {
@@ -77,8 +75,7 @@ impl Client {
 
         let response = self.cli.get(url).send().await?;
         let bytes = response.bytes().await?;
-        tokio::fs::write(path, bytes).await?;
-        Ok(())
+        Ok(bytes.to_vec())
     }
 }
 
@@ -122,17 +119,11 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_download_torrent() -> Result<()> {
+    async fn test_parse_torrent() -> Result<()> {
         let cli = create_client().await?;
         let resp = cli.search("我独自升级", 1).await?;
-
-        if let Some(item) = resp.first() {
-            let torrent_url = item.get_torrent_url();
-            let temp_path = std::env::temp_dir().join("test.torrent");
-            cli.download_torrent(torrent_url, &temp_path).await?;
-            println!("种子已下载到: {:?}", temp_path);
-        }
-
+        let torrent_url = resp.first().unwrap().get_torrent_url();
+        let bytes = cli.download_torrent(torrent_url).await?;
         Ok(())
     }
 }
