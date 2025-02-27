@@ -36,7 +36,7 @@ pub enum Inner {
 #[derive(Debug)]
 enum Cmd {
     Refresh(Inner),
-    Shutdown(oneshot::Sender<()>),
+    Shutdown(),
 }
 
 struct Metadatabases {
@@ -51,7 +51,7 @@ pub struct Worker {
     mikan: mikan::client::Client,
     client: reqwest::Client,
     fetcher: Fetcher,
-    sender: Option<mpsc::Sender<Cmd>>,
+    sender: Option<mpsc::Sender<(Cmd, Option<oneshot::Sender<()>>)>>,
     dict: dict::Dict,
     matcher: Matcher,
     assets_path: String,
@@ -138,8 +138,8 @@ impl Worker {
 
             let mdbs = worker.new_mdbs();
 
-            while let Some(msg) = receiver.recv().await {
-                match msg {
+            while let Some((msg, done_tx)) = receiver.recv().await {
+                let exit = match msg {
                     Cmd::Refresh(inner) => {
                         if !worker.should_process(&inner, &refresh_times).await {
                             continue;
@@ -148,12 +148,18 @@ impl Worker {
                             Ok(_) => {}
                             Err(e) => error!("处理刷新请求失败: {}", e),
                         }
+                        false
                     }
-                    Cmd::Shutdown(done_tx) => {
+                    Cmd::Shutdown() => {
                         info!("元数据 Worker 收到停机信号");
-                        let _ = done_tx.send(());
-                        break;
+                        true
                     }
+                };
+                if let Some(done_tx) = done_tx {
+                    let _ = done_tx.send(());
+                }
+                if exit {
+                    break;
                 }
             }
         });
@@ -180,23 +186,34 @@ impl Worker {
 
     /// 快捷命令, 外部使用
     pub async fn request_refresh_metadata(&self, bangumi_id: i32, force: bool) -> Result<()> {
-        self.send_cmd(Cmd::Refresh(Inner::Metadata(bangumi_id, force)))
+        self.send_cmd(Cmd::Refresh(Inner::Metadata(bangumi_id, force)), None)
             .await
     }
 
     pub async fn request_refresh_torrents(&self, bangumi_id: i32) -> Result<()> {
-        self.send_cmd(Cmd::Refresh(Inner::Torrents(bangumi_id)))
+        self.send_cmd(Cmd::Refresh(Inner::Torrents(bangumi_id)), None)
             .await
     }
 
-    pub async fn request_refresh_calendar(&self) -> Result<()> {
-        self.send_cmd(Cmd::Refresh(Inner::Calendar)).await
+    pub async fn request_refresh_torrents_and_wait(&self, bangumi_id: i32) -> Result<()> {
+        let (done_tx, done_rx) = oneshot::channel();
+        self.send_cmd(Cmd::Refresh(Inner::Torrents(bangumi_id)), Some(done_tx))
+            .await?;
+        done_rx.await?;
+        Ok(())
     }
 
-    async fn send_cmd(&self, cmd: Cmd) -> Result<()> {
+    pub async fn request_refresh_calendar(&self) -> Result<()> {
+        self.send_cmd(Cmd::Refresh(Inner::Calendar), None).await
+    }
+
+    async fn send_cmd(&self, cmd: Cmd, done_tx: Option<oneshot::Sender<()>>) -> Result<()> {
         let sender = self.sender.as_ref().context("Worker 未启动")?;
 
-        sender.send(cmd).await.context("发送刷新请求失败")?;
+        sender
+            .send((cmd, done_tx))
+            .await
+            .context("发送刷新请求失败")?;
 
         Ok(())
     }
@@ -206,7 +223,7 @@ impl Worker {
 
         if let Some(sender) = &self.sender {
             let (done_tx, done_rx) = oneshot::channel();
-            sender.send(Cmd::Shutdown(done_tx)).await?;
+            sender.send((Cmd::Shutdown(), Some(done_tx))).await?;
             done_rx.await?;
         }
         info!("元数据 Worker 已停止");
