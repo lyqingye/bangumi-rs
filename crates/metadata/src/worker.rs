@@ -141,12 +141,11 @@ impl Worker {
             while let Some((msg, done_tx)) = receiver.recv().await {
                 let exit = match msg {
                     Cmd::Refresh(inner) => {
-                        if !worker.should_process(&inner, &refresh_times).await {
-                            continue;
-                        }
-                        match worker.process(inner, &mdbs).await {
-                            Ok(_) => {}
-                            Err(e) => error!("处理刷新请求失败: {}", e),
+                        if worker.should_process(&inner, &refresh_times).await {
+                            match worker.process(inner, &mdbs).await {
+                                Ok(_) => {}
+                                Err(e) => error!("处理刷新请求失败: {}", e),
+                            }
                         }
                         false
                     }
