@@ -199,7 +199,9 @@ impl Worker {
         let (done_tx, done_rx) = oneshot::channel();
         self.send_cmd(Cmd::Refresh(Inner::Torrents(bangumi_id)), Some(done_tx))
             .await?;
-        done_rx.await?;
+        tokio::time::timeout(Duration::from_secs(60), done_rx)
+            .await
+            .context("等待种子刷新超时")??;
         Ok(())
     }
 
@@ -252,13 +254,13 @@ impl Worker {
     /// 处理元数据刷新请求
     async fn handle_refresh_metadata(
         &self,
-        bangmui_id: i32,
+        bangumi_id: i32,
         force: bool,
         mdbs: &Arc<Metadatabases>,
     ) -> Result<()> {
         let mut bgm = self
             .db
-            .get_bangumi_by_id(bangmui_id)
+            .get_bangumi_by_id(bangumi_id)
             .await?
             .context("番剧未找到")?;
         let name = bgm.name.clone();
