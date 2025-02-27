@@ -370,6 +370,7 @@ impl Db {
         release_group_filter: Option<String>,
         collector_interval: Option<i32>,
         metadata_interval: Option<i32>,
+        enforce_torrent_release_after_broadcast: bool,
     ) -> Result<()> {
         use model::subscriptions::Column as SubscriptionColumn;
         use model::subscriptions::Entity as Subscriptions;
@@ -383,6 +384,9 @@ impl Db {
             collector_interval: Set(collector_interval),
             metadata_interval: Set(metadata_interval),
             start_episode_number: Set(start_episode_number),
+            enforce_torrent_release_after_broadcast: Set(
+                enforce_torrent_release_after_broadcast as i8
+            ),
             ..Default::default()
         };
 
@@ -397,6 +401,7 @@ impl Db {
                     .update_column(SubscriptionColumn::CollectorInterval)
                     .update_column(SubscriptionColumn::MetadataInterval)
                     .update_column(SubscriptionColumn::StartEpisodeNumber)
+                    .update_column(SubscriptionColumn::EnforceTorrentReleaseAfterBroadcast)
                     .to_owned(),
             )
             .exec(self.conn())

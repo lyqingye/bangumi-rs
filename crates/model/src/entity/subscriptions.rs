@@ -18,6 +18,7 @@ pub struct Model {
     pub updated_at: DateTime,
     pub collector_interval: Option<i32>,
     pub metadata_interval: Option<i32>,
+    pub enforce_torrent_release_after_broadcast: i8,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

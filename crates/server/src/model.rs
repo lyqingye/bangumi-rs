@@ -114,6 +114,7 @@ pub struct SubscribeParams {
     pub release_group_filter: Option<String>,
     pub collector_interval: Option<i32>,
     pub metadata_interval: Option<i32>,
+    pub enforce_torrent_release_after_broadcast: bool,
 }
 
 // 定义一个结构体来接收查询结果

@@ -265,6 +265,7 @@ pub async fn subscribe_bangumi(
                     params.release_group_filter.clone(),
                     params.collector_interval,
                     params.metadata_interval,
+                    params.enforce_torrent_release_after_broadcast,
                 )
                 .await?;
         }
