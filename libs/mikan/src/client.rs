@@ -1,5 +1,3 @@
-use std::str::FromStr;
-
 use anyhow::Result;
 use chrono::NaiveDateTime;
 use reqwest::Url;
@@ -7,19 +5,9 @@ use scraper::Selector;
 use tracing::{info, instrument};
 use utils::date::smart_parse_date;
 
+use crate::model::MikanRss;
+
 lazy_static::lazy_static! {
-    static ref TR_SELECTOR: Selector = Selector::parse("table > tbody > tr").unwrap();
-    static ref TD_A_SELECTOR: Selector = Selector::parse("td > a").unwrap();
-    static ref LINK_SELECTOR: Selector = Selector::parse("td > a").unwrap();
-    static ref TITLE_SELECTOR: Selector = Selector::parse(
-        "#sk-container > div.pull-left.leftbar-container > p.bangumi-title > a.w-other-c"
-    ).unwrap();
-    static ref SUB_GROUP_SELECTOR: Selector = Selector::parse(
-        "#sk-container > div.pull-left.leftbar-container > p.bangumi-info > a.magnet-link-wrap"
-    ).unwrap();
-    static ref BUTTON_SELECTOR: Selector = Selector::parse(
-        "#sk-container > div.pull-left.leftbar-container > div.leftbar-nav > a.episode-btn"
-    ).unwrap();
     static ref BANGUMI_TV_LINK_SELECTOR: Selector = Selector::parse(
         "#sk-container > div.pull-left.leftbar-container > p.bangumi-info > a.w-other-c"
     ).unwrap();
@@ -102,67 +90,44 @@ impl Client {
     pub async fn collect_by_bangumi_id(&self, bangumi_id: i32) -> Result<Vec<EpisodeItem>> {
         let url = self
             .endpoint
-            .join(format!("/Home/Bangumi/{}", bangumi_id).as_str())?;
+            .join(format!("/RSS/Bangumi?bangumiId={}", bangumi_id).as_str())?;
         info!("url: {}", url);
 
-        let html = self.cli.get(url).send().await?.text().await?;
+        // 获取 RSS XML 内容
+        let xml = self.cli.get(url).send().await?.text().await?;
 
-        let document = scraper::Html::parse_document(&html);
-        let tr_list: Vec<_> = document.select(&TR_SELECTOR).collect();
+        // 解析 XML 为 MikanRss 结构体
+        let rss = MikanRss::from_xml(&xml)?;
+
+        // 将 RSS 条目转换为 EpisodeItem
         let mut result = Vec::new();
-        for tr in tr_list {
-            let mut item = EpisodeItem::default();
+        for item in rss.channel.items {
+            let mut episode = EpisodeItem {
+                file_name: item.title.clone(),
+                pub_date: item.get_pub_date(),
+                file_size: item.get_file_size().unwrap_or(0) as usize,
+                ..Default::default()
+            };
 
-            let links: Vec<_> = tr.select(&TD_A_SELECTOR).collect();
-            for link in links {
-                if let Some("magnet-link-wrap") = link.attr("class") {
-                    item.file_name = Some(link.inner_html());
-                }
+            // 设置磁力链接和信息哈希
+            if let Some(info_hash) = item.get_info_hash() {
+                episode.info_hash = info_hash.clone();
+                episode.magnet_link = format!("magnet:?xt=urn:btih:{}", info_hash);
+            }
 
-                match link.attr("class") {
-                    Some("magnet-link-wrap") => {
-                        item.file_name = Some(link.inner_html());
-                    }
-                    Some("js-magnet magnet-link") => {
-                        if let Some(magnet_link) = link.attr("data-clipboard-text") {
-                            if magnet_link.starts_with("magnet:?xt=urn:btih:") {
-                                item.magnet_link = magnet_link.to_string();
-                                item.info_hash = magnet_link
-                                    .split("xt=urn:btih:")
-                                    .nth(1)
-                                    .and_then(|s| s.split('&').next())
-                                    .filter(|hash| hash.len() == 40)
-                                    .map(|s| s.to_string())
-                                    .unwrap_or_default();
-                            }
-                        }
-                    }
-                    _ => {}
-                };
-
-                if let Some(value) = link.attr("href") {
-                    if value.starts_with("/Download") && value.ends_with(".torrent") {
-                        if let Ok(uri) = self.endpoint.join(value) {
-                            item.torrent_download_url = Some(uri);
-                        }
-                    }
+            // 设置种子下载链接
+            if let Some(url) = item.get_torrent_url() {
+                if let Ok(url) = Url::parse(&url) {
+                    episode.torrent_download_url = Some(url);
                 }
             }
-            let td_list: Vec<_> = tr.select(&TD_SELECTOR).collect();
-            for td in td_list {
-                if let Ok(date) = smart_parse_date(td.inner_html().as_str()) {
-                    item.pub_date = Some(date);
-                    break;
-                }
 
-                if let Ok(size) = huby::ByteSize::from_str(td.inner_html().as_str()) {
-                    item.file_size = size.in_bytes() as usize;
-                }
-            }
-            if item.validate() {
-                result.push(item);
+            // 验证并添加到结果
+            if episode.validate() {
+                result.push(episode);
             }
         }
+
         Ok(result)
     }
 
@@ -297,6 +262,7 @@ impl Client {
 #[cfg(test)]
 mod test {
     use super::*;
+    use std::str::FromStr;
 
     fn create_clinet() -> Result<Client> {
         dotenv::dotenv()?;
@@ -334,8 +300,26 @@ mod test {
     #[tokio::test]
     async fn test_collect_by_bangumi_id_with_info_hash() -> Result<()> {
         let mikan = create_clinet()?;
-        let result = mikan.collect_by_bangumi_id(105).await?;
-        println!("result: {:?}", result);
+        let result = mikan.collect_by_bangumi_id(3520).await?;
+        for item in result {
+            println!("{:?}", item.file_name);
+        }
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_collect_by_bangumi_id2() -> Result<()> {
+        let mikan = create_clinet()?;
+        let result = mikan.collect_by_bangumi_id(3422).await?;
+        println!("通过 RSS 获取到 {} 个剧集", result.len());
+        for item in result {
+            println!(
+                "文件名: {:?}, 大小: {}MB, 磁力链接: {}",
+                item.file_name,
+                item.file_size / 1024 / 1024,
+                item.magnet_link
+            );
+        }
         Ok(())
     }
 

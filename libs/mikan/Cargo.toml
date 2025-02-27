@@ -8,7 +8,7 @@ anyhow = { workspace = true }
 thiserror = { workspace = true }
 reqwest = { workspace = true }
 tokio = { workspace = true ,features = ["full"]}
-serde = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 chrono = { workspace = true }
 lazy_static = { workspace = true }
@@ -16,6 +16,7 @@ scraper = {workspace = true}
 tracing = {workspace = true}
 huby = {workspace = true}
 utils = { path = "../utils" }
+quick-xml = { workspace = true, features = ["serialize"] }
 
 [dev-dependencies]
 dotenv = {workspace = true}
