@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import type { SubscribeParams } from '../api/model'
 import { SubscribeStatus } from '../api/model'
 
@@ -15,6 +15,32 @@ const emit = defineEmits<{
   (e: 'update:modelValue', value: boolean): void
   (e: 'subscribe', params: SubscribeParams): void
 }>()
+
+// 添加新字幕组相关变量
+const showAddReleaseGroupDialog = ref(false)
+const newReleaseGroup = ref('')
+const customReleaseGroups = ref<string[]>([])
+const allReleaseGroups = ref<string[]>([...props.releaseGroups])
+
+// 合并原有字幕组和自定义字幕组
+watch(() => props.releaseGroups, (newVal) => {
+  allReleaseGroups.value = [...newVal, ...customReleaseGroups.value]
+}, { immediate: true })
+
+// 添加新字幕组
+function addNewReleaseGroup() {
+  if (newReleaseGroup.value && newReleaseGroup.value.trim() !== '') {
+    const trimmedGroup = newReleaseGroup.value.trim()
+    if (!allReleaseGroups.value.includes(trimmedGroup)) {
+      customReleaseGroups.value.push(trimmedGroup)
+      allReleaseGroups.value.push(trimmedGroup)
+      // 自动选中新添加的字幕组
+      formData.value.release_group_filter.push(trimmedGroup)
+    }
+    newReleaseGroup.value = ''
+  }
+  showAddReleaseGroupDialog.value = false
+}
 
 const formData = ref({
   status: SubscribeStatus.Subscribed,
@@ -147,7 +173,7 @@ function unsubscribe() {
               class="input-field"
             >
               <template v-slot:chip="{ props, item }">
-                <v-chip v-bind="props" :text="item.raw.text" size="x-small" label />
+                <v-chip v-bind="props" :text="String(item.raw)" size="x-small" label />
               </template>
             </v-select>
           </div>
@@ -171,7 +197,7 @@ function unsubscribe() {
               class="input-field"
             >
               <template v-slot:chip="{ props, item }">
-                <v-chip v-bind="props" :text="item.raw.text" size="x-small" label />
+                <v-chip v-bind="props" :text="String(item.raw)" size="x-small" label />
               </template>
             </v-select>
           </div>
@@ -183,7 +209,7 @@ function unsubscribe() {
             </div>
             <v-select
               v-model="formData.release_group_filter"
-              :items="props.releaseGroups"
+              :items="allReleaseGroups"
               density="compact"
               variant="outlined"
               hide-details
@@ -193,7 +219,20 @@ function unsubscribe() {
               class="input-field"
             >
               <template v-slot:chip="{ props, item }">
-                <v-chip v-bind="props" :text="item.raw" size="x-small" label />
+                <v-chip v-bind="props" :text="String(item.raw)" size="x-small" label />
+              </template>
+              <template v-slot:append-item>
+                <v-divider class="mb-2"></v-divider>
+                <v-list-item
+                  density="compact"
+                  @click="showAddReleaseGroupDialog = true"
+                  class="add-item-btn"
+                >
+                  <v-list-item-title>
+                    <v-icon icon="mdi-plus-circle" size="small" class="me-2" color="primary" />
+                    添加新字幕组
+                  </v-list-item-title>
+                </v-list-item>
               </template>
             </v-select>
           </div>
@@ -266,6 +305,37 @@ function unsubscribe() {
           @click="onSubmit"
         >
           {{ currentStatus === SubscribeStatus.Subscribed ? '更新订阅' : '订阅' }}
+        </v-btn>
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
+
+  <!-- 添加新字幕组对话框 -->
+  <v-dialog v-model="showAddReleaseGroupDialog" max-width="300" class="add-group-dialog">
+    <v-card>
+      <v-card-title class="text-subtitle-1 py-3 px-4">
+        <v-icon icon="mdi-plus-circle" class="me-2" color="primary" size="20" />
+        添加新字幕组
+      </v-card-title>
+      <v-divider></v-divider>
+      <v-card-text class="pt-4">
+        <v-text-field
+          v-model="newReleaseGroup"
+          label="字幕组名称"
+          variant="outlined"
+          density="compact"
+          hide-details
+          autofocus
+          @keyup.enter="addNewReleaseGroup"
+        ></v-text-field>
+      </v-card-text>
+      <v-card-actions class="pa-3">
+        <v-spacer></v-spacer>
+        <v-btn color="grey" variant="text" size="small" @click="showAddReleaseGroupDialog = false">
+          取消
+        </v-btn>
+        <v-btn color="primary" variant="tonal" size="small" @click="addNewReleaseGroup">
+          添加
         </v-btn>
       </v-card-actions>
     </v-card>
@@ -389,5 +459,32 @@ function unsubscribe() {
 
 :deep(.v-chip__close:hover) {
   opacity: 1;
+}
+
+.add-item-btn {
+  transition: background-color 0.2s ease;
+}
+
+.add-item-btn:hover {
+  background-color: rgba(var(--v-theme-primary), 0.05);
+}
+
+.add-group-dialog :deep(.v-card) {
+  border-radius: 8px;
+  overflow: hidden;
+  background: rgba(30, 30, 30, 0.95);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.add-group-dialog :deep(.v-card-title) {
+  font-size: 1rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.add-group-dialog :deep(.v-text-field) {
+  margin-top: 8px;
 }
 </style>
