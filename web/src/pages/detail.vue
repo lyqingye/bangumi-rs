@@ -1844,7 +1844,8 @@ const currentSubscribeSettings = computed(() => {
     resolution_filter: anime.value.resolution_filter ?? undefined,
     language_filter: anime.value.language_filter ?? undefined,
     release_group_filter: anime.value.release_group_filter ?? undefined,
-    status: anime.value.subscribe_status ?? undefined
+    status: anime.value.subscribe_status ?? undefined,
+    enforce_torrent_release_after_broadcast: anime.value.enforce_torrent_release_after_broadcast ?? undefined
   }
 })
 
