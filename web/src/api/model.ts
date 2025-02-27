@@ -59,6 +59,7 @@ export interface SubscribeParams {
   release_group_filter?: string | undefined
   collector_interval?: number | undefined
   metadata_interval?: number | undefined
+  enforce_torrent_release_after_broadcast?: boolean | undefined
 }
 
 // 番剧信息
@@ -83,6 +84,7 @@ export interface Bangumi {
   resolution_filter: string | null
   language_filter: string | null
   release_group_filter: string | null
+  enforce_torrent_release_after_broadcast: boolean | null
 }
 
 // 剧集信息

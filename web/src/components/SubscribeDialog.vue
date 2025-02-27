@@ -59,7 +59,8 @@ const formData = ref({
     : 30,
   metadata_interval: props.currentSubscribeSettings?.metadata_interval
     ? Math.floor(props.currentSubscribeSettings.metadata_interval / 60)
-    : 60
+    : 60,
+  enforce_torrent_release_after_broadcast: props.currentSubscribeSettings?.enforce_torrent_release_after_broadcast ?? true
 })
 
 interface Resolution {
@@ -103,7 +104,8 @@ function onSubmit() {
       : undefined,
     metadata_interval: formData.value.metadata_interval
       ? formData.value.metadata_interval * 60
-      : undefined
+      : undefined,
+    enforce_torrent_release_after_broadcast: formData.value.enforce_torrent_release_after_broadcast
   }
   emit('subscribe', params)
   emit('update:modelValue', false)
@@ -173,7 +175,7 @@ function unsubscribe() {
               class="input-field"
             >
               <template v-slot:chip="{ props, item }">
-                <v-chip v-bind="props" :text="String(item.raw)" size="x-small" label />
+                <v-chip v-bind="props" :text="item.raw.text" size="x-small" label />
               </template>
             </v-select>
           </div>
@@ -197,7 +199,7 @@ function unsubscribe() {
               class="input-field"
             >
               <template v-slot:chip="{ props, item }">
-                <v-chip v-bind="props" :text="String(item.raw)" size="x-small" label />
+                <v-chip v-bind="props" :text="item.raw.text" size="x-small" label />
               </template>
             </v-select>
           </div>
@@ -272,6 +274,20 @@ function unsubscribe() {
               placeholder="默认 60 分钟"
             >
             </v-text-field>
+          </div>
+
+          <div class="input-group mt-2">
+            <div class="input-label">
+              <v-icon icon="mdi-filter-check" color="primary" size="16" class="me-2" />
+              <span>严格选取种子: 确保种子发布时间在剧集放送后</span>
+            </div>
+            <v-switch
+              v-model="formData.enforce_torrent_release_after_broadcast"
+              color="primary"
+              hide-details
+              density="compact"
+              size="small"
+            ></v-switch>
           </div>
         </v-form>
       </v-card-text>

@@ -60,6 +60,8 @@ pub struct Bangumi {
     pub resolution_filter: Option<String>,
     pub language_filter: Option<String>,
     pub release_group_filter: Option<String>,
+    #[sea_orm(column_type = "Boolean")]
+    pub enforce_torrent_release_after_broadcast: Option<bool>,
 }
 
 #[derive(Debug, Serialize, Deserialize, FromQueryResult)]
@@ -114,6 +116,7 @@ pub struct SubscribeParams {
     pub release_group_filter: Option<String>,
     pub collector_interval: Option<i32>,
     pub metadata_interval: Option<i32>,
+    #[serde(default)]
     pub enforce_torrent_release_after_broadcast: bool,
 }
 

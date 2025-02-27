@@ -87,10 +87,12 @@ impl BangumiWorker {
                     }
 
                     // 确保种子发布时间在番剧集数发布时间之后
-                    if let Some(episode) = episodes.get(&actual_ep) {
-                        if let Some(air_date) = episode.air_date {
-                            if torrent.pub_date < air_date.into() {
-                                return false;
+                    if self.sub.enforce_torrent_release_after_broadcast == 1 {
+                        if let Some(episode) = episodes.get(&actual_ep) {
+                            if let Some(air_date) = episode.air_date {
+                                if torrent.pub_date < air_date.into() {
+                                    return false;
+                                }
                             }
                         }
                     }
