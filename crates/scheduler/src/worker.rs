@@ -124,7 +124,7 @@ impl BangumiWorker {
         // 1. 收集种子
         info!("开始收集番剧 {} 的种子", self.bangumi.name);
         self.metadata
-            .request_refresh_torrents(self.bangumi.id)
+            .request_refresh_torrents_and_wait(self.bangumi.id)
             .await?;
 
         // 2. 获取并解析种子
