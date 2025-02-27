@@ -138,31 +138,34 @@ jobs:
           # 显示下载的构建产物结构
           echo "显示下载的构建产物结构："
           find . -type f -name "bangumi*" | sort
-          ls -la bangumi-linux/ bangumi-macos-x86_64/ bangumi-macos-arm64/ || true
+          ls -la
 
-          # 确保二进制文件可执行并复制到根目录
-          for arch in linux macos-x86_64 macos-arm64; do
-            echo "处理 $arch 架构..."
-            if [ -f "bangumi-$arch/bangumi" ]; then
-              echo "找到 bangumi-$arch/bangumi 文件"
-              chmod +x "bangumi-$arch/bangumi"
-              cp "bangumi-$arch/bangumi" "./bangumi-$arch"
-            else
-              echo "未找到 bangumi-$arch/bangumi 文件，尝试复制目录中的所有文件"
-              cp bangumi-$arch/* "./bangumi-$arch" || echo "复制失败，可能目录为空或文件结构不符合预期"
-            fi
-            
-            # 检查文件是否成功复制
-            if [ -f "./bangumi-$arch" ]; then
-              echo "成功复制 $arch 二进制文件"
-              ls -la "./bangumi-$arch"
-            else
-              echo "警告：未能复制 $arch 二进制文件"
-            fi
-          done
+          # 创建临时目录用于存放最终文件
+          mkdir -p temp_release_files
+
+          # 确保二进制文件可执行
+          chmod +x bangumi-linux/bangumi bangumi-macos-x86_64/bangumi bangumi-macos-arm64/bangumi
+
+          # 复制二进制文件到临时目录并重命名
+          echo "复制 Linux 二进制文件..."
+          cp -v bangumi-linux/bangumi temp_release_files/bangumi-linux-x86_64
+
+          echo "复制 macOS x86_64 二进制文件..."
+          cp -v bangumi-macos-x86_64/bangumi temp_release_files/bangumi-macos-x86_64
+
+          echo "复制 macOS ARM64 二进制文件..."
+          cp -v bangumi-macos-arm64/bangumi temp_release_files/bangumi-macos-arm64
 
           # 压缩前端文件
-          zip -r frontend-dist.zip frontend-dist/
+          echo "压缩前端文件..."
+          (cd frontend-dist && zip -r ../temp_release_files/frontend-dist.zip .)
+
+          # 移动到临时目录
+          cd temp_release_files
+
+          # 显示最终文件
+          echo "最终文件列表："
+          ls -la
 
           # 为每个文件生成单独的 SHA256 校验和
           echo "生成 SHA256 校验和..."
@@ -172,18 +175,21 @@ jobs:
             cat "$file.sha256"
           done
 
+          # 移动回工作目录
+          cd ..
+
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            bangumi-linux-x86_64
-            bangumi-linux-x86_64.sha256
-            bangumi-macos-x86_64
-            bangumi-macos-x86_64.sha256
-            bangumi-macos-arm64
-            bangumi-macos-arm64.sha256
-            frontend-dist.zip
-            frontend-dist.zip.sha256
+            temp_release_files/bangumi-linux-x86_64
+            temp_release_files/bangumi-linux-x86_64.sha256
+            temp_release_files/bangumi-macos-x86_64
+            temp_release_files/bangumi-macos-x86_64.sha256
+            temp_release_files/bangumi-macos-arm64
+            temp_release_files/bangumi-macos-arm64.sha256
+            temp_release_files/frontend-dist.zip
+            temp_release_files/frontend-dist.zip.sha256
           body: |
             ## ChangeLog
             ${{ steps.changelog.outputs.content || '* No ChangeLog' }}
@@ -191,16 +197,16 @@ jobs:
             ## SHA256 Checksums
             \`\`\`
             # Linux x86_64
-            $(cat bangumi-linux-x86_64.sha256)
+            $(cat temp_release_files/bangumi-linux-x86_64.sha256)
 
             # macOS x86_64
-            $(cat bangumi-macos-x86_64.sha256)
+            $(cat temp_release_files/bangumi-macos-x86_64.sha256)
 
             # macOS ARM64
-            $(cat bangumi-macos-arm64.sha256)
+            $(cat temp_release_files/bangumi-macos-arm64.sha256)
 
             # Frontend Distribution
-            $(cat frontend-dist.zip.sha256)
+            $(cat temp_release_files/frontend-dist.zip.sha256)
             \`\`\`
           draft: false
           prerelease: ${{ contains(github.ref, '-rc') || contains(github.ref, '-beta') }}
