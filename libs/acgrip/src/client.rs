@@ -86,7 +86,7 @@ mod tests {
 
     async fn create_client() -> Result<Client> {
         dotenv::dotenv().ok();
-        let cli = if let Ok(_) = std::env::var("ACGRIP_BASE_URL") {
+        let cli = if std::env::var("ACGRIP_BASE_URL").is_ok() {
             Client::new_from_env()?
         } else {
             Client::new()?
@@ -124,6 +124,7 @@ mod tests {
         let resp = cli.search("我独自升级", 1).await?;
         let torrent_url = resp.first().unwrap().get_torrent_url();
         let bytes = cli.download_torrent(torrent_url).await?;
+        println!("bytes: {:?}", bytes.len());
         Ok(())
     }
 }
