@@ -377,7 +377,8 @@
                                         torrent.download_status === DownloadStatus.Downloading
                                       "
                                       :disabled="
-                                        torrent.download_status === DownloadStatus.Completed
+                                        torrent.download_status === DownloadStatus.Completed ||
+                                        torrent.download_status === DownloadStatus.Failed
                                       "
                                       size="small"
                                       variant="tonal"
@@ -1663,13 +1664,13 @@ const getResolutionColor = (resolution: string) => {
 }
 
 // 获取操作按钮颜色
-const getActionButtonColor = (status: string | null) => {
+const getActionButtonColor = (status: DownloadStatus | null) => {
   switch (status) {
-    case 'downloading':
+    case DownloadStatus.Downloading:
       return 'primary'
-    case 'completed':
+    case DownloadStatus.Completed:
       return 'success'
-    case 'failed':
+    case DownloadStatus.Failed:
       return 'error'
     default:
       return 'primary'
@@ -1677,13 +1678,15 @@ const getActionButtonColor = (status: string | null) => {
 }
 
 // 获取操作按钮图标
-const getActionButtonIcon = (status: string | null) => {
+const getActionButtonIcon = (status: DownloadStatus | null) => {
   switch (status) {
-    case 'downloading':
+    case DownloadStatus.Downloading:
       return 'mdi-progress-download'
-    case 'completed':
+    case DownloadStatus.Completed:
       return 'mdi-check'
-    case 'failed':
+    case DownloadStatus.Failed:
+      return 'mdi-alert-circle-outline'
+    case DownloadStatus.Retrying:
       return 'mdi-refresh'
     default:
       return 'mdi-download'
@@ -1691,14 +1694,14 @@ const getActionButtonIcon = (status: string | null) => {
 }
 
 // 获取操作按钮文本
-const getActionButtonText = (status: string | null) => {
+const getActionButtonText = (status: DownloadStatus | null) => {
   switch (status) {
-    case 'downloading':
+    case DownloadStatus.Downloading:
       return '下载中'
-    case 'completed':
+    case DownloadStatus.Completed:
       return '已完成'
-    case 'failed':
-      return '重试'
+    case DownloadStatus.Failed:
+      return '下载失败'
     default:
       return '下载'
   }
