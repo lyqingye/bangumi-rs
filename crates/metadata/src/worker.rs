@@ -443,8 +443,8 @@ mod test {
 
         let mut worker = Worker::new_from_env().await?;
         worker.spawn().await?;
-        worker.request_refresh_metadata(60, true).await?;
-        tokio::time::sleep(Duration::from_secs(120)).await;
+        worker.request_refresh_torrents_and_wait(20).await?;
+        // tokio::time::sleep(Duration::from_secs(120)).await;
         worker.shutdown().await?;
         Ok(())
     }

@@ -82,6 +82,8 @@ impl Scheduler {
     }
 
     pub async fn spawn(&mut self) -> Result<()> {
+        self.task_manager.spawn().await?;
+
         // 获取所有已订阅的番剧
         let subscriptions = self.db.get_active_subscriptions().await?;
 
@@ -89,8 +91,6 @@ impl Scheduler {
         for subscription in subscriptions {
             self.spawn_worker(subscription).await?;
         }
-
-        self.task_manager.spawn().await?;
 
         info!("启动下载调度器");
         Ok(())
