@@ -193,21 +193,6 @@ jobs:
           body: |
             ## ChangeLog
             ${{ steps.changelog.outputs.content || '* No ChangeLog' }}
-
-            ## SHA256 Checksums
-            \`\`\`
-            # Linux x86_64
-            $(cat temp_release_files/bangumi-linux-x86_64.sha256)
-
-            # macOS x86_64
-            $(cat temp_release_files/bangumi-macos-x86_64.sha256)
-
-            # macOS ARM64
-            $(cat temp_release_files/bangumi-macos-arm64.sha256)
-
-            # Frontend Distribution
-            $(cat temp_release_files/frontend-dist.zip.sha256)
-            \`\`\`
           draft: false
           prerelease: ${{ contains(github.ref, '-rc') || contains(github.ref, '-beta') }}
         env:
