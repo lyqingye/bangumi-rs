@@ -66,6 +66,7 @@ pub async fn calendar(
         .column(SubscriptionColumn::ResolutionFilter)
         .column(SubscriptionColumn::LanguageFilter)
         .column(SubscriptionColumn::ReleaseGroupFilter)
+        .column(SubscriptionColumn::EnforceTorrentReleaseAfterBroadcast)
         // 联表查询
         .join_rev(
             JoinType::LeftJoin,
@@ -134,6 +135,7 @@ pub async fn get_bangumi_by_id(
         .column(SubscriptionColumn::ResolutionFilter)
         .column(SubscriptionColumn::LanguageFilter)
         .column(SubscriptionColumn::ReleaseGroupFilter)
+        .column(SubscriptionColumn::EnforceTorrentReleaseAfterBroadcast)
         // 联表查询
         .join_rev(
             JoinType::LeftJoin,
@@ -265,6 +267,7 @@ pub async fn subscribe_bangumi(
                     params.release_group_filter.clone(),
                     params.collector_interval,
                     params.metadata_interval,
+                    params.enforce_torrent_release_after_broadcast,
                 )
                 .await?;
         }
