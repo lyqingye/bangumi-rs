@@ -4,6 +4,19 @@ use chrono::{NaiveDate, NaiveDateTime};
 use serde::Deserialize;
 use serde_repr::Deserialize_repr;
 
+#[derive(Debug, Deserialize, Clone)]
+#[serde(untagged)]
+pub enum IntOrFloat {
+    Int(i32),
+    Float(f32),
+}
+
+impl Default for IntOrFloat {
+    fn default() -> Self {
+        IntOrFloat::Int(0)
+    }
+}
+
 #[derive(Debug, Deserialize, Default)]
 pub struct CalendarResponse {
     #[serde(default)]
@@ -223,7 +236,8 @@ pub struct Episode {
     pub name: Option<String>,
     #[serde(default, deserialize_with = "empty_string_as_none")]
     pub name_cn: Option<String>,
-    pub sort: i32,
+    pub ep: IntOrFloat,
+    pub sort: IntOrFloat,
     #[serde(default, deserialize_with = "parse_date_as_option")]
     pub airdate: Option<NaiveDate>,
     pub comment: i32,
@@ -234,6 +248,18 @@ pub struct Episode {
     pub duration_seconds: u64,
 }
 
+impl Episode {
+    /// FIXME： 这里需要支持小数类型的剧集Number
+    pub fn get_ep(&self) -> Option<i32> {
+        match self.sort {
+            IntOrFloat::Int(i) => Some(i),
+            _ => match self.ep {
+                IntOrFloat::Int(i) => Some(i),
+                _ => None,
+            },
+        }
+    }
+}
 fn parse_date_as_option<'de, D>(deserializer: D) -> Result<Option<NaiveDate>, D::Error>
 where
     D: serde::Deserializer<'de>,

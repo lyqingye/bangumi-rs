@@ -45,6 +45,7 @@ impl Matcher {
 
         if let Some((tv, season)) = result {
             bgm.tmdb_id = Some(tv.inner.id);
+            bgm.season_number = Some(season.inner.season_number);
             bgm.bgm_kind = Some(BgmKind::Anime);
             Ok(Some((tv, season)))
         } else {

@@ -130,7 +130,7 @@ mod test {
     #[tokio::test]
     async fn test_episodes() -> Result<()> {
         let cli = create_client().await?;
-        let resp = cli.episodes(459435, EpisodeType::Normal, 100, 0).await?;
+        let resp = cli.episodes(475354, EpisodeType::Normal, 100, 0).await?;
         println!("{:?}", resp);
         Ok(())
     }
@@ -138,7 +138,7 @@ mod test {
     #[tokio::test]
     async fn test_subject() -> Result<()> {
         let cli = create_client().await?;
-        let resp = cli.get_subject(525733).await?;
+        let resp = cli.get_subject(475354).await?;
         println!("{:?}", resp);
         Ok(())
     }

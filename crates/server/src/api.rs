@@ -50,14 +50,13 @@ pub async fn calendar(
     use model::subscriptions::Entity as Subscriptions;
     use sea_orm::{ColumnTrait, EntityTrait, JoinType, QueryFilter, QueryOrder, QuerySelect};
 
-    let calendar_season = if let Some(season) = query.season.as_ref() {
-        season.clone()
-    } else {
-        state
+    let calendar_season = match query.season.as_ref() {
+        Some(season) if !season.is_empty() => season.clone(),
+        _ => state
             .dict
             .get_value(DictCode::CurrentSeasonSchedule)
             .await?
-            .unwrap_or_default()
+            .unwrap_or_default(),
     };
 
     let bangumis = Bangumis::find()
@@ -492,14 +491,21 @@ pub async fn list_download_tasks(
     Ok(Json(Resp::ok(downloads)))
 }
 
-#[get("/api/calendar/refresh/{season}")]
+#[get("/api/calendar/refresh/{force}")]
 pub async fn refresh_calendar(
     state: web::Data<Arc<AppState>>,
     query: web::Query<CalendarQuery>,
+    force: web::Path<bool>,
 ) -> Result<Json<Resp<()>>, ServerError> {
+    let force = force.into_inner();
+    let season = query
+        .season
+        .as_ref()
+        .filter(|s| !s.is_empty())
+        .map(|s| s.clone());
     state
         .metadata
-        .request_refresh_calendar(query.season.clone())
+        .request_refresh_calendar(season, force)
         .await?;
     Ok(Json(Resp::ok(())))
 }
