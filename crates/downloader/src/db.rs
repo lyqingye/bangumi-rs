@@ -108,10 +108,10 @@ impl Db {
     pub async fn update_task_retry_status(
         &self,
         info_hash: &str,
-        retry_count: i32,
         next_retry_at: NaiveDateTime,
         err_msg: Option<String>,
     ) -> Result<()> {
+        use sea_orm::prelude::Expr;
         let now = Local::now().naive_utc();
 
         torrent_download_tasks::Entity::update_many()
@@ -119,7 +119,7 @@ impl Db {
                 Column::DownloadStatus,
                 SimpleExpr::from(DownloadStatus::Retrying),
             )
-            .col_expr(Column::RetryCount, SimpleExpr::from(retry_count))
+            .col_expr(Column::RetryCount, Expr::col(Column::RetryCount).add(1))
             .col_expr(Column::NextRetryAt, SimpleExpr::from(next_retry_at))
             .col_expr(Column::ErrMsg, SimpleExpr::from(err_msg))
             .col_expr(Column::UpdatedAt, SimpleExpr::from(now))

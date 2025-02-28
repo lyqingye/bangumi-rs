@@ -235,3 +235,14 @@ export async function fetchBangumiList(params: QueryBangumiParams): Promise<Pagi
     return handleError(error, '获取番剧列表失败')
   }
 }
+
+
+// 重试下载任务
+export async function retryDownloadTask(infoHash: string): Promise<void> {
+  try {
+    const response = await api.get<ApiResponse<null>>(`/downloads/retry/${infoHash}`)
+    handleResponse(response, '重试下载任务失败')
+  } catch (error) {
+    handleError(error, '重试下载任务失败')
+  }
+}

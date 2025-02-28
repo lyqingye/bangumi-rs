@@ -36,6 +36,7 @@ impl TaskManager {
             ])
             .await?;
         let mut cache = self.tasks.write().await;
+        cache.clear();
         for task in tasks {
             cache.insert(task.info_hash.clone(), task);
         }
@@ -141,21 +142,35 @@ impl TaskManager {
     pub async fn update_task_retry_status(
         &self,
         info_hash: &str,
-        retry_count: i32,
         next_retry_at: NaiveDateTime,
         err_msg: Option<String>,
     ) -> Result<()> {
-        let mut cache = self.tasks.write().await;
-        let task = cache
-            .get_mut(info_hash)
-            .ok_or_else(|| anyhow::anyhow!("任务不存在于缓存中"))?;
+        // 先更新数据库
         self.db
-            .update_task_retry_status(info_hash, retry_count, next_retry_at, err_msg.clone())
+            .update_task_retry_status(info_hash, next_retry_at, err_msg.clone())
             .await?;
-        task.retry_count = retry_count;
-        task.next_retry_at = next_retry_at;
-        task.download_status = DownloadStatus::Retrying;
-        task.err_msg = err_msg;
+
+        // 获取写锁并更新缓存
+        let mut cache = self.tasks.write().await;
+
+        // 检查缓存中是否存在任务
+        if !cache.contains_key(info_hash) {
+            // 如果缓存中不存在，则从数据库获取
+            if let Some(task) = self.db.get_by_info_hash(info_hash).await? {
+                cache.insert(task.info_hash.clone(), task);
+            } else {
+                return Err(anyhow::anyhow!("任务不存在: {}", info_hash));
+            }
+        }
+
+        // 此时缓存中应该有任务，更新任务状态
+        if let Some(task) = cache.get_mut(info_hash) {
+            task.retry_count += 1;
+            task.next_retry_at = next_retry_at;
+            task.download_status = DownloadStatus::Retrying;
+            task.err_msg = err_msg;
+        }
+
         Ok(())
     }
 

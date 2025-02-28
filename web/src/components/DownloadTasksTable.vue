@@ -82,10 +82,19 @@
           <v-chip
             :color="getStatusColor(item.download_status)"
             size="small"
-            class="text-caption font-weight-medium"
+            class="text-caption font-weight-medium status-chip"
             variant="flat"
+            :class="{ 'with-action': item.download_status === DownloadStatus.Failed }"
           >
             {{ getStatusText(item.download_status) }}
+            <v-icon
+              v-if="item.download_status === DownloadStatus.Failed"
+              size="x-small"
+              class="ms-1 retry-icon"
+              icon="mdi-refresh"
+              :class="{ 'loading': retryingTasks.includes(item.info_hash) }"
+              @click.stop="retryTask(item.info_hash)"
+            />
           </v-chip>
         </template>
 
@@ -152,12 +161,14 @@
 
 <script setup lang="ts">
 import { ref, onMounted, watch, computed } from 'vue'
-import { fetchDownloadTasks } from '@/api/api'
+import { fetchDownloadTasks, retryDownloadTask } from '@/api/api'
 import type { DownloadTask } from '@/api/model'
 import { DownloadStatus } from '@/api/model'
 import { useRouter } from 'vue-router'
+import { useSnackbar } from '@/composables/useSnackbar'
 
 const router = useRouter()
+const { showSnackbar } = useSnackbar()
 const loading = ref(false)
 const tasks = ref<DownloadTask[]>([])
 const currentPage = ref(1)
@@ -165,6 +176,7 @@ const pageSize = ref(10)
 const hasNextPage = ref(false)
 const selectedStatus = ref<DownloadStatus | null>(null)
 const expandedItems = ref<string[]>([])
+const retryingTasks = ref<string[]>([])
 
 const headers = [
   { title: '番剧名称', key: 'name', align: 'start' as const },
@@ -260,6 +272,28 @@ const navigateToBangumiDetail = (bangumiId: number) => {
   router.push(`/detail/${bangumiId}`)
 }
 
+// 重试下载任务
+const retryTask = async (infoHash: string) => {
+  if (retryingTasks.value.includes(infoHash)) return
+  
+  retryingTasks.value.push(infoHash)
+  try {
+    await retryDownloadTask(infoHash)
+    showSnackbar({
+      text: '重试任务已提交',
+      color: 'success',
+      location: 'top right',
+      timeout: 3000
+    })
+    // 重新加载任务列表
+    await loadTasks()
+  } catch (error) {
+    console.error('重试下载任务失败:', error)
+  } finally {
+    retryingTasks.value = retryingTasks.value.filter(hash => hash !== infoHash)
+  }
+}
+
 watch([currentPage, selectedStatus], () => {
   loadTasks()
 })
@@ -289,6 +323,38 @@ onMounted(() => {
 
 :deep(.detail-btn:hover) {
   opacity: 1 !important;
+}
+
+.status-chip {
+  min-width: 70px;
+  justify-content: center;
+  position: relative;
+}
+
+.status-chip.with-action {
+  padding-right: 28px;
+}
+
+.retry-icon {
+  position: absolute;
+  right: 8px;
+  cursor: pointer;
+  opacity: 0.7;
+  transition: all 0.3s ease;
+}
+
+.retry-icon:hover {
+  opacity: 1;
+  transform: rotate(30deg);
+}
+
+.retry-icon.loading {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
 :deep(.v-select .v-field) {
