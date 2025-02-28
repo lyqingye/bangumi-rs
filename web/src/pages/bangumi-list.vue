@@ -2,7 +2,7 @@
   <div class="bangumi-list-content">
     <div class="d-flex align-center justify-space-between mb-6">
       <h1 class="text-h5 font-weight-bold">番剧列表</h1>
-      <div class="d-flex">
+      <div class="d-flex align-center">
         <!-- 年份选择器 -->
         <v-select
           v-model="selectedYear"
@@ -10,9 +10,10 @@
           label="年份"
           variant="outlined"
           density="compact"
+          class="me-2 year-select"
+          bg-color="rgba(48, 48, 48, 0.95)"
+          item-color="white"
           hide-details
-          class="me-2"
-          style="width: 120px"
         ></v-select>
         
         <!-- 季节选择器 -->
@@ -23,8 +24,9 @@
           variant="outlined"
           density="compact"
           hide-details
-          class="me-4"
-          style="width: 120px"
+          class="me-2 season-select"
+          bg-color="rgba(48, 48, 48, 0.95)"
+          item-color="white"
         ></v-select>
         
         <!-- 订阅状态过滤器 -->
@@ -34,8 +36,10 @@
           label="订阅状态"
           variant="outlined"
           density="compact"
+          class="me-2 season-select"
           hide-details
-          style="width: 120px"
+          bg-color="rgba(48, 48, 48, 0.95)"
+          item-color="white"
         ></v-select>
       </div>
     </div>
@@ -269,5 +273,47 @@ onMounted(async () => {
 
 .media-card-col {
   transition: transform 0.2s ease;
+}
+
+.year-select,
+.season-select {
+  font-weight: 500;
+}
+
+.year-select :deep(.v-field__input),
+.season-select :deep(.v-field__input) {
+  color: white;
+  min-height: 40px;
+  font-size: 0.875rem;
+}
+
+.year-select :deep(.v-field),
+.season-select :deep(.v-field) {
+  border-radius: 8px;
+  background: rgba(48, 48, 48, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.year-select :deep(.v-field__append-inner),
+.season-select :deep(.v-field__append-inner) {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.year-select :deep(.v-list),
+.season-select :deep(.v-list) {
+  background: rgba(48, 48, 48, 0.98) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+}
+
+.year-select :deep(.v-list-item),
+.season-select :deep(.v-list-item) {
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+
+.year-select :deep(.v-list-item--active),
+.season-select :deep(.v-list-item--active) {
+  color: rgb(var(--v-theme-primary)) !important;
+  background: rgba(var(--v-theme-primary), 0.15) !important;
 }
 </style> 

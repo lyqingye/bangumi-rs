@@ -66,9 +66,9 @@ function handleResponse<T>(response: AxiosResponse<ApiResponse<T>>, defaultError
 }
 
 // 日历相关 API
-export async function fetchCalendar(): Promise<Bangumi[]> {
+export async function fetchCalendar(season: string = ''): Promise<Bangumi[]> {
   try {
-    const response = await api.get<ApiResponse<Bangumi[]>>('/calendar')
+    const response = await api.get<ApiResponse<Bangumi[]>>(`/calendar`, { params: { season } })
     return handleResponse(response, '获取日历数据失败')
   } catch (error) {
     return handleError(error, '获取日历数据失败')
@@ -168,9 +168,9 @@ export async function fetchDownloadTasks(params: QueryDownloadTask): Promise<Dow
 }
 
 // 刷新放送列表
-export async function refreshCalendar(): Promise<void> {
+export async function refreshCalendar(season: string = '', force: boolean = false): Promise<void> {
   try {
-    const response = await api.get<ApiResponse<null>>('/calendar/refresh')
+    const response = await api.get<ApiResponse<null>>(`/calendar/refresh/${force}`, { params: { season } })
     handleResponse(response, '刷新放送列表失败')
   } catch (error) {
     handleError(error, '刷新放送列表失败')

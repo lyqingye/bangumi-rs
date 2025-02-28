@@ -1,6 +1,6 @@
 use dict::DictCode;
 use model::{
-    bangumi,
+    bangumi::{self, Entity},
     sea_orm_active_enums::{BgmKind, SubscribeStatus},
 };
 use sea_orm::DatabaseConnection;
@@ -30,7 +30,8 @@ const POLL_TIMEOUT: Duration = Duration::from_secs(1);
 pub enum Inner {
     Metadata(i32, bool),
     Torrents(i32),
-    Calendar,
+    /// 刷新指定季节的放送列表, 如果为None, 则刷新当前季节
+    Calendar(Option<String>, bool),
 }
 
 #[derive(Debug)]
@@ -204,8 +205,13 @@ impl Worker {
         Ok(())
     }
 
-    pub async fn request_refresh_calendar(&self) -> Result<()> {
-        self.send_cmd(Cmd::Refresh(Inner::Calendar), None).await
+    pub async fn request_refresh_calendar(
+        &self,
+        season: Option<String>,
+        force: bool,
+    ) -> Result<()> {
+        self.send_cmd(Cmd::Refresh(Inner::Calendar(season, force)), None)
+            .await
     }
 
     async fn send_cmd(&self, cmd: Cmd, done_tx: Option<oneshot::Sender<()>>) -> Result<()> {
@@ -239,8 +245,8 @@ impl Worker {
             Inner::Metadata(id, force) => {
                 self.handle_refresh_metadata(id, force, mdbs).await?;
             }
-            Inner::Calendar => {
-                self.handle_refresh_calendar().await?;
+            Inner::Calendar(season, force) => {
+                self.handle_refresh_calendar(season, force).await?;
             }
             _ => warn!("无效的刷新请求: {:?}", request),
         }
@@ -323,40 +329,63 @@ impl Worker {
     }
 
     /// 处理放送列表刷新请求
-    async fn handle_refresh_calendar(&self) -> Result<()> {
-        info!("正在刷新放送列表");
-        let calendar = self.mikan.get_calendar().await?;
+    async fn handle_refresh_calendar(&self, season: Option<String>, force: bool) -> Result<()> {
+        info!("正在刷新放送列表: {:?}", season);
+
+        let calendar = if let Some(season) = season.as_ref() {
+            self.mikan.get_calendar_by_season(season).await?
+        } else {
+            self.mikan.get_calendar().await?
+        };
         info!(
             "已收集 {} 个番剧信息, 放送季: {:?}",
             calendar.bangumis.len(),
             calendar.season
         );
 
-        self.dict
-            .set_value(
-                DictCode::CurrentSeasonSchedule,
-                calendar.season.clone().unwrap_or_default(),
-            )
-            .await?;
+        // 更新当前放送季
+        if season.is_none() {
+            self.dict
+                .set_value(
+                    DictCode::CurrentSeasonSchedule,
+                    calendar.season.clone().unwrap_or_default(),
+                )
+                .await?;
+        }
 
         let mikan_ids: Vec<_> = calendar.bangumis.iter().map(|bgm| bgm.id).collect();
         self.db.save_mikan_calendar(calendar).await?;
 
+        info!("正在匹配番剧: {}", mikan_ids.len());
         let bangumis = self.db.list_bangumi_by_mikan_ids(mikan_ids).await?;
         for mut bgm in bangumis {
             let bgm_id = bgm.id;
-            if bgm.bangumi_tv_id.is_none() {
-                self.matcher.match_bgm_tv(&mut bgm, false).await?;
-                self.db.update_bangumi(bgm.clone()).await?;
-            } else if bgm.tmdb_id.is_none() || bgm.bgm_kind.is_none() {
-                self.matcher.match_tmdb(&mut bgm).await?;
-                self.db.update_bangumi(bgm.clone()).await?;
-            }
-            if bgm.tmdb_id.is_none() || bgm.bgm_kind.is_none() {
-                self.matcher.match_tmdb_movie(&mut bgm).await?;
-                self.db.update_bangumi(bgm).await?;
-            }
-            self.request_refresh_metadata(bgm_id, false).await?;
+
+            match self.try_match_bangumi(bgm).await {
+                Ok(_) => {}
+                Err(e) => {
+                    error!("匹配番剧失败: {}", e);
+                }
+            };
+
+            self.request_refresh_metadata(bgm_id, force).await?;
+        }
+        info!("放送列表刷新完成");
+        Ok(())
+    }
+
+    async fn try_match_bangumi(&self, bgm: model::bangumi::Model) -> Result<()> {
+        let mut bgm = bgm;
+        if bgm.bangumi_tv_id.is_none() {
+            self.matcher.match_bgm_tv(&mut bgm, false).await?;
+            self.db.update_bangumi(bgm.clone()).await?;
+        } else if bgm.tmdb_id.is_none() || bgm.bgm_kind.is_none() || bgm.season_number.is_none() {
+            self.matcher.match_tmdb(&mut bgm).await?;
+            self.db.update_bangumi(bgm.clone()).await?;
+        }
+        if bgm.tmdb_id.is_none() || bgm.bgm_kind.is_none() {
+            self.matcher.match_tmdb_movie(&mut bgm).await?;
+            self.db.update_bangumi(bgm).await?;
         }
         Ok(())
     }

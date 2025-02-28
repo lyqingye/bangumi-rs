@@ -251,6 +251,30 @@ impl Client {
         Ok(Calendar { season, bangumis })
     }
 
+    /// 获取指定季节的番剧放映表
+    /// season: 2025 夏季番组
+    #[instrument(name = "获取指定季节的番剧放映表", skip(self))]
+    pub async fn get_calendar_by_season(&self, season: &str) -> Result<Calendar> {
+        let season_parts = season.split(" ").collect::<Vec<&str>>();
+        let year = season_parts[0];
+        let season_str = season_parts[1].replace("季番组", "");
+        let base_url = self
+            .endpoint
+            .join(format!("Home/BangumiCoverFlowByDayOfWeek/{}", season).as_str())?;
+        let url = Url::parse_with_params(
+            base_url.as_str(),
+            &[
+                ("year", year.to_string().as_str()),
+                ("seasonStr", season_str.as_str()),
+            ],
+        )?;
+        info!("url: {}", url);
+        let search_result_page_html = self.cli.get(url).send().await?.text().await?;
+        let mut calendar = self.parse_home_page(search_result_page_html.as_str())?;
+        calendar.season = Some(season.to_string());
+        Ok(calendar)
+    }
+
     fn extract_subject_id_from_link(link: &str) -> Option<i32> {
         // 从链接中提取 subject id
         link.split("subject/")
@@ -320,6 +344,14 @@ mod test {
                 item.magnet_link
             );
         }
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_get_calendar_by_season() -> Result<()> {
+        let mikan = create_clinet()?;
+        let result = mikan.get_calendar_by_season("2024 夏季番组").await?;
+        println!("result: {:?}", result);
         Ok(())
     }
 

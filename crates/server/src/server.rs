@@ -260,7 +260,7 @@ impl Server {
     }
 
     async fn do_first_run(state: &Arc<AppState>) -> Result<()> {
-        state.metadata.request_refresh_calendar().await?;
+        state.metadata.request_refresh_calendar(None, true).await?;
         Ok(())
     }
 }

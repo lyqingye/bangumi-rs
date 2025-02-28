@@ -186,19 +186,24 @@ impl Db {
         let models = episodes
             .data
             .into_iter()
-            .map(|ep| episodes::Model {
-                id: 0,
-                bangumi_id: bgm.id,
-                number: ep.sort,
-                name: ep.name_cn.or(ep.name),
-                air_date: ep.airdate,
-                description: ep.desc,
-                image_url: None,
-                kind: ep.ep_type.to_string().into(),
-                created_at: now,
-                updated_at: now,
-                duration_seconds: Some(ep.duration_seconds),
-                sort_number: Some(ep.sort),
+            // FIXME: 这里需要支持小数类型的剧集Number
+            .filter(|ep| ep.get_ep().is_some())
+            .map(|ep| {
+                let ep_number = ep.get_ep();
+                episodes::Model {
+                    id: 0,
+                    bangumi_id: bgm.id,
+                    number: ep_number.unwrap(),
+                    name: ep.name_cn.or(ep.name),
+                    air_date: ep.airdate,
+                    description: ep.desc,
+                    image_url: None,
+                    kind: ep.ep_type.to_string().into(),
+                    created_at: now,
+                    updated_at: now,
+                    duration_seconds: Some(ep.duration_seconds),
+                    sort_number: ep_number,
+                }
             })
             .collect();
 
