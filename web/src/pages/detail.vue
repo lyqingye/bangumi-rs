@@ -58,7 +58,7 @@
                         class="action-btn"
                         @click.stop="handleDelete"
                         :loading="isDeleting"
-                        :disabled="!isSubscribed"
+                        :disabled="anime.subscribe_status !== SubscribeStatus.Subscribed"
                       >
                         <v-icon icon="mdi-delete" size="20" />
                         <v-tooltip activator="parent" location="top">
@@ -73,12 +73,12 @@
                         @click.stop="toggleSubscribe"
                       >
                         <v-icon
-                          :icon="isSubscribed ? 'mdi-heart' : 'mdi-heart-outline'"
-                          :color="isSubscribed ? 'error' : undefined"
+                          :icon="anime.subscribe_status === SubscribeStatus.Subscribed ? 'mdi-heart' : 'mdi-heart-outline'"
+                          :color="anime.subscribe_status === SubscribeStatus.Subscribed ? 'error' : undefined"
                           size="20"
                         />
                         <v-tooltip activator="parent" location="top">
-                          {{ isSubscribed ? '已追番' : '追番' }}
+                          {{ anime.subscribe_status === SubscribeStatus.Subscribed ? '已追番' : '追番' }}
                         </v-tooltip>
                       </v-btn>
                     </div>
