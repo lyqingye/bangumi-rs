@@ -501,8 +501,7 @@ pub async fn refresh_calendar(
     let season = query
         .season
         .as_ref()
-        .filter(|s| !s.is_empty())
-        .map(|s| s.clone());
+        .filter(|s| !s.is_empty()).cloned();
     state
         .metadata
         .request_refresh_calendar(season, force)
