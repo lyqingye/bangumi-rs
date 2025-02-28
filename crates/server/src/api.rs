@@ -14,8 +14,8 @@ use tracing::{info, instrument};
 use crate::{
     config::Config,
     model::{
-        DownloadTask, Metrics, ProcessMetrics, QueryDownloadTask, TMDBMetadata, TMDBSeason,
-        UpdateMDBParams,
+        BangumiListResp, DownloadTask, Metrics, ProcessMetrics, QueryBangumiParams,
+        QueryDownloadTask, TMDBMetadata, TMDBSeason, UpdateMDBParams,
     },
 };
 use crate::{
@@ -24,6 +24,19 @@ use crate::{
     router::ASSETS_MOUNT_PATH,
     server::AppState,
 };
+
+#[get("/api/calendar/season")]
+pub async fn current_calendar_season(
+    state: web::Data<Arc<AppState>>,
+) -> Result<Json<Resp<String>>, ServerError> {
+    let calendar_season = state
+        .dict
+        .get_value(DictCode::CurrentSeasonSchedule)
+        .await?
+        .unwrap_or_default();
+
+    Ok(Json(Resp::ok(calendar_season)))
+}
 
 #[instrument(skip(state))]
 #[get("/api/calendar")]
@@ -358,18 +371,6 @@ pub async fn get_bangumi_torrents_by_id(
         .all(state.db.conn())
         .await?;
 
-    // let episodes = Episodes::find()
-    //     .filter(EpisodeColumn::BangumiId.eq(bangumi_id))
-    //     .order_by_asc(EpisodeColumn::Number)
-    //     .all(state.db.conn())
-    //     .await
-    //     .map_err(|e| ServerError::Internal3(e))?;
-
-    // let episodes_map = episodes
-    //     .into_iter()
-    //     .map(|ep| (ep.number, ep))
-    //     .collect::<HashMap<_, _>>();
-
     // 3. 处理剧集编号映射和过滤非法种子
     torrents.retain_mut(|torrent| {
         if let Some(ep) = torrent.episode_number {
@@ -382,14 +383,6 @@ pub async fn get_bangumi_torrents_by_id(
                 let actual_ep = min_ep + ep - 1;
                 torrent.episode_number = Some(actual_ep);
             }
-
-            // 过滤掉发布时间早于剧集放送时间的种子, 前端过滤
-
-            // if let Some(episode) = episodes_map.get(&actual_ep) {
-            //     if let Some(air_date) = episode.air_date {
-            //         return torrent.pub_date >= air_date.into();
-            //     }
-            // }
         }
         true
     });
@@ -649,4 +642,110 @@ pub async fn update_config(
     *config = body.into_inner();
     state.config_writer.write(&config)?;
     Ok(Json(Resp::ok(())))
+}
+
+#[instrument(skip(state))]
+#[post("/api/bangumi/list")]
+pub async fn list_bangumi(
+    state: web::Data<Arc<AppState>>,
+    params: Json<QueryBangumiParams>,
+) -> Result<Json<Resp<BangumiListResp>>, ServerError> {
+    use model::bangumi::Column as BangumiColumn;
+    use model::bangumi::Entity as Bangumis;
+    use model::subscriptions::Column as SubscriptionColumn;
+    use model::subscriptions::Entity as Subscriptions;
+    use sea_orm::PaginatorTrait;
+    use sea_orm::{
+        ColumnTrait, Condition, EntityTrait, JoinType, QueryFilter, QueryOrder, QuerySelect,
+    };
+
+    // 构建查询条件
+    let mut condition = Condition::all();
+
+    // 添加订阅状态过滤条件
+    if let Some(status) = &params.status {
+        condition = condition.add(SubscriptionColumn::SubscribeStatus.eq(status.clone()));
+    }
+
+    // 添加季度过滤条件
+    if let Some(season) = &params.calendar_season {
+        condition = condition.add(BangumiColumn::CalendarSeason.eq(season.clone()));
+    }
+
+    // 查询总条数
+    let total = Bangumis::find()
+        .join_rev(
+            JoinType::LeftJoin,
+            Subscriptions::belongs_to(Bangumis)
+                .from(SubscriptionColumn::BangumiId)
+                .to(BangumiColumn::Id)
+                .into(),
+        )
+        .filter(condition.clone())
+        .count(state.db.conn())
+        .await?;
+
+    // 查询分页数据
+    let bangumis = Bangumis::find()
+        .select_only()
+        // Bangumi 字段
+        .column(BangumiColumn::Id)
+        .column(BangumiColumn::Name)
+        .column(BangumiColumn::Description)
+        .column(BangumiColumn::BangumiTvId)
+        .column(BangumiColumn::TmdbId)
+        .column(BangumiColumn::MikanId)
+        .column(BangumiColumn::PosterImageUrl)
+        .column(BangumiColumn::AirDate)
+        .column(BangumiColumn::AirWeek)
+        .column(BangumiColumn::Rating)
+        .column(BangumiColumn::EpCount)
+        .column(BangumiColumn::CreatedAt)
+        .column(BangumiColumn::UpdatedAt)
+        .column(BangumiColumn::BackdropImageUrl)
+        .column(BangumiColumn::SeasonNumber)
+        // Subscription 字段
+        .column(SubscriptionColumn::SubscribeStatus)
+        .column(SubscriptionColumn::StartEpisodeNumber)
+        .column(SubscriptionColumn::ResolutionFilter)
+        .column(SubscriptionColumn::LanguageFilter)
+        .column(SubscriptionColumn::ReleaseGroupFilter)
+        .column(SubscriptionColumn::EnforceTorrentReleaseAfterBroadcast)
+        // 联表查询
+        .join_rev(
+            JoinType::LeftJoin,
+            Subscriptions::belongs_to(Bangumis)
+                .from(SubscriptionColumn::BangumiId)
+                .to(BangumiColumn::Id)
+                .into(),
+        )
+        // 应用过滤条件
+        .filter(condition)
+        // 分页
+        .offset(params.offset)
+        .limit(params.limit)
+        // 排序
+        .order_by_desc(BangumiColumn::AirDate)
+        .into_model::<Bangumi>()
+        .all(state.db.conn())
+        .await?;
+
+    // 处理图片路径
+    let bangumis = bangumis
+        .into_iter()
+        .map(|mut bangumi| {
+            if let Some(image) = &mut bangumi.poster_image_url {
+                *image = format!("{}/{}", ASSETS_MOUNT_PATH, image);
+            }
+            if let Some(image) = &mut bangumi.backdrop_image_url {
+                *image = format!("{}/{}", ASSETS_MOUNT_PATH, image);
+            }
+            bangumi
+        })
+        .collect();
+
+    Ok(Json(Resp::ok(BangumiListResp {
+        list: bangumis,
+        total,
+    })))
 }

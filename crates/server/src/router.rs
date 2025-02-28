@@ -12,6 +12,7 @@ pub fn configure_app(cfg: &mut web::ServiceConfig, state: Arc<AppState>) {
                 .show_files_listing()
                 .prefer_utf8(true),
         )
+        .service(api::current_calendar_season)
         .service(api::calendar)
         .service(api::get_bangumi_by_id)
         .service(api::get_bangumi_episodes_by_id)
@@ -30,5 +31,6 @@ pub fn configure_app(cfg: &mut web::ServiceConfig, state: Arc<AppState>) {
         .service(api::update_config)
         .service(api::health)
         .service(api::metrics)
+        .service(api::list_bangumi)
         .route("/ws", web::get().to(ws_handler));
 }

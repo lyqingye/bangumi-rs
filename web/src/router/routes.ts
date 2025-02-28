@@ -28,6 +28,11 @@ export const routes = [
         path: 'detail/:id',
         name: 'detail',
         component: () => import('@/pages/detail.vue')
+      },
+      {
+        path: 'bangumi-list',
+        name: 'bangumi-list',
+        component: () => import('@/pages/bangumi-list.vue')
       }
     ]
   },

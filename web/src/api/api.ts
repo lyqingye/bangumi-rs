@@ -13,7 +13,8 @@ import type {
   TMDBMetadata,
   UpdateMDBParams,
   Metrics,
-  Config
+  Config,
+  QueryBangumiParams
 } from './model'
 import { ApiError } from './model'
 import { useSnackbar } from '../composables/useSnackbar'
@@ -73,6 +74,16 @@ export async function fetchCalendar(): Promise<Bangumi[]> {
     return handleError(error, '获取日历数据失败')
   }
 }
+
+export async function fetchCalendarSeason(): Promise<string> {
+  try {
+    const response = await api.get<ApiResponse<string>>('/calendar/season')
+    return handleResponse(response, '获取日历季节数据失败')
+  } catch (error) {
+    return handleError(error, '获取日历季节数据失败')
+  }
+}
+
 
 // 番剧相关 API
 export async function getBangumiById(id: number): Promise<Bangumi> {
@@ -212,5 +223,15 @@ export async function updateConfig(config: Config): Promise<void> {
     handleResponse(response, '更新配置失败')
   } catch (error) {
     handleError(error, '更新配置失败')
+  }
+}
+
+// 番剧列表查询 API
+export async function fetchBangumiList(params: QueryBangumiParams): Promise<PaginatedResponse<Bangumi>> {
+  try {
+    const response = await api.post<ApiResponse<PaginatedResponse<Bangumi>>>('/bangumi/list', params)
+    return handleResponse(response, '获取番剧列表失败')
+  } catch (error) {
+    return handleError(error, '获取番剧列表失败')
   }
 }
