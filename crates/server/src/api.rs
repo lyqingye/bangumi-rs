@@ -25,6 +25,19 @@ use crate::{
     server::AppState,
 };
 
+#[get("/api/calendar/season")]
+pub async fn current_calendar_season(
+    state: web::Data<Arc<AppState>>,
+) -> Result<Json<Resp<String>>, ServerError> {
+    let calendar_season = state
+        .dict
+        .get_value(DictCode::CurrentSeasonSchedule)
+        .await?
+        .unwrap_or_default();
+
+    Ok(Json(Resp::ok(calendar_season)))
+}
+
 #[instrument(skip(state))]
 #[get("/api/calendar")]
 pub async fn calendar(

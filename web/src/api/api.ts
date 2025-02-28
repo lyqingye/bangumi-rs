@@ -75,6 +75,16 @@ export async function fetchCalendar(): Promise<Bangumi[]> {
   }
 }
 
+export async function fetchCalendarSeason(): Promise<string> {
+  try {
+    const response = await api.get<ApiResponse<string>>('/calendar/season')
+    return handleResponse(response, '获取日历季节数据失败')
+  } catch (error) {
+    return handleError(error, '获取日历季节数据失败')
+  }
+}
+
+
 // 番剧相关 API
 export async function getBangumiById(id: number): Promise<Bangumi> {
   try {
