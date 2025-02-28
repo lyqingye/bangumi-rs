@@ -192,7 +192,8 @@ const statusOptions = [
   { title: '等待中', value: DownloadStatus.Pending },
   { title: '下载中', value: DownloadStatus.Downloading },
   { title: '已完成', value: DownloadStatus.Completed },
-  { title: '失败', value: DownloadStatus.Failed }
+  { title: '失败', value: DownloadStatus.Failed },
+  { title: '重试中', value: DownloadStatus.Retrying }
 ]
 
 const loadTasks = async () => {
@@ -228,6 +229,8 @@ const getStatusColor = (status: DownloadStatus) => {
       return 'success'
     case DownloadStatus.Failed:
       return 'error'
+    case DownloadStatus.Retrying:
+      return 'warning'
     default:
       return 'grey'
   }
@@ -243,6 +246,8 @@ const getStatusText = (status: DownloadStatus) => {
       return '已完成'
     case DownloadStatus.Failed:
       return '失败'
+    case DownloadStatus.Retrying:
+      return '重试中'
     default:
       return '未知'
   }
