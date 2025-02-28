@@ -1,4 +1,4 @@
-name: Rust Code Quality
+name: Lint
 
 on:
   push:
