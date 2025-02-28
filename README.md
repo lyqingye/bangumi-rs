@@ -1,11 +1,14 @@
-[![Lint](https://github.com/lyqingye/bangumi-rs/actions/workflows/checks.yml/badge.svg)](https://github.com/lyqingye/bangumi-rs/actions/workflows/checks.yml) [![Release](https://github.com/lyqingye/bangumi-rs/actions/workflows/release.yml/badge.svg)](https://github.com/lyqingye/bangumi-rs/actions/workflows/release.yml) [![Docker](https://github.com/lyqingye/bangumi-rs/actions/workflows/docker.yml/badge.svg)](https://github.com/lyqingye/bangumi-rs/actions/workflows/docker.yml) 
-# Bangumi 下载管理器
-
+[![Lint](https://github.com/lyqingye/bangumi-rs/actions/workflows/checks.yml/badge.svg)](https://github.com/lyqingye/bangumi-rs/actions/workflows/checks.yml) [![Release](https://github.com/lyqingye/bangumi-rs/actions/workflows/release.yml/badge.svg)](https://github.com/lyqingye/bangumi-rs/actions/workflows/release.yml) [![Docker](https://github.com/lyqingye/bangumi-rs/actions/workflows/docker.yml/badge.svg)](https://github.com/lyqingye/bangumi-rs/actions/workflows/docker.yml)
 <div align="center">
-  <img src="docs/screenshot/home.png" width="80%" />
+
+# Bangumi 下载管理器
+<img src="docs/screenshot/home.png" width="80%" style="box-shadow: 0 12px 32px rgba(0, 0, 0, 0.7); border-radius: 8px; margin: 20px 0;" />
+
 </div>
 
-基于 Rust + Vue 3 开发的动漫追番,支持订阅番剧、智能下载, 在线播放等功能。
+## 简介
+
+基于 Rust + Vue 3 开发的动漫追番工具，支持订阅番剧、智能下载、在线播放等功能。
 
 ---
 
@@ -31,6 +34,7 @@
   - 自动选择最佳种子 (根据分辨率以及语言字幕优先选择)
   - 支持用户手动选择要下载的剧集种子
   - 支持 115 网盘 离线下载
+  - 下载失败后会自动尝试其它种子
 
 - 🎬 在线播放
 
