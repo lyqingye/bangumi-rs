@@ -211,7 +211,7 @@ impl TaskManager {
             .context("番剧不存在")?;
         match task.state {
             State::Ready => {
-                if let Some(info_hash) = task.ref_torrent_info_hash {
+                if let Some(ref info_hash) = task.ref_torrent_info_hash {
                     info!(
                         "开始下载番剧 {} 第 {} 集",
                         bangumi.name, task.episode_number
@@ -219,7 +219,7 @@ impl TaskManager {
                     // 获取种子信息
                     let torrent = self
                         .db
-                        .get_torrent_by_info_hash(&info_hash)
+                        .get_torrent_by_info_hash(info_hash)
                         .await?
                         .context("种子不存在")?;
 
@@ -235,7 +235,7 @@ impl TaskManager {
                 }
             }
             State::Downloading => {
-                if let Some(info_hash) = task.ref_torrent_info_hash {
+                if let Some(ref info_hash) = task.ref_torrent_info_hash {
                     // 检查下载状态
                     let tasks = self.downloader.list_tasks(&[info_hash.clone()]).await?;
                     if let Some(download_task) = tasks.first() {

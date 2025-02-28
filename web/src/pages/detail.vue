@@ -17,10 +17,16 @@
               <!-- 封面图 -->
               <div class="poster-wrapper">
                 <!-- 已订阅彩带 -->
-                <div class="ribbon-wrapper" v-if="isSubscribed">
+                <div class="ribbon-wrapper" v-if="anime.subscribe_status === SubscribeStatus.Subscribed">
                   <div class="ribbon">
                     <v-icon size="16" class="me-1">mdi-check-circle</v-icon>
                     已追番
+                  </div>
+                </div>
+                <div class="ribbon-wrapper" v-if="anime.subscribe_status === SubscribeStatus.Downloaded">
+                  <div class="ribbon">
+                    <v-icon size="16" class="me-1">mdi-check-circle</v-icon>
+                    已完成
                   </div>
                 </div>
 
@@ -1463,9 +1469,6 @@ const { showSnackbar } = useSnackbar()
 // 评分转换为5分制
 const ratingValue = computed(() => (anime.value?.rating ? anime.value.rating / 2 : 0))
 
-// 添加订阅状态
-const isSubscribed = ref(false)
-
 // 切换订阅状态的方法
 const toggleSubscribe = () => {
   if (!anime.value) return
@@ -1479,7 +1482,6 @@ const fetchAnimeDetail = async () => {
     if (!id) return
 
     anime.value = await getBangumiById(id)
-    isSubscribed.value = anime.value.subscribe_status === 'Subscribed'
   } catch (error) {
     console.error('获取番剧详情失败:', error)
     // TODO: 添加错误提示
@@ -1751,8 +1753,6 @@ async function handleSubscribe(params: SubscribeParams) {
     await subscribeBangumi(anime.value.id, params)
     // 重新加载番剧信息以更新订阅状态
     anime.value = await getBangumiById(anime.value.id)
-    // 更新本地订阅状态
-    isSubscribed.value = params.status === SubscribeStatus.Subscribed
     // 显示成功提示
     showSnackbar({
       text: params.status === SubscribeStatus.Subscribed ? '订阅成功' : '取消订阅成功',

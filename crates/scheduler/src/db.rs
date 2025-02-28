@@ -307,27 +307,6 @@ impl Db {
         Ok(())
     }
 
-    /// 获取指定番剧的新创建任务
-    pub async fn get_new_created_tasks(
-        &self,
-        bangumi_id: i32,
-    ) -> Result<Vec<episode_download_tasks::Model>> {
-        use model::episode_download_tasks::Column as TaskColumn;
-        use model::episode_download_tasks::Entity as Tasks;
-
-        let tasks = Tasks::find()
-            .filter(
-                Condition::all()
-                    .add(TaskColumn::BangumiId.eq(bangumi_id))
-                    .add(TaskColumn::State.eq(State::Missing)),
-            )
-            .order_by_asc(TaskColumn::EpisodeNumber)
-            .all(self.conn())
-            .await?;
-
-        Ok(tasks)
-    }
-
     pub async fn get_episode_task_by_bangumi_id_and_episode_number(
         &self,
         bangumi_id: i32,
@@ -420,6 +399,23 @@ impl Db {
             .col_expr(
                 SubscriptionColumn::SubscribeStatus,
                 SubscribeStatus::None.into(),
+            )
+            .filter(SubscriptionColumn::BangumiId.eq(bangumi_id))
+            .exec(self.conn())
+            .await?;
+
+        Ok(())
+    }
+
+    pub async fn update_subscription_as_downloaded(&self, bangumi_id: i32) -> Result<()> {
+        use model::sea_orm_active_enums::SubscribeStatus;
+        use model::subscriptions::Column as SubscriptionColumn;
+        use model::subscriptions::Entity as Subscriptions;
+
+        Subscriptions::update_many()
+            .col_expr(
+                SubscriptionColumn::SubscribeStatus,
+                SubscribeStatus::Downloaded.into(),
             )
             .filter(SubscriptionColumn::BangumiId.eq(bangumi_id))
             .exec(self.conn())

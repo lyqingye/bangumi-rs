@@ -8,6 +8,12 @@
           已追番
         </div>
       </div>
+      <div class="ribbon-wrapper" v-if="item.subscribe_status === SubscribeStatus.Downloaded">
+        <div class="ribbon">
+          <v-icon size="16" class="me-1">mdi-check-circle</v-icon>
+          已完成
+        </div>
+      </div>
 
       <v-img :src="item.poster_image_url" height="360" cover class="card-image">
         <template v-slot:placeholder>

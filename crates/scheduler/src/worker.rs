@@ -147,6 +147,18 @@ impl BangumiWorker {
             .get_unfinished_tasks(self.bangumi.id)
             .await?;
 
+        if tasks.is_empty() {
+            info!(
+                "番剧 {} 所有任务剧集下载已经完成, 标记订阅状态为完成, Worker 将自动停止",
+                self.bangumi.name
+            );
+            self.db
+                .update_subscription_as_downloaded(self.bangumi.id)
+                .await?;
+            self.shutdown_no_wait().await;
+            return Ok(());
+        }
+
         let missing_tasks: Vec<_> = tasks
             .into_iter()
             .filter(|t| t.state == State::Missing)
@@ -281,6 +293,13 @@ impl BangumiWorker {
             .await
             .ok_or_else(|| anyhow::anyhow!("worker 停止失败"))?;
         Ok(())
+    }
+
+    async fn shutdown_no_wait(&self) {
+        // 创建一个 mpsc 通道来等待 worker 完全停止
+        let (tx, _) = mpsc::channel(1);
+        // 发送停止命令
+        let _ = self.cmd_tx.send(WorkerCommand::Shutdown(tx));
     }
 
     /// 触发种子收集
