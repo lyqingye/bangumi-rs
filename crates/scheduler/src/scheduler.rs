@@ -179,6 +179,13 @@ impl Scheduler {
         Ok(())
     }
 
+    pub async fn retry_task(&self, bangumi_id: i32, episode_number: i32) -> Result<()> {
+        self.task_manager
+            .retry_task(bangumi_id, episode_number)
+            .await?;
+        Ok(())
+    }
+
     pub async fn trigger_collection(&self, bangumi_id: i32) -> Result<()> {
         let mut workers = self.workers.lock().await;
         if let Some(worker) = workers.get_mut(&bangumi_id) {
