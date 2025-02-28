@@ -92,8 +92,8 @@
               size="x-small"
               class="ms-1 retry-icon"
               icon="mdi-refresh"
-              :class="{ 'loading': retryingTasks.includes(item.info_hash) }"
-              @click.stop="retryTask(item.info_hash)"
+              :class="{ 'loading': retryingTasks.includes(`${item.bangumi_id}-${item.episode_number}`) }"
+              @click.stop="retryTask(item.bangumi_id, item.episode_number)"
             />
           </v-chip>
         </template>
@@ -278,12 +278,13 @@ const navigateToBangumiDetail = (bangumiId: number) => {
 }
 
 // 重试下载任务
-const retryTask = async (infoHash: string) => {
-  if (retryingTasks.value.includes(infoHash)) return
+const retryTask = async (bangumiId: number, episodeNumber: number) => {
+  const taskId = `${bangumiId}-${episodeNumber}`;
+  if (retryingTasks.value.includes(taskId)) return
   
-  retryingTasks.value.push(infoHash)
+  retryingTasks.value.push(taskId)
   try {
-    await retryDownloadTask(infoHash)
+    await retryDownloadTask(bangumiId, episodeNumber)
     showSnackbar({
       text: '重试任务已提交',
       color: 'success',
@@ -295,7 +296,7 @@ const retryTask = async (infoHash: string) => {
   } catch (error) {
     console.error('重试下载任务失败:', error)
   } finally {
-    retryingTasks.value = retryingTasks.value.filter(hash => hash !== infoHash)
+    retryingTasks.value = retryingTasks.value.filter(id => id !== taskId)
   }
 }
 

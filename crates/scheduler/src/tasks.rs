@@ -115,11 +115,31 @@ impl TaskManager {
             .await?;
 
         // 发送状态变化命令
+        self.send_state_update_cmd(bangumi_id, episode_number)
+            .await?;
+        Ok(())
+    }
+
+    /// 更新任务状态为就绪，并设置选中的种子
+    pub async fn retry_task(&self, bangumi_id: i32, episode_number: i32) -> Result<()> {
+        // 先更新数据库
+        self.db
+            .update_task_state(bangumi_id, episode_number, State::Retrying)
+            .await?;
+
+        // 发送状态变化命令
+        self.send_state_update_cmd(bangumi_id, episode_number)
+            .await?;
+        Ok(())
+    }
+
+    async fn send_state_update_cmd(&self, bangumi_id: i32, episode_number: i32) -> Result<()> {
         self.cmd_tx
             .as_ref()
             .expect("tasks unspawn")
             .send(Cmd::StateUpdate((bangumi_id, episode_number)))
             .await?;
+
         Ok(())
     }
 
@@ -287,9 +307,16 @@ impl TaskManager {
                     "番剧 {} 第 {} 集重试下载",
                     bangumi.name, task.episode_number
                 );
-                self.db
-                    .update_task_state(task.bangumi_id, task.episode_number, State::Missing)
-                    .await?;
+
+                // 之前已经有过任务,
+                if let Some(ref info_hash) = task.ref_torrent_info_hash {
+                    self.downloader.retry(info_hash).await?;
+                } else {
+                    // 之前没有任务, 直接尝试新的种子
+                    self.db
+                        .update_task_state(task.bangumi_id, task.episode_number, State::Missing)
+                        .await?;
+                }
             }
             _ => {}
         }

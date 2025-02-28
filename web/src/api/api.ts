@@ -238,9 +238,9 @@ export async function fetchBangumiList(params: QueryBangumiParams): Promise<Pagi
 
 
 // 重试下载任务
-export async function retryDownloadTask(infoHash: string): Promise<void> {
+export async function retryDownloadTask(bangumiId: number, episodeNumber: number): Promise<void> {
   try {
-    const response = await api.get<ApiResponse<null>>(`/downloads/retry/${infoHash}`)
+    const response = await api.get<ApiResponse<null>>(`/downloads/${bangumiId}/${episodeNumber}/retry`)
     handleResponse(response, '重试下载任务失败')
   } catch (error) {
     handleError(error, '重试下载任务失败')
