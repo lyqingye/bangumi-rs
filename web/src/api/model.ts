@@ -19,7 +19,7 @@ export interface ApiResponse<T> {
 
 // 分页响应类型
 export interface PaginatedResponse<T> {
-  items: T[]
+  list: T[]
   total: number
 }
 
@@ -314,4 +314,12 @@ export interface Config {
   pan115: Pan115Config
   notify: NotifyConfig
   proxy: ProxyConfig
+}
+
+// 番剧查询参数
+export interface QueryBangumiParams {
+  offset: number
+  limit: number
+  status?: SubscribeStatus
+  calendar_season?: string
 }
