@@ -84,7 +84,14 @@ impl Matcher {
         let info = self.mikan.get_bangumi_info(bgm.mikan_id.unwrap()).await?;
         bgm.bangumi_tv_id = info.bangumi_tv_id;
 
-        if loaded {
+        if !loaded {
+            return Ok(None);
+        }
+        if bgm.bangumi_tv_id.is_none() {
+            warn!(
+                "[bgm.tv] 无法根据 MikanId 关联到 bangumi_tv_id，跳过匹配, mikan_id: {}",
+                bgm.mikan_id.unwrap()
+            );
             return Ok(None);
         }
 
