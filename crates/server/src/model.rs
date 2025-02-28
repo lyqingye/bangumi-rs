@@ -200,3 +200,8 @@ pub struct BangumiListResp {
     pub list: Vec<Bangumi>,
     pub total: u64,
 }
+
+#[derive(Debug, serde::Deserialize)]
+pub struct CalendarQuery {
+    pub season: Option<String>,
+}

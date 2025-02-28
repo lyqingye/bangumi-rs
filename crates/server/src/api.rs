@@ -14,7 +14,7 @@ use tracing::{info, instrument};
 use crate::{
     config::Config,
     model::{
-        BangumiListResp, DownloadTask, Metrics, ProcessMetrics, QueryBangumiParams,
+        BangumiListResp, CalendarQuery, DownloadTask, Metrics, ProcessMetrics, QueryBangumiParams,
         QueryDownloadTask, TMDBMetadata, TMDBSeason, UpdateMDBParams,
     },
 };
@@ -39,10 +39,10 @@ pub async fn current_calendar_season(
 }
 
 #[instrument(skip(state))]
-#[get("/api/calendar/{season}")]
+#[get("/api/calendar")]
 pub async fn calendar(
     state: web::Data<Arc<AppState>>,
-    path: web::Path<Option<String>>,
+    query: web::Query<CalendarQuery>,
 ) -> Result<Json<Resp<Vec<Bangumi>>>, ServerError> {
     use model::bangumi::Column as BangumiColumn;
     use model::bangumi::Entity as Bangumis;
@@ -50,8 +50,8 @@ pub async fn calendar(
     use model::subscriptions::Entity as Subscriptions;
     use sea_orm::{ColumnTrait, EntityTrait, JoinType, QueryFilter, QueryOrder, QuerySelect};
 
-    let calendar_season = if let Some(season) = path.into_inner() {
-        season
+    let calendar_season = if let Some(season) = query.season.as_ref() {
+        season.clone()
     } else {
         state
             .dict
@@ -495,10 +495,12 @@ pub async fn list_download_tasks(
 #[get("/api/calendar/refresh/{season}")]
 pub async fn refresh_calendar(
     state: web::Data<Arc<AppState>>,
-    path: web::Path<Option<String>>,
+    query: web::Query<CalendarQuery>,
 ) -> Result<Json<Resp<()>>, ServerError> {
-    let season = path.into_inner();
-    state.metadata.request_refresh_calendar(season).await?;
+    state
+        .metadata
+        .request_refresh_calendar(query.season.clone())
+        .await?;
     Ok(Json(Resp::ok(())))
 }
 
