@@ -186,3 +186,17 @@ pub struct ProcessMetrics {
     pub used: u64,
     pub run_time_sec: u64,
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct QueryBangumiParams {
+    pub offset: u64,
+    pub limit: u64,
+    pub status: Option<SubscribeStatus>,
+    pub calendar_season: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct BangumiListResp {
+    pub list: Vec<Bangumi>,
+    pub total: u64,
+}
