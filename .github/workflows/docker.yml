@@ -9,6 +9,7 @@ on:
       - "crates/**"
       - "libs/**"
       - "web/**"
+      - "develop/migrations/**"
       - "Cargo.toml"
       - "Cargo.lock"
       - "crates/cli-app/Dockerfile"
