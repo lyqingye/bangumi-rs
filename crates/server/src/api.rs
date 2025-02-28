@@ -358,18 +358,6 @@ pub async fn get_bangumi_torrents_by_id(
         .all(state.db.conn())
         .await?;
 
-    // let episodes = Episodes::find()
-    //     .filter(EpisodeColumn::BangumiId.eq(bangumi_id))
-    //     .order_by_asc(EpisodeColumn::Number)
-    //     .all(state.db.conn())
-    //     .await
-    //     .map_err(|e| ServerError::Internal3(e))?;
-
-    // let episodes_map = episodes
-    //     .into_iter()
-    //     .map(|ep| (ep.number, ep))
-    //     .collect::<HashMap<_, _>>();
-
     // 3. 处理剧集编号映射和过滤非法种子
     torrents.retain_mut(|torrent| {
         if let Some(ep) = torrent.episode_number {
@@ -382,14 +370,6 @@ pub async fn get_bangumi_torrents_by_id(
                 let actual_ep = min_ep + ep - 1;
                 torrent.episode_number = Some(actual_ep);
             }
-
-            // 过滤掉发布时间早于剧集放送时间的种子, 前端过滤
-
-            // if let Some(episode) = episodes_map.get(&actual_ep) {
-            //     if let Some(air_date) = episode.air_date {
-            //         return torrent.pub_date >= air_date.into();
-            //     }
-            // }
         }
         true
     });
