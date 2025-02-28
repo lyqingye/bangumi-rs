@@ -30,7 +30,8 @@ const POLL_TIMEOUT: Duration = Duration::from_secs(1);
 pub enum Inner {
     Metadata(i32, bool),
     Torrents(i32),
-    Calendar,
+    /// 刷新指定季节的放送列表, 如果为None, 则刷新当前季节
+    Calendar(Option<String>),
 }
 
 #[derive(Debug)]
@@ -204,8 +205,9 @@ impl Worker {
         Ok(())
     }
 
-    pub async fn request_refresh_calendar(&self) -> Result<()> {
-        self.send_cmd(Cmd::Refresh(Inner::Calendar), None).await
+    pub async fn request_refresh_calendar(&self, season: Option<String>) -> Result<()> {
+        self.send_cmd(Cmd::Refresh(Inner::Calendar(season)), None)
+            .await
     }
 
     async fn send_cmd(&self, cmd: Cmd, done_tx: Option<oneshot::Sender<()>>) -> Result<()> {
@@ -239,8 +241,8 @@ impl Worker {
             Inner::Metadata(id, force) => {
                 self.handle_refresh_metadata(id, force, mdbs).await?;
             }
-            Inner::Calendar => {
-                self.handle_refresh_calendar().await?;
+            Inner::Calendar(season) => {
+                self.handle_refresh_calendar(season).await?;
             }
             _ => warn!("无效的刷新请求: {:?}", request),
         }
@@ -323,21 +325,29 @@ impl Worker {
     }
 
     /// 处理放送列表刷新请求
-    async fn handle_refresh_calendar(&self) -> Result<()> {
+    async fn handle_refresh_calendar(&self, season: Option<String>) -> Result<()> {
         info!("正在刷新放送列表");
-        let calendar = self.mikan.get_calendar().await?;
+
+        let calendar = if let Some(season) = season.as_ref() {
+            self.mikan.get_calendar_by_season(season).await?
+        } else {
+            self.mikan.get_calendar().await?
+        };
         info!(
             "已收集 {} 个番剧信息, 放送季: {:?}",
             calendar.bangumis.len(),
             calendar.season
         );
 
-        self.dict
-            .set_value(
-                DictCode::CurrentSeasonSchedule,
-                calendar.season.clone().unwrap_or_default(),
-            )
-            .await?;
+        // 更新当前放送季
+        if season.is_none() {
+            self.dict
+                .set_value(
+                    DictCode::CurrentSeasonSchedule,
+                    calendar.season.clone().unwrap_or_default(),
+                )
+                .await?;
+        }
 
         let mikan_ids: Vec<_> = calendar.bangumis.iter().map(|bgm| bgm.id).collect();
         self.db.save_mikan_calendar(calendar).await?;

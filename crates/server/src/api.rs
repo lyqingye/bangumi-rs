@@ -487,11 +487,13 @@ pub async fn list_download_tasks(
     Ok(Json(Resp::ok(downloads)))
 }
 
-#[get("/api/calendar/refresh")]
+#[get("/api/calendar/refresh/{season}")]
 pub async fn refresh_calendar(
     state: web::Data<Arc<AppState>>,
+    path: web::Path<Option<String>>,
 ) -> Result<Json<Resp<()>>, ServerError> {
-    state.metadata.request_refresh_calendar().await?;
+    let season = path.into_inner();
+    state.metadata.request_refresh_calendar(season).await?;
     Ok(Json(Resp::ok(())))
 }
 
