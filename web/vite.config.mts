@@ -57,14 +57,14 @@ export default defineConfig({
         changeOrigin: true
       },
       
-      '/api': {
-        target: 'http://127.0.0.1:3001',
-        changeOrigin: true
-      }
       // '/api': {
-      //   target: 'http://192.168.1.10:3001',
+      //   target: 'http://127.0.0.1:3001',
       //   changeOrigin: true
       // }
+      '/api': {
+        target: 'http://192.168.1.10:3001',
+        changeOrigin: true
+      }
     }
   },
   css: {

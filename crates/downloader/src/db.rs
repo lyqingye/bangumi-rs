@@ -123,6 +123,10 @@ impl Db {
             .col_expr(Column::NextRetryAt, SimpleExpr::from(next_retry_at))
             .col_expr(Column::ErrMsg, SimpleExpr::from(err_msg))
             .col_expr(Column::UpdatedAt, SimpleExpr::from(now))
+            .col_expr(
+                Column::DownloadStatus,
+                SimpleExpr::from(DownloadStatus::Retrying),
+            )
             .filter(Column::InfoHash.eq(info_hash))
             .exec(&*self.conn)
             .await?;

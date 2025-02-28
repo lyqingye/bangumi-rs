@@ -472,7 +472,10 @@ impl Pan115Downloader {
             );
 
             // 重试
-            task.download_status = DownloadStatus::Pending;
+            self.tasks
+                .update_task_status(&task.info_hash, DownloadStatus::Pending, None, None)
+                .await?;
+
             self.send_to_queue(task.info_hash.clone()).await?;
         }
 
