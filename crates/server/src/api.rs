@@ -478,6 +478,16 @@ pub async fn manual_select_torrent(
     Ok(Json(Resp::ok(())))
 }
 
+#[get("/api/downloads/retry/{info_hash}")]
+pub async fn retry_download_task(
+    state: web::Data<Arc<AppState>>,
+    info_hash: web::Path<String>,
+) -> Result<Json<Resp<()>>, ServerError> {
+    let info_hash = info_hash.into_inner();
+    state.scheduler.get_downloader().retry(&info_hash).await?;
+    Ok(Json(Resp::ok(())))
+}
+
 #[post("/api/downloads")]
 pub async fn list_download_tasks(
     state: web::Data<Arc<AppState>>,

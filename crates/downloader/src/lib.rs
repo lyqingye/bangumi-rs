@@ -22,6 +22,7 @@ pub trait Downloader: Send + Sync {
     async fn cancel_task(&self, info_hash: &str) -> Result<()>;
     async fn metrics(&self) -> metrics::Metrics;
     async fn subscribe(&self) -> broadcast::Receiver<Event>;
+    async fn retry(&self, info_hash: &str) -> Result<()>;
 }
 
 #[derive(Debug, Clone)]

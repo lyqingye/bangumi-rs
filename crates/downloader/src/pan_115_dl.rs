@@ -184,6 +184,17 @@ impl Downloader for Pan115Downloader {
         Ok(())
     }
 
+    async fn retry(&self, info_hash: &str) -> Result<()> {
+        info!("手动重试任务: info_hash={}", info_hash);
+
+        // 修改状态，等待后台线程重试
+        let next_retry_at = Local::now().naive_utc();
+        self.tasks
+            .update_task_retry_status(info_hash, next_retry_at, None)
+            .await?;
+        Ok(())
+    }
+
     async fn metrics(&self) -> metrics::Metrics {
         metrics::Metrics {
             num_of_tasks: self.tasks.tasks_count().await,
@@ -395,15 +406,9 @@ impl Pan115Downloader {
                     }
                     _ => {
                         warn!("添加离线下载任务失败: {} - {}, 将重试", info_hash, e);
-                        let retry_count = task.retry_count + 1;
-                        let next_retry_at = self.config.calculate_next_retry(retry_count);
+                        let next_retry_at = self.config.calculate_next_retry(task.retry_count + 1);
                         self.tasks
-                            .update_task_retry_status(
-                                info_hash,
-                                retry_count,
-                                next_retry_at,
-                                Some(e.to_string()),
-                            )
+                            .update_task_retry_status(info_hash, next_retry_at, Some(e.to_string()))
                             .await?;
                     }
                 };
