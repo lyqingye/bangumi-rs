@@ -621,7 +621,7 @@ impl Pan115Downloader {
                 || status == DownloadStatus::Downloading
             {
                 let now = Local::now().naive_utc();
-                let elapsed = now - local_task.created_at;
+                let elapsed = now - local_task.updated_at;
                 if elapsed > self.config.offline_download_timeout {
                     warn!("离线下载超时: info_hash={}, 删除任务", info_hash);
                     self.tasks

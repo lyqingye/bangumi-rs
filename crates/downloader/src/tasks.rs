@@ -1,7 +1,7 @@
 use std::{collections::HashMap, sync::Arc};
 
 use anyhow::Result;
-use chrono::NaiveDateTime;
+use chrono::{Local, NaiveDateTime};
 use model::{sea_orm_active_enums::DownloadStatus, torrent_download_tasks};
 use tokio::sync::{broadcast, RwLock};
 
@@ -133,6 +133,7 @@ impl TaskManager {
                 task.download_status = status;
                 task.err_msg = err_msg;
                 task.context = context.map(|c| c.try_into().unwrap_or_default());
+                task.updated_at = Local::now().naive_utc();
             }
         }
 
@@ -169,6 +170,7 @@ impl TaskManager {
             task.next_retry_at = next_retry_at;
             task.download_status = DownloadStatus::Retrying;
             task.err_msg = err_msg;
+            task.updated_at = Local::now().naive_utc();
         }
 
         Ok(())
