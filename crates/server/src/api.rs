@@ -39,9 +39,10 @@ pub async fn current_calendar_season(
 }
 
 #[instrument(skip(state))]
-#[get("/api/calendar")]
+#[get("/api/calendar/{season}")]
 pub async fn calendar(
     state: web::Data<Arc<AppState>>,
+    path: web::Path<Option<String>>,
 ) -> Result<Json<Resp<Vec<Bangumi>>>, ServerError> {
     use model::bangumi::Column as BangumiColumn;
     use model::bangumi::Entity as Bangumis;
@@ -49,11 +50,15 @@ pub async fn calendar(
     use model::subscriptions::Entity as Subscriptions;
     use sea_orm::{ColumnTrait, EntityTrait, JoinType, QueryFilter, QueryOrder, QuerySelect};
 
-    let calendar_season = state
-        .dict
-        .get_value(DictCode::CurrentSeasonSchedule)
-        .await?
-        .unwrap_or_default();
+    let calendar_season = if let Some(season) = path.into_inner() {
+        season
+    } else {
+        state
+            .dict
+            .get_value(DictCode::CurrentSeasonSchedule)
+            .await?
+            .unwrap_or_default()
+    };
 
     let bangumis = Bangumis::find()
         .select_only()
