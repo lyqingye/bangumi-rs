@@ -124,18 +124,35 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed, watch } from 'vue'
-import { fetchCalendar, refreshCalendar, fetchCalendarSeason } from '@/api/api'
+import { fetchCalendar, refreshCalendar } from '@/api/api'
 import { type Bangumi } from '@/api/model'
 import MediaCard from '@/components/MediaCard.vue'
 import RefreshDialog from '@/components/RefreshDialog.vue'
 import { useSnackbar } from '@/composables/useSnackbar'
+import { useSeason } from '@/stores/season'
 
 const { showSnackbar } = useSnackbar()
-// 定义选项类型
-interface SelectOption<T> {
-  title: string;
-  value: T;
-}
+// 使用season store
+const { 
+  state: seasonState, 
+  yearOptions, 
+  seasonOptions, 
+  setYear, 
+  setSeason, 
+  getCalendarSeason, 
+  initializeSeasonInfo 
+} = useSeason()
+
+// 将本地状态映射到store状态
+const selectedYear = computed({
+  get: () => seasonState.selectedYear,
+  set: (value) => setYear(value)
+})
+
+const selectedSeason = computed({
+  get: () => seasonState.selectedSeason,
+  set: (value) => setSeason(value)
+})
 
 const selectedWeekday = ref(String(new Date().getDay()))
 const calendarItems = ref<Bangumi[]>([])
@@ -146,40 +163,6 @@ const error = ref('')
 // 添加刷新对话框状态
 const showRefreshDialog = ref(false)
 
-// 季节筛选相关
-const selectedYear = ref<number>(new Date().getFullYear())
-const selectedSeason = ref<string>('冬季番组')
-const availableSeasons = ref<string[]>([])
-
-// 年份选项
-const yearOptions = computed<SelectOption<number>[]>(() => {
-  const options: SelectOption<number>[] = [];
-  
-  // 获取当前年份
-  const currentYear = new Date().getFullYear();
-  
-  // 从当前年份到2015年
-  for (let year = currentYear; year >= 2015; year--) {
-    options.push({
-      title: `${year}年`,
-      value: year
-    });
-  }
-  
-  return options;
-});
-
-// 季节选项
-const seasonOptions = computed<SelectOption<string>[]>(() => {
-  // 基础季节选项
-  return [
-    { title: '冬季番组', value: '冬季番组' },
-    { title: '春季番组', value: '春季番组' },
-    { title: '夏季番组', value: '夏季番组' },
-    { title: '秋季番组', value: '秋季番组' }
-  ];
-});
-
 const filteredCalendarItems = computed(() => {
   if (selectedWeekday.value === '-1') {
     return calendarItems.value
@@ -187,17 +170,12 @@ const filteredCalendarItems = computed(() => {
   return calendarItems.value.filter(item => item.air_week === parseInt(selectedWeekday.value))
 })
 
-// 获取当前选择的季度值
-function getCalendarSeason(): string {
-  return `${selectedYear.value} ${selectedSeason.value}`;
-}
-
 const loadCalendarData = async () => {
   loading.value = true
   error.value = ''
   try {
     const season = getCalendarSeason();
-    calendarItems.value = await fetchCalendar(season)
+    calendarItems.value = await fetchCalendar(season || '')
   } catch (e) {
     error.value = e instanceof Error ? e.message : '获取数据失败'
   } finally {
@@ -215,7 +193,7 @@ const handleRefreshConfirm = async (force: boolean) => {
   refreshing.value = true
   try {
     const season = getCalendarSeason();
-    await refreshCalendar(season, force)
+    await refreshCalendar(season || '', force)
     await loadCalendarData()
     showSnackbar({
       text: '已经加入刷新队列',
@@ -242,40 +220,6 @@ watch(selectedSeason, () => {
   loadCalendarData();
 });
 
-// 获取最新的季度信息并设置默认选择
-const fetchLatestSeason = async () => {
-  try {
-    const latestSeason = await fetchCalendarSeason();
-    if (latestSeason) {
-      // 保存可用的季度信息
-      availableSeasons.value = [latestSeason];
-      
-      // 解析季度信息，格式如：2025 冬季番组
-      const parts = latestSeason.split(' ');
-      if (parts.length === 2) {
-        const year = parseInt(parts[0]);
-        const season = parts[1];
-        // 设置年份和季节选择
-        selectedYear.value = year;
-        selectedSeason.value = season;
-      } else {
-        // 如果没有获取到完整的季度信息，则使用当前年份和默认季节
-        selectedYear.value = new Date().getFullYear();
-        selectedSeason.value = '冬季番组';
-      }
-    } else {
-      // 如果没有获取到季度信息，则使用当前年份和默认季节
-      selectedYear.value = new Date().getFullYear();
-      selectedSeason.value = '冬季番组';
-    }
-  } catch (e) {
-    console.error('获取最新季度信息失败:', e);
-    // 出错时使用当前年份和默认季节
-    selectedYear.value = new Date().getFullYear();
-    selectedSeason.value = '冬季番组';
-  }
-}
-
 // 星期标签配置
 const weekTabs = [
   { label: '全部', value: '-1' },
@@ -289,9 +233,9 @@ const weekTabs = [
 ]
 
 onMounted(async () => {
-  // 先获取最新季度信息
-  await fetchLatestSeason();
-  // 然后加载番剧列表
+  // 初始化季节信息
+  await initializeSeasonInfo();
+  // 加载番剧列表
   loadCalendarData()
 })
 </script>

@@ -1,9 +1,10 @@
-import { useSnackbarStore } from '../stores/snackbar'
-export type { SnackbarOptions } from '../stores/snackbar'
+import { useSnackbarStore, type SnackbarOptions } from '@/stores/snackbar'
 
-export function useSnackbar() {
-  const { showSnackbar } = useSnackbarStore()
+export const useSnackbar = () => {
+  const { state, showSnackbar } = useSnackbarStore()
+
   return {
+    state,
     showSnackbar
   }
 }

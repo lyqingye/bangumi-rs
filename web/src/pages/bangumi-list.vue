@@ -93,9 +93,10 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
-import { fetchBangumiList, fetchCalendarSeason } from '@/api/api'
+import { fetchBangumiList } from '@/api/api'
 import { SubscribeStatus, type Bangumi, type QueryBangumiParams } from '@/api/model'
 import MediaCard from '@/components/MediaCard.vue'
+import { useSeason } from '@/stores/season'
 
 // 分页参数
 const pageSize = 12
@@ -103,66 +104,42 @@ const currentPage = ref(1)
 const total = ref(0)
 const totalPages = computed(() => Math.ceil(total.value / pageSize))
 
-// 定义选项类型
-interface SelectOption<T> {
-  title: string;
-  value: T;
-}
+// 使用season store
+const { 
+  state: seasonState, 
+  yearOptions, 
+  seasonOptions, 
+  setYear, 
+  setSeason, 
+  getCalendarSeason, 
+  initializeSeasonInfo 
+} = useSeason()
 
-// 查询参数
-const selectedYear = ref<number | null>(null)
-const selectedSeason = ref<string | null>(null)
+// 将本地状态映射到store状态
+const selectedYear = computed({
+  get: () => seasonState.selectedYear,
+  set: (value) => setYear(value)
+})
+
+const selectedSeason = computed({
+  get: () => seasonState.selectedSeason,
+  set: (value) => setSeason(value)
+})
+
+// 订阅状态
 const selectedStatus = ref<SubscribeStatus | null>(null)
-const availableSeasons = ref<string[]>([])
 
 // 数据状态
 const bangumis = ref<Bangumi[]>([])
 const loading = ref(false)
 const error = ref('')
 
-// 年份选项
-const yearOptions = computed<SelectOption<number | null>[]>(() => {
-  const options: SelectOption<number | null>[] = [{ title: '全部年份', value: null }];
-  
-  // 获取当前年份
-  const currentYear = new Date().getFullYear();
-  
-  // 从2015年到当前年份
-  for (let year = currentYear; year >= 2015; year--) {
-    options.push({
-      title: `${year}年`,
-      value: year
-    });
-  }
-  
-  return options;
-});
-
-// 季节选项 - 改为计算属性，根据selectedYear动态生成
-const seasonOptions = computed<SelectOption<string | null>[]>(() => {
-  // 基础季节选项
-  const baseOptions: SelectOption<string | null>[] = [
-    { title: '冬季番组', value: '冬季番组' },
-    { title: '春季番组', value: '春季番组' },
-    { title: '夏季番组', value: '夏季番组' },
-    { title: '秋季番组', value: '秋季番组' }
-  ];
-  
-  // 如果没有选择具体年份，则只能选择"全部季节"
-  if (selectedYear.value === null) {
-    return [{ title: '全部季节', value: null }];
-  }
-  
-  // 如果选择了具体年份，则只能选择具体季节
-  return baseOptions;
-});
-
 // 订阅状态选项
-const statusOptions: SelectOption<SubscribeStatus | null>[] = [
+const statusOptions = [
   { title: '全部状态', value: null },
   { title: '已订阅', value: SubscribeStatus.Subscribed },
   { title: '未订阅', value: SubscribeStatus.None },
-];
+]
 
 // 加载番剧列表数据
 const loadBangumiList = async () => {
@@ -191,77 +168,36 @@ const loadBangumiList = async () => {
   }
 }
 
-// 获取当前选择的季度值
-function getCalendarSeason(): string | undefined {
-  if (!selectedYear.value && !selectedSeason.value) return undefined;
-  if (!selectedYear.value) return selectedSeason.value || undefined;
-  if (!selectedSeason.value) return String(selectedYear.value);
-  return `${selectedYear.value} ${selectedSeason.value}`;
-}
-
 // 处理页码变化
 const handlePageChange = () => {
   loadBangumiList()
 }
 
 // 监听年份变化
-watch(selectedYear, (newYear) => {
-  if (newYear === null) {
-    // 如果选择了"全部年份"，则季节必须是"全部季节"
-    selectedSeason.value = null;
-  } else {
-    // 如果选择了具体年份，但季节是"全部季节"，则自动选择第一个具体季节
-    if (selectedSeason.value === null) {
-      selectedSeason.value = '冬季番组';
-    }
-  }
-  
-  currentPage.value = 1; // 重置到第一页
-  loadBangumiList();
-});
+watch(selectedYear, () => {
+  currentPage.value = 1 // 重置到第一页
+  loadBangumiList()
+})
 
 // 监听季节变化
 watch(selectedSeason, () => {
-  currentPage.value = 1; // 重置到第一页
-  loadBangumiList();
-});
+  currentPage.value = 1 // 重置到第一页
+  loadBangumiList()
+})
 
 // 监听订阅状态变化
 watch(selectedStatus, () => {
-  currentPage.value = 1; // 重置到第一页
-  loadBangumiList();
-});
-
-// 获取最新的季度信息并设置默认选择
-const fetchLatestSeason = async () => {
-  try {
-    const latestSeason = await fetchCalendarSeason();
-    if (latestSeason) {
-      // 保存可用的季度信息
-      availableSeasons.value = [latestSeason];
-      
-      // 解析季度信息，格式如：2025 冬季番组
-      const parts = latestSeason.split(' ');
-      if (parts.length === 2) {
-        const year = parseInt(parts[0]);
-        const season = parts[1];
-        // 设置年份和季节选择
-        selectedYear.value = year;
-        selectedSeason.value = season;
-      }
-    }
-  } catch (e) {
-    console.error('获取最新季度信息失败:', e);
-  }
-}
+  currentPage.value = 1 // 重置到第一页
+  loadBangumiList()
+})
 
 // 组件挂载时加载数据
 onMounted(async () => {
-  // 先获取最新季度信息
-  await fetchLatestSeason();
-  // 然后加载番剧列表
-  loadBangumiList();
-});
+  // 初始化季节信息
+  await initializeSeasonInfo()
+  // 加载番剧列表
+  loadBangumiList()
+})
 </script>
 
 <style scoped>
