@@ -498,10 +498,7 @@ pub async fn refresh_calendar(
     force: web::Path<bool>,
 ) -> Result<Json<Resp<()>>, ServerError> {
     let force = force.into_inner();
-    let season = query
-        .season
-        .as_ref()
-        .filter(|s| !s.is_empty()).cloned();
+    let season = query.season.as_ref().filter(|s| !s.is_empty()).cloned();
     state
         .metadata
         .request_refresh_calendar(season, force)
