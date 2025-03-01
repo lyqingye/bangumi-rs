@@ -7,7 +7,7 @@ use model::sea_orm_active_enums::DownloadStatus;
 use tracing::{debug, info, warn};
 
 impl Worker {
-    pub(crate) async fn spawn_syncer(&self) -> Result<()> {
+    pub(crate) fn spawn_syncer(&self) -> Result<()> {
         let worker = self.clone();
         tokio::spawn(async move {
             worker.sync_remote_task_status().await;
@@ -53,14 +53,28 @@ impl Worker {
                     info_hash, local_task.download_status, status, err_msg
                 );
 
-                self.send_event(Event::RemoteTaskUpdated(
-                    info_hash,
-                    RemoteTaskStatus { status, err_msg },
-                ))
-                .await?;
-            }
+                match status {
+                    DownloadStatus::Completed => {
+                        self.send_event(Event::TaskCompleted(info_hash)).await?;
+                    }
 
-            // TODO 是否要在这里处理超时?
+                    DownloadStatus::Cancelled => {
+                        self.send_event(Event::CancelTask(info_hash)).await?;
+                    }
+
+                    DownloadStatus::Failed => {
+                        self.send_event(Event::TaskFailed(info_hash, err_msg.unwrap_or_default()))
+                            .await?;
+                    }
+
+                    _ => {
+                        warn!(
+                            "[Syncer] 未处理的任务状态: info_hash={}, status={:?}, err_msg={:?}",
+                            info_hash, status, err_msg
+                        );
+                    }
+                }
+            }
         }
 
         Ok(())
