@@ -124,6 +124,8 @@ impl Server {
             pan115,
             downloader::pan_115_dl::Config {
                 download_dir: PathBuf::from_str(&config.pan115.download_dir)?,
+                max_retry_count: config.pan115.max_retry_count,
+                offline_download_timeout: config.pan115.offline_download_timeout,
                 ..Default::default()
             },
         )
