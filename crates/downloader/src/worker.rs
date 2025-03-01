@@ -33,7 +33,7 @@ impl Event {
             Self::TaskCompleted(info_hash) => info_hash,
         };
         tasks
-            .get_by_info_hash(&info_hash)
+            .get_by_info_hash(info_hash)
             .await?
             .ok_or_else(|| anyhow::anyhow!("任务不存在: info_hash={}", info_hash))
     }
@@ -116,16 +116,10 @@ impl Worker {
         };
         let mut event = Some(event);
         let mut state = Some(task.download_status);
-        loop {
-            match (event, state) {
-                (Some(cur_event), Some(cur_state)) => {
-                    let (next_event, next_state) =
-                        self.transition(cur_event, cur_state, &mut ctx).await?;
-                    event = next_event;
-                    state = next_state;
-                }
-                _ => break,
-            }
+        while let (Some(cur_event), Some(cur_state)) = (event.take(), state.take()) {
+            let (next_event, next_state) = self.transition(cur_event, cur_state, &mut ctx).await?;
+            event = next_event;
+            state = next_state;
         }
         Ok(())
     }
