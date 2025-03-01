@@ -54,30 +54,42 @@ impl Scheduler {
         Self::new(db, parser, metadata, downloader, notify)
     }
 
-    /// 创建并启动 worker
-    pub(crate) async fn spawn_worker(&self, sub: subscriptions::Model) -> Result<()> {
+    /// 创建并启动 worker 或重启 worker
+    pub(crate) async fn spawn_new_or_restart_worker(
+        &self,
+        sub: subscriptions::Model,
+    ) -> Result<()> {
         let bangumi_id = sub.bangumi_id;
         let mut workers = self.workers.lock().await;
-        if let std::collections::hash_map::Entry::Vacant(e) = workers.entry(bangumi_id) {
-            let bangumi = self.db.get_bangumi_by_id(bangumi_id).await?;
-            if bangumi.is_none() {
-                return Err(anyhow::anyhow!("未找到番剧记录"));
-            }
-            let bangumi = bangumi.unwrap();
 
-            let worker = BangumiWorker::new(
-                sub,
-                bangumi,
-                self.db.clone(),
-                self.parser.clone(),
-                self.metadata.clone(),
-                self.task_manager.clone(),
-            );
-            let worker_clone = worker.clone();
-            worker.spawn();
-            e.insert(worker_clone);
-            info!("已为番剧 {} 创建下载任务处理器", bangumi_id);
+        // 如果已存在worker，先停止它
+        if let Some(existing_worker) = workers.remove(&bangumi_id) {
+            info!("停止番剧 {} 的现有下载任务处理器", bangumi_id);
+            if let Err(e) = existing_worker.shutdown().await {
+                error!("停止番剧 {} 的下载任务处理器失败: {}", bangumi_id, e);
+            }
         }
+
+        // 创建新的worker
+        let bangumi = self.db.get_bangumi_by_id(bangumi_id).await?;
+        if bangumi.is_none() {
+            return Err(anyhow::anyhow!("未找到番剧记录"));
+        }
+        let bangumi = bangumi.unwrap();
+
+        let worker = BangumiWorker::new(
+            sub,
+            bangumi,
+            self.db.clone(),
+            self.parser.clone(),
+            self.metadata.clone(),
+            self.task_manager.clone(),
+        );
+        let worker_clone = worker.clone();
+        worker.spawn();
+        workers.insert(bangumi_id, worker_clone);
+        info!("已为番剧 {} 创建下载任务处理器", bangumi_id);
+
         Ok(())
     }
 
@@ -89,7 +101,7 @@ impl Scheduler {
 
         // 为新订阅的番剧创建并启动 worker
         for subscription in subscriptions {
-            self.spawn_worker(subscription).await?;
+            self.spawn_new_or_restart_worker(subscription).await?;
         }
 
         info!("启动下载调度器");
