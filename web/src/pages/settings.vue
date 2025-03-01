@@ -269,6 +269,20 @@ onMounted(() => {
                       prepend-inner-icon="mdi-speedometer"
                     />
                   </v-col>
+                  <v-col cols="12" md="4">
+                    <v-text-field
+                      v-model="config.pan115.offline_download_timeout"
+                      label="离线下载超时"
+                      variant="outlined"
+                    />
+                  </v-col>
+                  <v-col cols="12" md="4">
+                    <v-text-field
+                      v-model="config.pan115.max_retry_count"
+                      label="最大重试次数"
+                      type="number"
+                    />
+                  </v-col>
                 </v-row>
               </v-card-text>
             </v-card>

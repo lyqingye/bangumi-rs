@@ -1,5 +1,8 @@
 use anyhow::Result;
+use chrono::Duration as ChronoDuration;
+use humantime_serde;
 use serde::{Deserialize, Serialize};
+use std::time::Duration as StdDuration;
 const DEFAULT_LOG_LEVEL: &str = "info";
 const DEFAULT_ASSETS_PATH: &str = "./assets";
 const DEFAULT_LISTEN_ADDR: &str = "127.0.0.1:3000";
@@ -43,11 +46,60 @@ pub struct TelegramConfig {
     pub chat_id: String,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Pan115Config {
     pub cookies: String,
     pub download_dir: String,
     pub max_requests_per_second: u32,
+    pub max_retry_count: i32,
+    #[serde(
+        serialize_with = "serialize_chrono_duration",
+        deserialize_with = "deserialize_chrono_duration"
+    )]
+    pub offline_download_timeout: ChronoDuration,
+}
+
+// 将 chrono::Duration 转换为 std::time::Duration 进行序列化
+fn serialize_chrono_duration<S>(duration: &ChronoDuration, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    // 将 chrono::Duration 转换为秒数
+    let seconds = duration.num_seconds();
+    let nanos = (duration.num_milliseconds() % 1000) as u32 * 1_000_000;
+
+    // 创建 std::time::Duration
+    let std_duration = StdDuration::new(seconds as u64, nanos);
+
+    // 使用 humantime_serde 序列化
+    humantime_serde::serialize(&std_duration, serializer)
+}
+
+// 从 std::time::Duration 反序列化为 chrono::Duration
+fn deserialize_chrono_duration<'de, D>(deserializer: D) -> Result<ChronoDuration, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    // 使用 humantime_serde 反序列化为 std::time::Duration
+    let std_duration: StdDuration = humantime_serde::deserialize(deserializer)?;
+
+    // 转换为 chrono::Duration
+    let chrono_duration = ChronoDuration::seconds(std_duration.as_secs() as i64)
+        + ChronoDuration::nanoseconds(std_duration.subsec_nanos() as i64);
+
+    Ok(chrono_duration)
+}
+
+impl Default for Pan115Config {
+    fn default() -> Self {
+        Self {
+            cookies: String::new(),
+            download_dir: String::new(),
+            max_requests_per_second: 1,
+            max_retry_count: 10,
+            offline_download_timeout: ChronoDuration::minutes(10),
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]

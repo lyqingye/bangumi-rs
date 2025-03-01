@@ -46,6 +46,8 @@ endpoint = "https://mikanani.me"
 cookies = "your_cookies"         # 115 网盘 Cookie
 download_dir = "/downloads"      # 下载目录
 max_requests_per_second = 2      # 最大请求速率
+offline_download_timeout = "10m" # 离线下载超时时间
+max_retry_count = 10             # 最大重试时间
 ```
 
 ## 通知配置

@@ -240,6 +240,8 @@ export interface Pan115Config {
   cookies: string
   download_dir: string
   max_requests_per_second: number
+  offline_download_timeout: string
+  max_retry_count: number
 }
 
 export interface SiliconflowConfig {

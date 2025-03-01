@@ -35,6 +35,8 @@ endpoint = "https://mikanani.me"
 cookies = "your_115_cookies"
 download_dir = "/path/to/downloads"
 max_requests_per_second = 2
+offline_download_timeout = "10m"
+max_retry_count = 10
 
 # Telegram 通知配置
 [notify.telegram]
