@@ -311,6 +311,9 @@ impl TaskManager {
                 // 之前已经有过任务,
                 if let Some(ref info_hash) = task.ref_torrent_info_hash {
                     self.downloader.retry(info_hash).await?;
+                    self.db
+                        .update_task_state(task.bangumi_id, task.episode_number, State::Downloading)
+                        .await?;
                 } else {
                     // 之前没有任务, 直接尝试新的种子
                     self.db
