@@ -1,10 +1,6 @@
 # 下载器状态流转图
----
-config:
-  theme: neo
-  look: neo
-  layout: elk
----
+
+```mermaid
 stateDiagram
   direction TB
 
@@ -30,4 +26,4 @@ stateDiagram
   Retrying --> Pending:AutoRetry
   Retrying --> Cancelled:CancelTask
   Completed --> [*]
-  
+```
