@@ -93,7 +93,7 @@ impl Scheduler {
             .expect("未找到订阅记录");
 
         // 7. 创建并启动新的 worker
-        self.spawn_worker(subscription).await?;
+        self.spawn_new_or_restart_worker(subscription).await?;
 
         Ok(())
     }
