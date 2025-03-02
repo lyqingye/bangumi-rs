@@ -2,6 +2,7 @@ use std::{
     collections::{HashMap, HashSet},
     path::PathBuf,
     sync::Arc,
+    time::Duration,
 };
 
 use lru::LruCache;
@@ -13,9 +14,9 @@ use pan_115::{
 use tokio::sync::Mutex;
 use tracing::{debug, error, info, warn};
 
-use crate::{RemoteTaskStatus, ThirdPartyDownloader};
-use anyhow::anyhow;
+use crate::{context::Pan115Context, RemoteTaskStatus, ThirdPartyDownloader};
 use anyhow::Result;
+use anyhow::{anyhow, Context};
 use async_trait::async_trait;
 
 #[derive(Clone)]
@@ -23,6 +24,7 @@ pub struct Pan115DownloaderImpl {
     pan115: pan_115::client::Client,
     path_cache: Arc<Mutex<HashMap<PathBuf, String>>>,
     file_name_cache: Arc<Mutex<LruCache<String, (DownloadInfo, std::time::Instant)>>>,
+    download_cache_ttl: Duration,
 }
 
 fn create_magnet_link(info_hash: &str) -> String {
@@ -35,20 +37,19 @@ impl ThirdPartyDownloader for Pan115DownloaderImpl {
         "pan_115"
     }
 
-    async fn add_task(&self, info_hash: &str, dir: PathBuf) -> Result<()> {
-        // TODO 拼接
+    async fn add_task(&self, info_hash: &str, dir: PathBuf) -> Result<Option<String>> {
         let dir_cid = self.get_or_create_dir_cid(&dir).await?;
         let magnet = create_magnet_link(info_hash);
 
         match self.pan115.add_offline_task(&[&magnet], &dir_cid).await {
             Ok(_) => {
                 info!("成功添加下载任务到网盘: {}", info_hash);
-                Ok(())
+                Ok(None)
             }
             Err(e) => match e {
                 Pan115Error::OfflineTaskExisted => {
                     warn!("任务已在网盘中存在: {}", info_hash);
-                    Ok(())
+                    Ok(None)
                 }
                 _ => Err(anyhow::anyhow!("添加离线下载任务失败: {}", e)),
             },
@@ -93,6 +94,7 @@ impl ThirdPartyDownloader for Pan115DownloaderImpl {
                     RemoteTaskStatus {
                         status: map_task_status(task.status()),
                         err_msg,
+                        result: None,
                     },
                 )
             }));
@@ -107,9 +109,46 @@ impl ThirdPartyDownloader for Pan115DownloaderImpl {
         Ok(remote_tasks_status)
     }
 
-    async fn download_file(&self, info_hash: &str, ua: &str) -> Result<DownloadInfo> {
-        // TODO 思考下
-        Ok(DownloadInfo::default())
+    async fn download_file(
+        &self,
+        info_hash: &str,
+        ua: &str,
+        result: Option<String>,
+    ) -> Result<DownloadInfo> {
+        let mut cache = self.file_name_cache.lock().await;
+        let cache_key = format!("{}-{}", info_hash, ua);
+
+        let now = std::time::Instant::now();
+        if let Some((download_info, last_update)) = cache.get(&cache_key) {
+            let ttl = now.duration_since(*last_update);
+            if ttl < self.download_cache_ttl {
+                info!("命中缓存: info_hash={}", info_hash);
+                return Ok(download_info.clone());
+            }
+        }
+        match result {
+            Some(result) => {
+                let context: Pan115Context = serde_json::from_str(&result)?;
+                let mut client = self.pan115.clone();
+                let expect_file_name = context.file_name.clone();
+                let files = client
+                    .list_files_with_fn(&context.file_id, move |file| {
+                        !file.is_dir() && file.name == expect_file_name
+                    })
+                    .await?;
+                if files.is_empty() {
+                    return Err(anyhow::anyhow!("文件不存在"));
+                }
+                let file = files.first().unwrap();
+                let download_info = client
+                    .download_file(&file.file_id, Some(ua))
+                    .await?
+                    .context("下载文件失败")?;
+                cache.put(cache_key, (download_info.clone(), now));
+                Ok(download_info)
+            }
+            None => Err(anyhow::anyhow!("该下载器不支持下载文件")),
+        }
     }
 
     async fn cancel_task(&self, info_hash: &str) -> Result<()> {

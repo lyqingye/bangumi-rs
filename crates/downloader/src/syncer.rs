@@ -17,8 +17,11 @@ impl Worker {
 
     async fn sync_remote_task_status(&self) -> Result<()> {
         let local_tasks = self
-            .tasks
-            .list_by_statues(&[DownloadStatus::Downloading, DownloadStatus::Pending])
+            .db
+            .list_download_tasks_by_status(vec![
+                DownloadStatus::Downloading,
+                DownloadStatus::Pending,
+            ])
             .await?;
 
         if local_tasks.is_empty() {
@@ -36,14 +39,20 @@ impl Worker {
         for local_task in local_tasks {
             let info_hash = local_task.info_hash.clone();
 
-            let (status, err_msg) = if let Some(remote_task) = remote_tasks.get(&info_hash) {
+            let (status, err_msg, result) = if let Some(remote_task) = remote_tasks.get(&info_hash)
+            {
                 debug!("发现远程任务: info_hash={}", info_hash);
-                (remote_task.status.clone(), remote_task.err_msg.clone())
+                (
+                    remote_task.status.clone(),
+                    remote_task.err_msg.clone(),
+                    remote_task.result.clone(),
+                )
             } else {
                 warn!("任务在下载器中不存在: {}", info_hash);
                 (
                     DownloadStatus::Pending,
                     Some("任务在下载器中不存在".to_string()),
+                    None,
                 )
             };
 
@@ -55,7 +64,8 @@ impl Worker {
 
                 match status {
                     DownloadStatus::Completed => {
-                        self.send_event(Event::TaskCompleted(info_hash)).await?;
+                        self.send_event(Event::TaskCompleted(info_hash, result))
+                            .await?;
                     }
 
                     DownloadStatus::Cancelled => {

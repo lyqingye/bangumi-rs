@@ -40,15 +40,21 @@ pub enum Event {
 pub struct RemoteTaskStatus {
     pub status: DownloadStatus,
     pub err_msg: Option<String>,
+    pub result: Option<String>,
 }
 
 #[async_trait]
 pub trait ThirdPartyDownloader: Send + Sync {
     fn name(&self) -> &'static str;
-    async fn add_task(&self, info_hash: &str, dir: PathBuf) -> Result<()>;
+    async fn add_task(&self, info_hash: &str, dir: PathBuf) -> Result<Option<String>>;
     async fn list_tasks(&self, info_hashes: &[String])
         -> Result<HashMap<String, RemoteTaskStatus>>;
-    async fn download_file(&self, info_hash: &str, ua: &str) -> Result<DownloadInfo>;
+    async fn download_file(
+        &self,
+        info_hash: &str,
+        ua: &str,
+        result: Option<String>,
+    ) -> Result<DownloadInfo>;
     async fn cancel_task(&self, info_hash: &str) -> Result<()>;
     async fn remove_task(&self, info_hash: &str) -> Result<()>;
 }
