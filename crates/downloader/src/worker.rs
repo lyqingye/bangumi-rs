@@ -2,10 +2,13 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use model::{sea_orm_active_enums::DownloadStatus, torrent_download_tasks::Model};
+use sea_orm::DatabaseConnection;
 use tokio::sync::{broadcast, mpsc};
 use tracing::{debug, error, info};
 
-use crate::{config::Config, db::Db, tasks::TaskManager, RemoteTaskStatus, ThirdPartyDownloader};
+use crate::{
+    config::Config, db::Db, tasks::TaskManager, RemoteTaskStatus, Store, ThirdPartyDownloader,
+};
 
 type State = DownloadStatus;
 
@@ -23,7 +26,7 @@ pub enum Event {
 }
 
 impl Event {
-    async fn get_ref_task(&self, tasks: &Db) -> Result<Model> {
+    async fn get_ref_task(&self, tasks: &Box<dyn Store>) -> Result<Model> {
         let info_hash = match self {
             Self::StartTask(info_hash) => info_hash,
             Self::CancelTask(info_hash) => info_hash,
@@ -33,8 +36,10 @@ impl Event {
             Self::TaskCompleted(info_hash, _) => info_hash,
         };
         tasks
-            .get_by_info_hash(info_hash)
+            .list_by_hashes(&[info_hash.to_string()])
             .await?
+            .first()
+            .cloned()
             .ok_or_else(|| anyhow::anyhow!("任务不存在: info_hash={}", info_hash))
     }
 }
@@ -46,9 +51,24 @@ pub struct Context {
 #[derive(Clone)]
 pub struct Worker {
     event_queue: mpsc::Sender<Event>,
-    pub(crate) db: Db,
-    pub(crate) downloader: Arc<dyn ThirdPartyDownloader>,
+    pub(crate) store: Arc<Box<dyn Store>>,
+    pub(crate) downloader: Arc<Box<dyn ThirdPartyDownloader>>,
     pub(crate) config: Config,
+}
+
+impl Worker {
+    pub async fn new_with_conn(
+        store: Box<dyn Store>,
+        downloader: Box<dyn ThirdPartyDownloader>,
+        config: Config,
+    ) -> Result<Self> {
+        Ok(Self {
+            event_queue: mpsc::channel(100).0,
+            store: Arc::new(store),
+            downloader: Arc::new(downloader),
+            config,
+        })
+    }
 }
 
 impl Worker {
@@ -74,8 +94,8 @@ impl Worker {
         info!("开始恢复未处理的下载任务");
 
         let pending_tasks = self
-            .db
-            .list_download_tasks_by_status(vec![DownloadStatus::Pending])
+            .store
+            .list_by_status(&[DownloadStatus::Pending])
             .await?;
 
         info!("找到 {} 个未处理的任务", pending_tasks.len());
@@ -110,7 +130,7 @@ impl Worker {
     }
 
     async fn handle_event(&self, event: Event) -> Result<()> {
-        let task = event.get_ref_task(&self.db).await?;
+        let task = event.get_ref_task(&self.store).await?;
         let mut ctx = Context {
             ref_task: task.clone(),
         };
@@ -281,8 +301,29 @@ impl Worker {
         err_msg: Option<String>,
         result: Option<String>,
     ) -> Result<()> {
-        self.db
-            .update_task_status(info_hash, status, err_msg, result)
+        self.store
+            .update_status(info_hash, status, err_msg, result)
             .await
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{tests::MockStore, MockThirdPartyDownloader};
+
+    use super::*;
+
+    #[tokio::test]
+    async fn test_worker() {
+        let mock_store = MockStore::new();
+        let mock_downloader = MockThirdPartyDownloader::new();
+        let worker = Worker::new_with_conn(
+            Box::new(mock_store),
+            Box::new(mock_downloader),
+            Config::default(),
+        )
+        .await
+        .unwrap();
+        worker.spawn().await.unwrap();
     }
 }

@@ -17,11 +17,8 @@ impl Worker {
 
     async fn sync_remote_task_status(&self) -> Result<()> {
         let local_tasks = self
-            .db
-            .list_download_tasks_by_status(vec![
-                DownloadStatus::Downloading,
-                DownloadStatus::Pending,
-            ])
+            .store
+            .list_by_status(&[DownloadStatus::Downloading, DownloadStatus::Pending])
             .await?;
 
         if local_tasks.is_empty() {

@@ -25,8 +25,8 @@ impl Worker {
     async fn process_retry(&self) -> Result<()> {
         let now = Local::now().naive_utc();
         let mut tasks = self
-            .db
-            .list_download_tasks_by_status(vec![DownloadStatus::Retrying])
+            .store
+            .list_by_status(&[DownloadStatus::Retrying])
             .await?;
         for task in tasks.as_mut_slice() {
             if now < task.next_retry_at {
