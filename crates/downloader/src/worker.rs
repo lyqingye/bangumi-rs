@@ -216,6 +216,11 @@ impl Worker {
         self.send_event(Event::CancelTask(info_hash)).await?;
         Ok(())
     }
+
+    pub async fn retry_task(&self, info_hash: String) -> Result<()> {
+        self.send_event(Event::RetryTask(info_hash)).await?;
+        Ok(())
+    }
 }
 
 /// State Transition
