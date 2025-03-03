@@ -11,10 +11,10 @@ use model::torrent_download_tasks;
 // 初始化测试环境
 fn init_test_env() {
     dotenv::dotenv().ok();
-    // tracing_subscriber::fmt()
-    //     .with_max_level(tracing::Level::INFO)
-    //     .with_target(true)
-    //     .init();
+    tracing_subscriber::fmt()
+        .with_max_level(tracing::Level::INFO)
+        .with_target(true)
+        .init();
 }
 
 // 创建测试用的配置
@@ -115,6 +115,63 @@ async fn test_retry_exceed_max_count() {
     assert_eq!(
         tasks[0].err_msg,
         Some("重试次数超过上限(1): error msg".to_string())
+    );
+    assert_eq!(tasks[0].dir, "/test");
+}
+
+#[tokio::test]
+async fn test_download_timeout_no_retry() {
+    // 初始化测试环境
+    init_test_env();
+
+    // 准备测试数据和依赖
+    let mock_store = MockStore::new();
+    let mut pending_tasks = create_failed_tasks();
+    pending_tasks.insert(
+        "123".to_string(),
+        RemoteTaskStatus {
+            status: DownloadStatus::Downloading,
+            err_msg: None,
+            result: None,
+        },
+    );
+    let mut mock_downloader = create_mock_downloader();
+    mock_downloader
+        .expect_list_tasks()
+        .returning(move |_| Ok(pending_tasks.clone()));
+    let mut config = create_test_config();
+    config.max_retry_count = 0;
+    config.download_timeout = chrono::Duration::nanoseconds(1);
+    config.sync_interval = Duration::from_millis(100);
+    // 创建并启动worker
+    let mut worker = create_test_worker(mock_store.clone(), mock_downloader, config).await;
+    worker.spawn().await.unwrap();
+    let worker_clone = worker.clone();
+
+    // 添加任务
+    worker_clone
+        .add_task("123", PathBuf::from("test"))
+        .await
+        .unwrap();
+
+    // 等待同步
+    tokio::time::sleep(Duration::from_secs(1)).await;
+    worker_clone.sync_remote_task_status().await.unwrap();
+
+    // 关闭worker
+    worker_clone.shutdown().await.unwrap();
+
+    // 验证结果
+    let tasks = mock_store
+        .list_by_status(&[DownloadStatus::Failed])
+        .await
+        .unwrap();
+    assert_eq!(tasks.len(), 1);
+    assert_eq!(tasks[0].info_hash, "123");
+    assert_eq!(tasks[0].download_status, DownloadStatus::Failed);
+    assert_eq!(
+        tasks[0].err_msg,
+        Some("重试次数超过上限(0): 下载超时".to_string())
     );
     assert_eq!(tasks[0].dir, "/test");
 }

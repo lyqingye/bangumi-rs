@@ -21,6 +21,8 @@ pub struct Config {
     pub retry_max_interval: Duration,
     /// 下载目录
     pub download_dir: PathBuf,
+    /// 下载超时
+    pub download_timeout: chrono::Duration,
 }
 
 impl Default for Config {
@@ -34,6 +36,7 @@ impl Default for Config {
             retry_min_interval: Duration::from_secs(30),
             retry_max_interval: Duration::from_secs(60 * 60),
             download_dir: PathBuf::from("/"),
+            download_timeout: chrono::Duration::hours(1),
         }
     }
 }

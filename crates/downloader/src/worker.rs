@@ -10,7 +10,7 @@ use tokio::sync::{broadcast, mpsc, oneshot};
 use tracing::{debug, error, info, trace, warn};
 
 use crate::{
-    config::Config, db::Db, metrics, tasks::TaskManager,
+    config::Config, db::Db, metrics,
     thirdparty::pan_115_impl::Pan115DownloaderImpl, Downloader, Event, RemoteTaskStatus, Store,
     ThirdPartyDownloader,
 };
@@ -305,7 +305,7 @@ impl Worker {
             event.debug_name(),
             state
         );
-        let result = match (event, state.clone()) {
+        match (event, state.clone()) {
             // 开始任务
             (Tx::StartTask(info_hash), State::Pending) => self.on_start_task(info_hash, ctx).await,
 
@@ -340,8 +340,7 @@ impl Worker {
                 );
                 Ok((None, None))
             }
-        };
-        result
+        }
     }
 
     async fn on_start_task(
@@ -599,13 +598,11 @@ mod tests {
         let mut rx = worker.subscribe().await;
         loop {
             let event = rx.recv().await?;
-            match event {
-                Event::TaskUpdated((info_hash, status, err_msg)) => {
-                    if status == DownloadStatus::Completed {
-                        break;
-                    }
+            #[allow(irrefutable_let_patterns)]
+            if let Event::TaskUpdated((_, status, _)) = event {
+                if status == DownloadStatus::Completed {
+                    break;
                 }
-                _ => {}
             }
         }
         worker.shutdown().await?;

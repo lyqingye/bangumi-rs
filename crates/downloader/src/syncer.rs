@@ -3,6 +3,7 @@ use crate::{
     RemoteTaskStatus,
 };
 use anyhow::Result;
+use chrono::Local;
 use model::sea_orm_active_enums::DownloadStatus;
 use tracing::{debug, info, warn};
 
@@ -83,11 +84,19 @@ impl Worker {
                     }
 
                     _ => {
-                        warn!(
-                            "[Syncer] 未处理的任务状态: info_hash={}, status={:?}, err_msg={:?}",
-                            info_hash, status, err_msg
-                        );
+                        warn!("未处理的任务状态: info_hash={}, local_status={:?}, remote_status={:?}, err_msg={:?}", info_hash, local_task.download_status  , status, err_msg);
                     }
+                }
+            } else if status == DownloadStatus::Pending
+                || status == DownloadStatus::Retrying
+                || status == DownloadStatus::Downloading
+            {
+                let now = Local::now().naive_utc();
+                let elapsed = now - local_task.updated_at;
+                if elapsed > self.config.download_timeout {
+                    warn!("下载超时: info_hash={}", info_hash);
+                    self.send_event(Tx::TaskFailed(info_hash, "下载超时".to_string()))
+                        .await?;
                 }
             }
         }
