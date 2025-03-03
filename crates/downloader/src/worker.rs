@@ -1,6 +1,7 @@
 use std::{path::PathBuf, sync::Arc};
 
 use anyhow::{Context as _, Result};
+use async_trait::async_trait;
 use chrono::{Local, NaiveDateTime};
 use model::{sea_orm_active_enums::DownloadStatus, torrent_download_tasks::Model};
 use pan_115::model::DownloadInfo;
@@ -9,8 +10,8 @@ use tokio::sync::{broadcast, mpsc, oneshot};
 use tracing::{debug, error, info};
 
 use crate::{
-    config::Config, db::Db, metrics, tasks::TaskManager, Event, RemoteTaskStatus, Store,
-    ThirdPartyDownloader,
+    config::Config, db::Db, metrics, tasks::TaskManager, Downloader, Event, RemoteTaskStatus,
+    Store, ThirdPartyDownloader,
 };
 
 type State = DownloadStatus;
@@ -215,13 +216,15 @@ impl Worker {
         Ok(())
     }
 
-    pub async fn cancel_task(&self, info_hash: String) -> Result<()> {
-        self.send_event(Tx::CancelTask(info_hash)).await?;
+    pub async fn cancel_task(&self, info_hash: &str) -> Result<()> {
+        self.send_event(Tx::CancelTask(info_hash.to_string()))
+            .await?;
         Ok(())
     }
 
-    pub async fn retry_task(&self, info_hash: String) -> Result<()> {
-        self.send_event(Tx::RetryTask(info_hash)).await?;
+    pub async fn retry_task(&self, info_hash: &str) -> Result<()> {
+        self.send_event(Tx::RetryTask(info_hash.to_string()))
+            .await?;
         Ok(())
     }
 
@@ -451,5 +454,41 @@ impl Worker {
             .notify_tx
             .send(Event::TaskUpdated((info_hash.to_string(), status, err_msg)));
         Ok(())
+    }
+}
+
+/// Implmentation Downloader
+#[async_trait]
+impl Downloader for Worker {
+    fn name(&self) -> &'static str {
+        self.downloader.name()
+    }
+
+    async fn add_task(&self, info_hash: &str, dir: PathBuf) -> Result<()> {
+        self.add_task(info_hash, dir).await
+    }
+
+    async fn list_tasks(&self, info_hashes: &[String]) -> Result<Vec<Model>> {
+        self.store.list_by_hashes(info_hashes).await
+    }
+
+    async fn download_file(&self, info_hash: &str, ua: &str) -> Result<DownloadInfo> {
+        self.download_file(info_hash, ua).await
+    }
+
+    async fn cancel_task(&self, info_hash: &str) -> Result<()> {
+        self.cancel_task(info_hash).await
+    }
+
+    async fn metrics(&self) -> metrics::Metrics {
+        self.metrics().await
+    }
+
+    async fn subscribe(&self) -> broadcast::Receiver<Event> {
+        self.subscribe().await
+    }
+
+    async fn retry(&self, info_hash: &str) -> Result<()> {
+        self.retry_task(info_hash).await
     }
 }
