@@ -8,7 +8,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct MockStore {
     tasks: Arc<RwLock<HashMap<String, Model>>>,
 }
@@ -16,9 +16,7 @@ pub struct MockStore {
 #[allow(unused)]
 impl MockStore {
     pub fn new() -> Self {
-        Self {
-            tasks: Arc::new(RwLock::new(HashMap::new())),
-        }
+        Self::default()
     }
 
     pub async fn insert_task(&self, task: Model) -> Result<()> {

@@ -28,7 +28,7 @@ pub enum Event {
 }
 
 impl Event {
-    async fn get_ref_task(&self, tasks: &Box<dyn Store>) -> Result<Model> {
+    async fn get_ref_task(&self, tasks: &dyn Store) -> Result<Model> {
         let info_hash = match self {
             Self::StartTask(info_hash) => info_hash,
             Self::CancelTask(info_hash) => info_hash,
@@ -153,7 +153,7 @@ impl Worker {
     }
 
     async fn handle_event(&self, event: Event) -> Result<()> {
-        let task = event.get_ref_task(&self.store).await?;
+        let task = event.get_ref_task(&**self.store).await?;
         let mut ctx = Context {
             ref_task: task.clone(),
         };
