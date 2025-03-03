@@ -1,5 +1,5 @@
 use crate::{
-    worker::{Event, Worker},
+    worker::{Tx, Worker},
     RemoteTaskStatus,
 };
 use anyhow::Result;
@@ -65,16 +65,16 @@ impl Worker {
 
                 match status {
                     DownloadStatus::Completed => {
-                        self.send_event(Event::TaskCompleted(info_hash, result))
+                        self.send_event(Tx::TaskCompleted(info_hash, result))
                             .await?;
                     }
 
                     DownloadStatus::Cancelled => {
-                        self.send_event(Event::CancelTask(info_hash)).await?;
+                        self.send_event(Tx::CancelTask(info_hash)).await?;
                     }
 
                     DownloadStatus::Failed => {
-                        self.send_event(Event::TaskFailed(info_hash, err_msg.unwrap_or_default()))
+                        self.send_event(Tx::TaskFailed(info_hash, err_msg.unwrap_or_default()))
                             .await?;
                     }
 

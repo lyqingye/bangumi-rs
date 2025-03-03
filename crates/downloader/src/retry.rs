@@ -1,4 +1,4 @@
-use crate::worker::{Event, Worker};
+use crate::worker::{Tx, Worker};
 use anyhow::Result;
 use chrono::Local;
 use model::sea_orm_active_enums::DownloadStatus;
@@ -40,7 +40,7 @@ impl Worker {
             );
 
             // 重试
-            self.send_event(Event::AutoRetry(task.info_hash.clone()))
+            self.send_event(Tx::AutoRetry(task.info_hash.clone()))
                 .await?;
         }
 

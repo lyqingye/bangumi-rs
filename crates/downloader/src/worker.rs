@@ -1,19 +1,21 @@
 use std::{path::PathBuf, sync::Arc};
 
 use anyhow::{Context as _, Result};
-use chrono::Local;
+use chrono::{Local, NaiveDateTime};
 use model::{sea_orm_active_enums::DownloadStatus, torrent_download_tasks::Model};
+use pan_115::model::DownloadInfo;
 use sea_orm::DatabaseConnection;
 use tokio::sync::{broadcast, mpsc, oneshot};
 use tracing::{debug, error, info};
 
 use crate::{
-    config::Config, db::Db, tasks::TaskManager, RemoteTaskStatus, Store, ThirdPartyDownloader,
+    config::Config, db::Db, metrics, tasks::TaskManager, Event, RemoteTaskStatus, Store,
+    ThirdPartyDownloader,
 };
 
 type State = DownloadStatus;
 
-pub enum Event {
+pub enum Tx {
     // 外部事件
     StartTask(String),
     CancelTask(String),
@@ -27,7 +29,7 @@ pub enum Event {
     Shutdown(oneshot::Sender<()>),
 }
 
-impl Event {
+impl Tx {
     async fn get_ref_task(&self, tasks: &dyn Store) -> Result<Model> {
         let info_hash = match self {
             Self::StartTask(info_hash) => info_hash,
@@ -54,10 +56,12 @@ pub struct Context {
 
 #[derive(Clone)]
 pub struct Worker {
-    event_queue: Option<mpsc::Sender<Event>>,
+    event_queue: Option<mpsc::Sender<Tx>>,
     pub(crate) store: Arc<Box<dyn Store>>,
     pub(crate) downloader: Arc<Box<dyn ThirdPartyDownloader>>,
     pub(crate) config: Config,
+
+    notify_tx: broadcast::Sender<Event>,
 }
 
 impl Worker {
@@ -66,11 +70,13 @@ impl Worker {
         downloader: Box<dyn ThirdPartyDownloader>,
         config: Config,
     ) -> Result<Self> {
+        let (notify_tx, _) = broadcast::channel(config.event_queue_size);
         Ok(Self {
             event_queue: None,
             store: Arc::new(store),
             downloader: Arc::new(downloader),
             config,
+            notify_tx,
         })
     }
 }
@@ -92,7 +98,7 @@ impl Worker {
         Ok(())
     }
 
-    pub(crate) async fn send_event(&self, event: Event) -> Result<()> {
+    pub(crate) async fn send_event(&self, event: Tx) -> Result<()> {
         self.event_queue
             .as_ref()
             .context("Downloader 未启动")?
@@ -103,7 +109,7 @@ impl Worker {
 
     pub async fn shutdown(&self) -> Result<()> {
         let (tx, rx) = oneshot::channel();
-        self.send_event(Event::Shutdown(tx)).await?;
+        self.send_event(Tx::Shutdown(tx)).await?;
         rx.await?;
         Ok(())
     }
@@ -118,10 +124,7 @@ impl Worker {
 
         info!("找到 {} 个未处理的任务", pending_tasks.len());
         for task in pending_tasks {
-            if let Err(e) = self
-                .send_event(Event::StartTask(task.info_hash.clone()))
-                .await
-            {
+            if let Err(e) = self.send_event(Tx::StartTask(task.info_hash.clone())).await {
                 error!("恢复任务到队列失败: {} - {}", task.info_hash, e);
             } else {
                 info!("成功恢复任务: info_hash={}", task.info_hash);
@@ -132,11 +135,11 @@ impl Worker {
         Ok(())
     }
 
-    fn spawn_event_loop(&self, mut receiver: mpsc::Receiver<Event>) -> Result<()> {
+    fn spawn_event_loop(&self, mut receiver: mpsc::Receiver<Tx>) -> Result<()> {
         let worker = self.clone();
         tokio::spawn(async move {
             while let Some(event) = receiver.recv().await {
-                if let Event::Shutdown(done) = event {
+                if let Tx::Shutdown(done) = event {
                     let _ = done.send(());
                     info!("Downloader 已停止");
                     break;
@@ -152,7 +155,7 @@ impl Worker {
         Ok(())
     }
 
-    async fn handle_event(&self, event: Event) -> Result<()> {
+    async fn handle_event(&self, event: Tx) -> Result<()> {
         let task = event.get_ref_task(&**self.store).await?;
         let mut ctx = Context {
             ref_task: task.clone(),
@@ -181,7 +184,7 @@ impl Worker {
             dir.display()
         );
         self.create_task(info_hash, &dir).await?;
-        self.send_event(Event::StartTask(info_hash.to_string()))
+        self.send_event(Tx::StartTask(info_hash.to_string()))
             .await?;
         Ok(())
     }
@@ -213,13 +216,49 @@ impl Worker {
     }
 
     pub async fn cancel_task(&self, info_hash: String) -> Result<()> {
-        self.send_event(Event::CancelTask(info_hash)).await?;
+        self.send_event(Tx::CancelTask(info_hash)).await?;
         Ok(())
     }
 
     pub async fn retry_task(&self, info_hash: String) -> Result<()> {
-        self.send_event(Event::RetryTask(info_hash)).await?;
+        self.send_event(Tx::RetryTask(info_hash)).await?;
         Ok(())
+    }
+
+    pub async fn download_file(&self, info_hash: &str, ua: &str) -> Result<DownloadInfo> {
+        let task = self
+            .store
+            .list_by_hashes(&[info_hash.to_string()])
+            .await?
+            .first()
+            .cloned()
+            .context("任务不存在")?;
+
+        self.downloader
+            .download_file(info_hash, ua, task.context)
+            .await
+    }
+
+    pub async fn subscribe(&self) -> broadcast::Receiver<Event> {
+        self.notify_tx.subscribe()
+    }
+
+    pub async fn metrics(&self) -> metrics::Metrics {
+        let tasks = self
+            .store
+            .list_by_status(&[
+                DownloadStatus::Downloading,
+                DownloadStatus::Pending,
+                DownloadStatus::Retrying,
+            ])
+            .await;
+        if let Ok(tasks) = tasks {
+            metrics::Metrics {
+                num_of_tasks: tasks.len(),
+            }
+        } else {
+            metrics::Metrics { num_of_tasks: 0 }
+        }
     }
 }
 
@@ -227,39 +266,34 @@ impl Worker {
 impl Worker {
     async fn transition(
         &self,
-        event: Event,
+        event: Tx,
         state: State,
         ctx: &mut Context,
-    ) -> Result<(Option<Event>, Option<State>)> {
+    ) -> Result<(Option<Tx>, Option<State>)> {
         match (event, state.clone()) {
             // 开始任务
-            (Event::StartTask(info_hash), State::Pending) => {
-                self.on_start_task(info_hash, ctx).await
-            }
+            (Tx::StartTask(info_hash), State::Pending) => self.on_start_task(info_hash, ctx).await,
 
             // 取消任务
-            (
-                Event::CancelTask(info_hash),
-                State::Downloading | State::Pending | State::Retrying,
-            ) => self.on_task_cancelled(info_hash, ctx).await,
+            (Tx::CancelTask(info_hash), State::Downloading | State::Pending | State::Retrying) => {
+                self.on_task_cancelled(info_hash, ctx).await
+            }
 
             // 重试任务
-            (Event::RetryTask(info_hash), State::Failed | State::Cancelled) => {
+            (Tx::RetryTask(info_hash), State::Failed | State::Cancelled) => {
                 self.on_task_retry(info_hash, ctx).await
             }
 
             // 自动重试
-            (Event::AutoRetry(info_hash), State::Retrying) => {
-                self.on_task_retry(info_hash, ctx).await
-            }
+            (Tx::AutoRetry(info_hash), State::Retrying) => self.on_task_retry(info_hash, ctx).await,
 
             // 任务失败
-            (Event::TaskFailed(info_hash, err_msg), State::Downloading | State::Pending) => {
+            (Tx::TaskFailed(info_hash, err_msg), State::Downloading | State::Pending) => {
                 self.on_task_failed(info_hash, err_msg, ctx).await
             }
 
             // 任务完成
-            (Event::TaskCompleted(info_hash, result), State::Downloading) => {
+            (Tx::TaskCompleted(info_hash, result), State::Downloading) => {
                 self.on_task_completed(info_hash, result, ctx).await
             }
 
@@ -271,7 +305,7 @@ impl Worker {
         &self,
         info_hash: String,
         ctx: &mut Context,
-    ) -> Result<(Option<Event>, Option<State>)> {
+    ) -> Result<(Option<Tx>, Option<State>)> {
         info!(
             "开始处理任务(StartTask): info_hash={} state={:?}",
             info_hash, ctx.ref_task.download_status
@@ -301,7 +335,7 @@ impl Worker {
                     e
                 );
                 Ok((
-                    Some(Event::TaskFailed(info_hash, e.to_string())),
+                    Some(Tx::TaskFailed(info_hash, e.to_string())),
                     Some(State::Pending),
                 ))
             }
@@ -313,7 +347,7 @@ impl Worker {
         info_hash: String,
         err_msg: String,
         ctx: &mut Context,
-    ) -> Result<(Option<Event>, Option<State>)> {
+    ) -> Result<(Option<Tx>, Option<State>)> {
         info!(
             "处理任务失败(TaskFailed): info_hash={} state={:?} -> TaskFailed, err_msg={}",
             info_hash, ctx.ref_task.download_status, err_msg
@@ -338,10 +372,9 @@ impl Worker {
                 "更新任务重试状态(TaskFailed): info_hash={}, next_retry_at={}",
                 info_hash, next_retry_at
             );
-            self.store
-                .update_retry_status(&info_hash, next_retry_at, Some(err_msg))
+            self.update_task_retry_status(&info_hash, next_retry_at, Some(err_msg))
                 .await?;
-            Ok((Some(Event::AutoRetry(info_hash)), Some(State::Retrying)))
+            Ok((Some(Tx::AutoRetry(info_hash)), Some(State::Retrying)))
         }
     }
 
@@ -349,7 +382,7 @@ impl Worker {
         &self,
         info_hash: String,
         ctx: &mut Context,
-    ) -> Result<(Option<Event>, Option<State>)> {
+    ) -> Result<(Option<Tx>, Option<State>)> {
         info!(
             "开始重试任务(TaskRetry): info_hash={} state={:?}",
             info_hash, ctx.ref_task.download_status
@@ -358,14 +391,14 @@ impl Worker {
         self.downloader.remove_task(&info_hash).await?;
         self.update_task_status(&info_hash, DownloadStatus::Pending, None, None)
             .await?;
-        Ok((Some(Event::StartTask(info_hash)), Some(State::Pending)))
+        Ok((Some(Tx::StartTask(info_hash)), Some(State::Pending)))
     }
 
     async fn on_task_cancelled(
         &self,
         info_hash: String,
         ctx: &mut Context,
-    ) -> Result<(Option<Event>, Option<State>)> {
+    ) -> Result<(Option<Tx>, Option<State>)> {
         self.downloader.cancel_task(&info_hash).await?;
         self.update_task_status(&info_hash, DownloadStatus::Cancelled, None, None)
             .await?;
@@ -377,10 +410,29 @@ impl Worker {
         info_hash: String,
         result: Option<String>,
         ctx: &mut Context,
-    ) -> Result<(Option<Event>, Option<State>)> {
+    ) -> Result<(Option<Tx>, Option<State>)> {
         self.update_task_status(&info_hash, DownloadStatus::Completed, None, result)
             .await?;
         Ok((None, Some(State::Completed)))
+    }
+
+    async fn update_task_retry_status(
+        &self,
+        info_hash: &str,
+        next_retry_at: NaiveDateTime,
+        err_msg: Option<String>,
+    ) -> Result<()> {
+        self.store
+            .update_retry_status(info_hash, next_retry_at, err_msg.clone())
+            .await;
+
+        // 推送事件
+        let _ = self.notify_tx.send(Event::TaskUpdated((
+            info_hash.to_string(),
+            DownloadStatus::Retrying,
+            err_msg,
+        )));
+        Ok(())
     }
 
     async fn update_task_status(
@@ -391,7 +443,13 @@ impl Worker {
         result: Option<String>,
     ) -> Result<()> {
         self.store
-            .update_status(info_hash, status, err_msg, result)
-            .await
+            .update_status(info_hash, status.clone(), err_msg.clone(), result.clone())
+            .await;
+
+        // 推送事件
+        let _ = self
+            .notify_tx
+            .send(Event::TaskUpdated((info_hash.to_string(), status, err_msg)));
+        Ok(())
     }
 }
