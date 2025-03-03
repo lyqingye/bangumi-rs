@@ -10,9 +10,8 @@ use tokio::sync::{broadcast, mpsc, oneshot};
 use tracing::{debug, error, info, trace, warn};
 
 use crate::{
-    config::Config, db::Db, metrics,
-    thirdparty::pan_115_impl::Pan115DownloaderImpl, Downloader, Event, RemoteTaskStatus, Store,
-    ThirdPartyDownloader,
+    config::Config, db::Db, metrics, thirdparty::pan_115_impl::Pan115DownloaderImpl, Downloader,
+    Event, RemoteTaskStatus, Store, ThirdPartyDownloader,
 };
 
 type State = DownloadStatus;
