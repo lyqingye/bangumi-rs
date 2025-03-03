@@ -138,6 +138,7 @@ const error = ref('')
 const statusOptions = [
   { title: '全部状态', value: null },
   { title: '已订阅', value: SubscribeStatus.Subscribed },
+  { title: '已完成', value: SubscribeStatus.Downloaded },
   { title: '未订阅', value: SubscribeStatus.None },
 ]
 
