@@ -7,7 +7,7 @@ use model::{sea_orm_active_enums::DownloadStatus, torrent_download_tasks::Model}
 use pan_115::model::DownloadInfo;
 use sea_orm::DatabaseConnection;
 use tokio::sync::{broadcast, mpsc, oneshot};
-use tracing::{debug, error, info};
+use tracing::{debug, error, info, trace, warn};
 
 use crate::{
     config::Config, db::Db, metrics, tasks::TaskManager,
@@ -32,6 +32,18 @@ pub enum Tx {
 }
 
 impl Tx {
+    fn debug_name(&self) -> &'static str {
+        match self {
+            Self::StartTask(_) => "StartTask",
+            Self::CancelTask(_) => "CancelTask",
+            Self::RetryTask(_) => "RetryTask",
+            Self::AutoRetry(_) => "AutoRetry",
+            Self::TaskFailed(_, _) => "TaskFailed",
+            Self::TaskCompleted(_, _) => "TaskCompleted",
+            Self::Shutdown(_) => "Shutdown",
+        }
+    }
+
     async fn get_ref_task(&self, tasks: &dyn Store) -> Result<Model> {
         let info_hash = match self {
             Self::StartTask(info_hash) => info_hash,
@@ -96,7 +108,7 @@ impl Worker {
         // 启动重试处理器
         self.spawn_retry_processor();
 
-        info!("Downloader 已启动");
+        info!("Downloader 已启动，配置: {:?}", self.config);
         Ok(())
     }
 
@@ -110,9 +122,11 @@ impl Worker {
     }
 
     pub async fn shutdown(&self) -> Result<()> {
+        info!("正在关闭 Downloader...");
         let (tx, rx) = oneshot::channel();
         self.send_event(Tx::Shutdown(tx)).await?;
         rx.await?;
+        info!("Downloader 已完全关闭");
         Ok(())
     }
 
@@ -143,7 +157,7 @@ impl Worker {
             while let Some(event) = receiver.recv().await {
                 if let Tx::Shutdown(done) = event {
                     let _ = done.send(());
-                    info!("Downloader 已停止");
+                    info!("Downloader 事件循环已停止");
                     break;
                 }
                 match worker.handle_event(event).await {
@@ -159,6 +173,12 @@ impl Worker {
 
     async fn handle_event(&self, event: Tx) -> Result<()> {
         let task = event.get_ref_task(&**self.store).await?;
+        debug!(
+            "处理事件: {}, 任务状态: {:?}",
+            event.debug_name(),
+            task.download_status
+        );
+
         let mut ctx = Context {
             ref_task: task.clone(),
         };
@@ -193,12 +213,6 @@ impl Worker {
 
     async fn create_task(&self, info_hash: &str, dir: &PathBuf) -> Result<()> {
         let full_path = self.config.download_dir.join(dir);
-        info!(
-            "创建下载任务: info_hash={}, dir={}",
-            info_hash,
-            full_path.display()
-        );
-
         let now = Local::now().naive_utc();
         let task = Model {
             info_hash: info_hash.to_string(),
@@ -218,18 +232,21 @@ impl Worker {
     }
 
     pub async fn cancel_task(&self, info_hash: &str) -> Result<()> {
+        info!("取消下载任务: info_hash={}", info_hash);
         self.send_event(Tx::CancelTask(info_hash.to_string()))
             .await?;
         Ok(())
     }
 
     pub async fn retry_task(&self, info_hash: &str) -> Result<()> {
+        info!("重试下载任务: info_hash={}", info_hash);
         self.send_event(Tx::RetryTask(info_hash.to_string()))
             .await?;
         Ok(())
     }
 
     pub async fn download_file(&self, info_hash: &str, ua: &str) -> Result<DownloadInfo> {
+        info!("下载文件: info_hash={}, ua={}", info_hash, ua);
         let task = self
             .store
             .list_by_hashes(&[info_hash.to_string()])
@@ -238,9 +255,18 @@ impl Worker {
             .cloned()
             .context("任务不存在")?;
 
-        self.downloader
+        let result = self
+            .downloader
             .download_file(info_hash, ua, task.context)
-            .await
+            .await;
+
+        if let Err(ref e) = result {
+            warn!("下载文件失败: info_hash={}, 错误: {}", info_hash, e);
+        } else {
+            debug!("下载文件成功: info_hash={}", info_hash);
+        }
+
+        result
     }
 
     pub async fn subscribe(&self) -> broadcast::Receiver<Event> {
@@ -274,7 +300,12 @@ impl Worker {
         state: State,
         ctx: &mut Context,
     ) -> Result<(Option<Tx>, Option<State>)> {
-        match (event, state.clone()) {
+        debug!(
+            "状态转换开始: 事件={}, 状态={:?}",
+            event.debug_name(),
+            state
+        );
+        let result = match (event, state.clone()) {
             // 开始任务
             (Tx::StartTask(info_hash), State::Pending) => self.on_start_task(info_hash, ctx).await,
 
@@ -301,8 +332,16 @@ impl Worker {
                 self.on_task_completed(info_hash, result, ctx).await
             }
 
-            _ => Ok((None, None)),
-        }
+            (event, state) => {
+                warn!(
+                    "无效的状态转换: 事件={}, 状态={:?}",
+                    event.debug_name(),
+                    state
+                );
+                Ok((None, None))
+            }
+        };
+        result
     }
 
     async fn on_start_task(
@@ -311,8 +350,8 @@ impl Worker {
         ctx: &mut Context,
     ) -> Result<(Option<Tx>, Option<State>)> {
         info!(
-            "开始处理任务(StartTask): info_hash={} state={:?}",
-            info_hash, ctx.ref_task.download_status
+            "开始处理任务(StartTask): info_hash={} state={:?} dir={}",
+            info_hash, ctx.ref_task.download_status, ctx.ref_task.dir
         );
 
         match self
@@ -322,9 +361,10 @@ impl Worker {
         {
             Ok(result) => {
                 info!(
-                    "处理任务成功(StartTask): info_hash={} state={:?}",
+                    "处理任务成功(StartTask): info_hash={} state={:?}, 结果: {:?}",
                     info_hash,
-                    DownloadStatus::Downloading
+                    DownloadStatus::Downloading,
+                    result
                 );
                 self.update_task_status(&info_hash, DownloadStatus::Downloading, None, result)
                     .await?;
@@ -352,17 +392,28 @@ impl Worker {
         err_msg: String,
         ctx: &mut Context,
     ) -> Result<(Option<Tx>, Option<State>)> {
-        info!(
+        error!(
             "处理任务失败(TaskFailed): info_hash={} state={:?} -> TaskFailed, err_msg={}",
             info_hash, ctx.ref_task.download_status, err_msg
         );
-        self.downloader.remove_task(&info_hash).await?;
+
+        debug!("从第三方下载器移除失败任务: info_hash={}", info_hash);
+        if let Err(e) = self.downloader.remove_task(&info_hash).await {
+            warn!("移除失败任务出错: info_hash={}, 错误: {}", info_hash, e);
+        }
 
         if ctx.ref_task.retry_count >= self.config.max_retry_count {
+            warn!(
+                "任务重试次数已达上限: info_hash={}, 重试次数={}/{}",
+                info_hash, ctx.ref_task.retry_count, self.config.max_retry_count
+            );
             self.update_task_status(
                 &info_hash,
                 DownloadStatus::Failed,
-                Some(format!("重试次数超过上限: {}", err_msg)),
+                Some(format!(
+                    "重试次数超过上限({}): {}",
+                    self.config.max_retry_count, err_msg
+                )),
                 None,
             )
             .await?;
@@ -373,8 +424,11 @@ impl Worker {
                 .calculate_next_retry(ctx.ref_task.retry_count + 1);
 
             info!(
-                "更新任务重试状态(TaskFailed): info_hash={}, next_retry_at={}",
-                info_hash, next_retry_at
+                "更新任务重试状态(TaskFailed): info_hash={}, 重试次数={}/{}, next_retry_at={}",
+                info_hash,
+                ctx.ref_task.retry_count + 1,
+                self.config.max_retry_count,
+                next_retry_at
             );
             self.update_task_retry_status(&info_hash, next_retry_at, Some(err_msg))
                 .await?;
@@ -388,11 +442,17 @@ impl Worker {
         ctx: &mut Context,
     ) -> Result<(Option<Tx>, Option<State>)> {
         info!(
-            "开始重试任务(TaskRetry): info_hash={} state={:?}",
-            info_hash, ctx.ref_task.download_status
+            "开始重试任务(TaskRetry): info_hash={} state={:?}, 重试次数={}/{}",
+            info_hash,
+            ctx.ref_task.download_status,
+            ctx.ref_task.retry_count,
+            self.config.max_retry_count
         );
         // 删除原有任务，然后重新下载
-        self.downloader.remove_task(&info_hash).await?;
+        if let Err(e) = self.downloader.remove_task(&info_hash).await {
+            warn!("移除任务准备重试出错: info_hash={}, 错误: {}", info_hash, e);
+        }
+
         self.update_task_status(&info_hash, DownloadStatus::Pending, None, None)
             .await?;
         Ok((Some(Tx::StartTask(info_hash)), Some(State::Pending)))
@@ -403,7 +463,15 @@ impl Worker {
         info_hash: String,
         ctx: &mut Context,
     ) -> Result<(Option<Tx>, Option<State>)> {
-        self.downloader.cancel_task(&info_hash).await?;
+        info!(
+            "取消任务(TaskCancelled): info_hash={} state={:?}",
+            info_hash, ctx.ref_task.download_status
+        );
+
+        if let Err(e) = self.downloader.cancel_task(&info_hash).await {
+            warn!("取消任务出错: info_hash={}, 错误: {}", info_hash, e);
+        }
+
         self.update_task_status(&info_hash, DownloadStatus::Cancelled, None, None)
             .await?;
         Ok((None, Some(State::Cancelled)))
@@ -415,6 +483,10 @@ impl Worker {
         result: Option<String>,
         ctx: &mut Context,
     ) -> Result<(Option<Tx>, Option<State>)> {
+        info!(
+            "任务完成(TaskCompleted): info_hash={} state={:?}, 结果: {:?}",
+            info_hash, ctx.ref_task.download_status, result
+        );
         self.update_task_status(&info_hash, DownloadStatus::Completed, None, result)
             .await?;
         Ok((None, Some(State::Completed)))
@@ -450,7 +522,6 @@ impl Worker {
             .update_status(info_hash, status.clone(), err_msg.clone(), result.clone())
             .await;
 
-        // 推送事件
         let _ = self
             .notify_tx
             .send(Event::TaskUpdated((info_hash.to_string(), status, err_msg)));
@@ -519,7 +590,12 @@ mod tests {
             .init();
         let mut worker = Worker::new_from_env().await?;
         worker.spawn().await?;
-        worker.add_task("f6ebf8a1f26d01f317c8e94ec40ebb3dd1a75d40", PathBuf::from("test")).await?;
+        worker
+            .add_task(
+                "f6ebf8a1f26d01f317c8e94ec40ebb3dd1a75d40",
+                PathBuf::from("test"),
+            )
+            .await?;
         let mut rx = worker.subscribe().await;
         loop {
             let event = rx.recv().await?;

@@ -114,7 +114,7 @@ async fn test_retry_exceed_max_count() {
     assert_eq!(tasks[0].download_status, DownloadStatus::Failed);
     assert_eq!(
         tasks[0].err_msg,
-        Some("重试次数超过上限: error msg".to_string())
+        Some("重试次数超过上限(1): error msg".to_string())
     );
     assert_eq!(tasks[0].dir, "/test");
 }

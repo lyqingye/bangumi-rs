@@ -8,6 +8,7 @@ use tracing::{debug, info, warn};
 
 impl Worker {
     pub(crate) fn spawn_syncer(&self) -> Result<()> {
+        info!("启动远程任务同步器");
         let worker = self.clone();
         tokio::spawn(async move {
             let mut ticker = tokio::time::interval(worker.config.sync_interval);
@@ -20,15 +21,18 @@ impl Worker {
     }
 
     pub async fn sync_remote_task_status(&self) -> Result<()> {
+        info!("同步远程任务状态");
         let local_tasks = self
             .store
             .list_by_status(&[DownloadStatus::Downloading, DownloadStatus::Pending])
             .await?;
 
         if local_tasks.is_empty() {
-            debug!("没有需要同步的下载任务");
+            info!("没有需要同步的下载任务");
             return Ok(());
         }
+
+        info!("需要同步的下载任务数量: {}", local_tasks.len());
 
         let target_info_hashes: Vec<String> = local_tasks
             .iter()
@@ -59,7 +63,7 @@ impl Worker {
 
             if status.clone() != local_task.download_status {
                 info!(
-                    "更新任务状态: info_hash={}, old_status={:?}, new_status={:?}, err_msg={:?}",
+                    "远程任务状态更新: info_hash={}, old_status={:?}, new_status={:?}, err_msg={:?}",
                     info_hash, local_task.download_status, status, err_msg
                 );
 
@@ -87,6 +91,7 @@ impl Worker {
                 }
             }
         }
+        info!("同步远程任务状态完成");
 
         Ok(())
     }

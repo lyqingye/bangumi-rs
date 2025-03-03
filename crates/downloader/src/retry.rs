@@ -29,6 +29,7 @@ impl Worker {
             .store
             .list_by_status(&[DownloadStatus::Retrying])
             .await?;
+        info!("重试队列中的任务数量: {}", tasks.len());
         for task in tasks.as_mut_slice() {
             if now < task.next_retry_at {
                 continue;
@@ -43,6 +44,8 @@ impl Worker {
             self.send_event(Tx::AutoRetry(task.info_hash.clone()))
                 .await?;
         }
+
+        info!("重试队列处理完成");
 
         Ok(())
     }
