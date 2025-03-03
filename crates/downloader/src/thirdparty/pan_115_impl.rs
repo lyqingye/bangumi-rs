@@ -54,6 +54,12 @@ impl Pan115DownloaderImpl {
             config,
         }
     }
+
+    pub fn new_from_env() -> Result<Self> {
+        let pan115 = pan_115::client::Client::new_from_env()?;
+        let config = Config::default();
+        Ok(Self::new(pan115, config))
+    }
 }
 
 fn create_magnet_link(info_hash: &str) -> String {
@@ -118,12 +124,13 @@ impl ThirdPartyDownloader for Pan115DownloaderImpl {
                 } else {
                     None
                 };
+                let context: Pan115Context = (&task).into();
                 (
                     task.info_hash.clone(),
                     RemoteTaskStatus {
                         status: map_task_status(task.status()),
                         err_msg,
-                        result: None,
+                        result: Some(context.try_into().unwrap_or_default()),
                     },
                 )
             }));

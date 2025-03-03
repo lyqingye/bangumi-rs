@@ -10,8 +10,9 @@ use tokio::sync::{broadcast, mpsc, oneshot};
 use tracing::{debug, error, info};
 
 use crate::{
-    config::Config, db::Db, metrics, tasks::TaskManager, Downloader, Event, RemoteTaskStatus,
-    Store, ThirdPartyDownloader,
+    config::Config, db::Db, metrics, tasks::TaskManager,
+    thirdparty::pan_115_impl::Pan115DownloaderImpl, Downloader, Event, RemoteTaskStatus, Store,
+    ThirdPartyDownloader,
 };
 
 type State = DownloadStatus;
@@ -490,5 +491,48 @@ impl Downloader for Worker {
 
     async fn retry(&self, info_hash: &str) -> Result<()> {
         self.retry_task(info_hash).await
+    }
+}
+
+impl Worker {
+    pub async fn new_from_env() -> Result<Self> {
+        let db = Db::new_from_env().await?;
+        let downloader = Pan115DownloaderImpl::new_from_env()?;
+        let config = Config::default();
+        Self::new_with_conn(Box::new(db), Box::new(downloader), config).await
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::time::Duration;
+
+    use super::*;
+
+    #[ignore]
+    #[tokio::test]
+    async fn test_worker() -> Result<()> {
+        dotenv::dotenv().ok();
+        tracing_subscriber::fmt()
+            .with_max_level(tracing::Level::INFO)
+            .with_target(true)
+            .init();
+        let mut worker = Worker::new_from_env().await?;
+        worker.spawn().await?;
+        worker.add_task("f6ebf8a1f26d01f317c8e94ec40ebb3dd1a75d40", PathBuf::from("test")).await?;
+        let mut rx = worker.subscribe().await;
+        loop {
+            let event = rx.recv().await?;
+            match event {
+                Event::TaskUpdated((info_hash, status, err_msg)) => {
+                    if status == DownloadStatus::Completed {
+                        break;
+                    }
+                }
+                _ => {}
+            }
+        }
+        worker.shutdown().await?;
+        Ok(())
     }
 }

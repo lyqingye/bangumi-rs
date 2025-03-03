@@ -142,7 +142,7 @@ async fn test_worker_retry_success() {
         RemoteTaskStatus {
             status: DownloadStatus::Completed,
             err_msg: None,
-            result: None,
+            result: Some("completed".to_string()),
         },
     );
 
@@ -180,6 +180,7 @@ async fn test_worker_retry_success() {
         .unwrap();
     assert_eq!(tasks.len(), 1);
     assert_eq!(tasks[0].info_hash, "456");
+    assert_eq!(tasks[0].context, Some("completed".to_string()));
 }
 
 #[tokio::test]

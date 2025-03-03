@@ -26,7 +26,7 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
-            sync_interval: Duration::from_secs(60),
+            sync_interval: Duration::from_secs(10),
             request_queue_size: 100,
             event_queue_size: 100,
             max_retry_count: 5,
