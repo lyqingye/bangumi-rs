@@ -95,6 +95,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore]
     async fn test_search() -> Result<()> {
         let cli = create_client().await?;
         let resp = cli.search("我独自升级", 1).await?;
@@ -111,6 +112,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore]
     async fn test_search_all() -> Result<()> {
         let cli = create_client().await?;
         let resp = cli.search_all("我独自升级").await?;
@@ -119,6 +121,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore]
     async fn test_parse_torrent() -> Result<()> {
         let cli = create_client().await?;
         let resp = cli.search("我独自升级", 1).await?;

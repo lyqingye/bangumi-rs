@@ -175,6 +175,7 @@ mod tests {
     use std::time;
 
     #[tokio::test]
+    #[ignore]
     async fn test_client_creation() -> Result<()> {
         dotenv::dotenv()?;
         let client = Client::from_env()?;

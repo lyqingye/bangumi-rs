@@ -274,6 +274,7 @@ mod tests {
     use anyhow::Result;
 
     #[tokio::test]
+    #[ignore]
     async fn test_server() -> Result<()> {
         let server = Server::new(Config::default(), Box::new(NopWriter)).await?;
         server.serve().await

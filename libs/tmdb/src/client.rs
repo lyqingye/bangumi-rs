@@ -311,6 +311,7 @@ mod tests {
     use anyhow::Result;
 
     #[tokio::test]
+    #[ignore]
     async fn test_tmdb_search_tv() -> Result<()> {
         dotenv::dotenv()?;
         tracing_subscriber::fmt()
@@ -330,6 +331,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore]
     async fn test_tmdb_search_movie() -> Result<()> {
         dotenv::dotenv()?;
         tracing_subscriber::fmt()

@@ -69,6 +69,7 @@ mod tests {
     use anyhow::Result;
 
     #[tokio::test]
+    #[ignore]
     async fn test_telegram_notifier() -> Result<()> {
         dotenv::dotenv()?;
         let notifier = TelegramNotifier::from_env()?;

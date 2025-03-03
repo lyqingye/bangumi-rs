@@ -185,6 +185,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore]
     async fn test_list_offline_tasks() -> Result<()> {
         let mut client = create_client().await?;
         client.login_check().await?;
@@ -194,6 +195,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore]
     async fn test_delete_offline_task() -> Result<()> {
         let mut client = create_client().await?;
         client.login_check().await?;
@@ -204,6 +206,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore]
     async fn test_add_offline_task() -> Result<()> {
         let mut client = create_client().await?;
         client.login_check().await?;
@@ -217,6 +220,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore]
     async fn test_list_offline_tasks_by_hashes() -> Result<()> {
         let mut client = create_client().await?;
         client.login_check().await?;

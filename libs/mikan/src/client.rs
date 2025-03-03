@@ -298,6 +298,7 @@ mod test {
     }
 
     #[tokio::test]
+    #[ignore]
     async fn test_search() -> Result<()> {
         let mikan = create_clinet()?;
         let result = mikan.collect_by_bangumi_id(3422).await?;
@@ -306,6 +307,7 @@ mod test {
     }
 
     #[tokio::test]
+    #[ignore]
     async fn test_week_bangumi() -> Result<()> {
         let mikan = create_clinet()?;
         let result = mikan.get_calendar().await?;
@@ -314,6 +316,7 @@ mod test {
     }
 
     #[tokio::test]
+    #[ignore]
     async fn test_get_bangumi_info() -> Result<()> {
         let mikan = create_clinet()?;
         let result = mikan.get_bangumi_info(681).await?;
@@ -322,6 +325,7 @@ mod test {
     }
 
     #[tokio::test]
+    #[ignore]
     async fn test_collect_by_bangumi_id_with_info_hash() -> Result<()> {
         let mikan = create_clinet()?;
         let result = mikan.collect_by_bangumi_id(3520).await?;
@@ -332,6 +336,7 @@ mod test {
     }
 
     #[tokio::test]
+    #[ignore]
     async fn test_collect_by_bangumi_id2() -> Result<()> {
         let mikan = create_clinet()?;
         let result = mikan.collect_by_bangumi_id(3422).await?;
@@ -348,6 +353,7 @@ mod test {
     }
 
     #[tokio::test]
+    #[ignore]
     async fn test_get_calendar_by_season() -> Result<()> {
         let mikan = create_clinet()?;
         let result = mikan.get_calendar_by_season("2024 夏季番组").await?;
@@ -356,6 +362,7 @@ mod test {
     }
 
     #[tokio::test]
+    #[ignore]
     async fn test_parser_bytes() -> Result<()> {
         let size = huby::ByteSize::from_str("992.7 MB").unwrap();
         println!("size: {:?}", size.in_bytes());

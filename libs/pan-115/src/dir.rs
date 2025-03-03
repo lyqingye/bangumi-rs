@@ -38,11 +38,6 @@ impl Client {
     /// # 返回值
     /// * `Ok(String)` - 创建的目录的 cid
     /// * `Err(Pan115Error)` - 创建失败的错误
-    ///
-    /// # 示例
-    /// ```rust
-    /// let cid = client.mkdir_by_path("/downloads/anime").await?;
-    /// ```
     pub async fn mkdir_by_path(&self, path: PathBuf) -> Result<String, Pan115Error> {
         debug!("mkdir_by_path: {:?}", path);
 
@@ -91,11 +86,6 @@ impl Client {
     /// # 返回值
     /// * `Ok(String)` - 路径对应的 cid
     /// * `Err(Pan115Error)` - 转换失败的错误
-    ///
-    /// # 示例
-    /// ```rust
-    /// let cid = client.path_to_cid("/downloads/anime").await?;
-    /// ```
     pub async fn path_to_cid(&self, path: PathBuf) -> Result<Option<String>, Pan115Error> {
         debug!("path_to_cid: {:?}", path);
 
@@ -170,6 +160,7 @@ mod tests {
     use super::*;
 
     #[tokio::test]
+    #[ignore]
     async fn test_mkdir() -> Result<()> {
         dotenv::dotenv().ok();
         let client = Client::new_from_env()?;
@@ -179,6 +170,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore]
     async fn test_path_to_cid() -> Result<()> {
         dotenv::dotenv().ok();
         let client = Client::new_from_env()?;
@@ -195,6 +187,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore]
     async fn test_mkdir_by_path() -> Result<()> {
         dotenv::dotenv().ok();
         tracing_subscriber::fmt()

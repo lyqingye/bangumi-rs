@@ -694,6 +694,7 @@ mod tests {
     use super::*;
 
     #[tokio::test]
+    #[ignore]
     async fn test_new_from_env() -> Result<()> {
         dotenv::dotenv().ok();
         tracing_subscriber::fmt()

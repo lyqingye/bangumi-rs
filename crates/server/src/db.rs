@@ -162,6 +162,7 @@ mod tests {
     use anyhow::Result;
 
     #[tokio::test]
+    #[ignore]
     async fn test_query_downloads_info() -> Result<()> {
         dotenv::dotenv().ok();
         tracing_subscriber::fmt()

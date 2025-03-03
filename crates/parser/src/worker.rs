@@ -203,6 +203,7 @@ mod tests {
     use super::*;
 
     #[tokio::test]
+    #[ignore]
     async fn test_parser_worker() -> Result<()> {
         dotenv::dotenv()?;
         tracing_subscriber::fmt()

@@ -9,10 +9,10 @@ use model::sea_orm_active_enums::DownloadStatus;
 // 初始化测试环境
 fn init_test_env() {
     dotenv::dotenv().ok();
-    tracing_subscriber::fmt()
-        .with_max_level(tracing::Level::INFO)
-        .with_target(true)
-        .init();
+    // tracing_subscriber::fmt()
+    //     .with_max_level(tracing::Level::INFO)
+    //     .with_target(true)
+    //     .init();
 }
 
 // 创建测试用的配置

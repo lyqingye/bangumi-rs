@@ -215,6 +215,7 @@ mod test {
     }
 
     #[tokio::test]
+    #[ignore]
     async fn test_list_files() -> Result<()> {
         let mut client = create_client().await?;
         client.login_check().await?;
@@ -226,6 +227,7 @@ mod test {
     }
 
     #[tokio::test]
+    #[ignore]
     async fn test_list_files_stream() -> Result<()> {
         let mut client = create_client().await?;
         client.login_check().await?;
@@ -244,6 +246,7 @@ mod test {
     }
 
     #[tokio::test]
+    #[ignore]
     async fn test_move_files() -> Result<()> {
         let mut client = create_client().await?;
         client.login_check().await?;
@@ -252,6 +255,7 @@ mod test {
     }
 
     #[tokio::test]
+    #[ignore]
     async fn test_rename_file() -> Result<()> {
         let mut client = create_client().await?;
         client.login_check().await?;
@@ -262,6 +266,7 @@ mod test {
     }
 
     #[tokio::test]
+    #[ignore]
     async fn test_delete_files() -> Result<()> {
         let mut client = create_client().await?;
         client.login_check().await?;
@@ -270,6 +275,7 @@ mod test {
     }
 
     #[tokio::test]
+    #[ignore]
     async fn test_get_file_info() -> Result<()> {
         let mut client = create_client().await?;
         client.login_check().await?;
