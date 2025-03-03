@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::{path::PathBuf, time::Duration};
 
 use chrono::{Local, NaiveDateTime};
 
@@ -15,6 +15,12 @@ pub struct Config {
     pub max_retry_count: i32,
     /// 重试任务间隔
     pub retry_processor_interval: Duration,
+    /// 重试最小间隔
+    pub retry_min_interval: Duration,
+    /// 重试最大间隔
+    pub retry_max_interval: Duration,
+    /// 下载目录
+    pub download_dir: PathBuf,
 }
 
 impl Default for Config {
@@ -25,22 +31,23 @@ impl Default for Config {
             event_queue_size: 100,
             max_retry_count: 5,
             retry_processor_interval: Duration::from_secs(5),
+            retry_min_interval: Duration::from_secs(30),
+            retry_max_interval: Duration::from_secs(60 * 60),
+            download_dir: PathBuf::from("/"),
         }
     }
 }
 
 impl Config {
     pub fn calculate_next_retry(&self, retry_count: i32) -> NaiveDateTime {
-        const BASE_SECONDS: u64 = 30; // 基础时间：30秒
-        const MAX_MINUTES: u64 = 60; // 最大间隔：60分钟
-        const MAX_SECONDS: u64 = MAX_MINUTES * 60; // 最大间隔（秒）：3600秒
-
+        let diff = (self.retry_max_interval - self.retry_min_interval).as_nanos() as u64;
         // 计算当前重试间隔（秒）
-        let delay_seconds = BASE_SECONDS * 2u64.pow((retry_count as u32).min(7));
+        let delay = self.retry_min_interval
+            + Duration::from_nanos(diff * 2u64.pow((retry_count as u32).min(7)));
 
         // 确保不超过最大间隔
-        let final_delay = delay_seconds.min(MAX_SECONDS);
+        let final_delay = delay.min(self.retry_max_interval);
 
-        Local::now().naive_utc() + Duration::from_secs(final_delay)
+        Local::now().naive_utc() + final_delay
     }
 }

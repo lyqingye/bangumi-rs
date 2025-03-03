@@ -10,12 +10,16 @@ impl Worker {
     pub(crate) fn spawn_syncer(&self) -> Result<()> {
         let worker = self.clone();
         tokio::spawn(async move {
-            worker.sync_remote_task_status().await;
+            let mut ticker = tokio::time::interval(worker.config.sync_interval);
+            loop {
+                ticker.tick().await;
+                worker.sync_remote_task_status().await;
+            }
         });
         Ok(())
     }
 
-    async fn sync_remote_task_status(&self) -> Result<()> {
+    pub async fn sync_remote_task_status(&self) -> Result<()> {
         let local_tasks = self
             .store
             .list_by_status(&[DownloadStatus::Downloading, DownloadStatus::Pending])

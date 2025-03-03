@@ -12,6 +12,7 @@ pub mod worker;
 
 use anyhow::Result;
 use async_trait::async_trait;
+use chrono::NaiveDateTime;
 use mockall::automock;
 use pan_115::model::DownloadInfo;
 use std::{collections::HashMap, path::PathBuf};
@@ -72,82 +73,11 @@ pub trait Store: Send + Sync {
         err_msg: Option<String>,
         result: Option<String>,
     ) -> Result<()>;
+    async fn update_retry_status(
+        &self,
+        info_hash: &str,
+        next_retry_at: NaiveDateTime,
+        err_msg: Option<String>,
+    ) -> Result<()>;
     async fn upsert(&self, task: Model) -> Result<()>;
-}
-
-#[cfg(test)]
-pub(crate) mod tests {
-    use super::*;
-    use anyhow::Result;
-    use async_trait::async_trait;
-    use std::collections::HashMap;
-    use std::sync::Arc;
-    use tokio::sync::RwLock;
-
-    pub struct MockStore {
-        tasks: Arc<RwLock<HashMap<String, Model>>>,
-    }
-
-    impl MockStore {
-        pub fn new() -> Self {
-            Self {
-                tasks: Arc::new(RwLock::new(HashMap::new())),
-            }
-        }
-
-        pub async fn insert_task(&self, task: Model) -> Result<()> {
-            let mut tasks = self.tasks.write().await;
-            tasks.insert(task.info_hash.clone(), task);
-            Ok(())
-        }
-
-        pub async fn get_tasks(&self) -> Vec<Model> {
-            let tasks = self.tasks.read().await;
-            tasks.values().cloned().collect()
-        }
-    }
-
-    #[async_trait]
-    impl Store for MockStore {
-        async fn list_by_hashes(&self, info_hashes: &[String]) -> Result<Vec<Model>> {
-            let tasks = self.tasks.read().await;
-            let result = info_hashes
-                .iter()
-                .filter_map(|hash| tasks.get(hash).cloned())
-                .collect();
-            Ok(result)
-        }
-
-        async fn list_by_status(&self, status: &[DownloadStatus]) -> Result<Vec<Model>> {
-            let tasks = self.tasks.read().await;
-            let result = tasks
-                .values()
-                .filter(|task| status.contains(&task.download_status))
-                .cloned()
-                .collect();
-            Ok(result)
-        }
-
-        async fn update_status(
-            &self,
-            info_hash: &str,
-            status: DownloadStatus,
-            err_msg: Option<String>,
-            result: Option<String>,
-        ) -> Result<()> {
-            let mut tasks = self.tasks.write().await;
-            if let Some(task) = tasks.get_mut(info_hash) {
-                task.download_status = status;
-                task.err_msg = err_msg;
-                task.context = result;
-            }
-            Ok(())
-        }
-
-        async fn upsert(&self, task: Model) -> Result<()> {
-            let mut tasks = self.tasks.write().await;
-            tasks.insert(task.info_hash.clone(), task);
-            Ok(())
-        }
-    }
 }

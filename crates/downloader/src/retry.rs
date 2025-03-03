@@ -23,6 +23,7 @@ impl Worker {
 
     /// 处理重试队列中的任务
     async fn process_retry(&self) -> Result<()> {
+        info!("开始处理重试队列");
         let now = Local::now().naive_utc();
         let mut tasks = self
             .store
