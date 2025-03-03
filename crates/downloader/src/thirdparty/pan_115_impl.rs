@@ -1,5 +1,6 @@
 use std::{
     collections::{HashMap, HashSet},
+    num::NonZero,
     path::PathBuf,
     sync::Arc,
     time::Duration,
@@ -19,12 +20,40 @@ use anyhow::Result;
 use anyhow::{anyhow, Context};
 use async_trait::async_trait;
 
+#[derive(Debug, Clone)]
+pub struct Config {
+    pub download_cache_ttl: Duration,
+    pub download_cache_size: usize,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            download_cache_ttl: Duration::from_secs(60 * 60),
+            download_cache_size: 16,
+        }
+    }
+}
+
 #[derive(Clone)]
 pub struct Pan115DownloaderImpl {
     pan115: pan_115::client::Client,
     path_cache: Arc<Mutex<HashMap<PathBuf, String>>>,
-    file_name_cache: Arc<Mutex<LruCache<String, (DownloadInfo, std::time::Instant)>>>,
-    download_cache_ttl: Duration,
+    download_cache: Arc<Mutex<LruCache<String, (DownloadInfo, std::time::Instant)>>>,
+    config: Config,
+}
+
+impl Pan115DownloaderImpl {
+    pub fn new(pan115: pan_115::client::Client, config: Config) -> Self {
+        Self {
+            pan115,
+            path_cache: Arc::new(Mutex::new(HashMap::new())),
+            download_cache: Arc::new(Mutex::new(LruCache::new(
+                NonZero::new(config.download_cache_size).unwrap(),
+            ))),
+            config,
+        }
+    }
 }
 
 fn create_magnet_link(info_hash: &str) -> String {
@@ -115,13 +144,13 @@ impl ThirdPartyDownloader for Pan115DownloaderImpl {
         ua: &str,
         result: Option<String>,
     ) -> Result<DownloadInfo> {
-        let mut cache = self.file_name_cache.lock().await;
+        let mut cache = self.download_cache.lock().await;
         let cache_key = format!("{}-{}", info_hash, ua);
 
         let now = std::time::Instant::now();
         if let Some((download_info, last_update)) = cache.get(&cache_key) {
             let ttl = now.duration_since(*last_update);
-            if ttl < self.download_cache_ttl {
+            if ttl < self.config.download_cache_ttl {
                 info!("命中缓存: info_hash={}", info_hash);
                 return Ok(download_info.clone());
             }

@@ -1,4 +1,5 @@
 use anyhow::Result;
+use async_trait::async_trait;
 use chrono::{Local, NaiveDateTime};
 use model::{
     sea_orm_active_enums::DownloadStatus,
@@ -10,6 +11,8 @@ use sea_orm::{
     QueryFilter, TransactionTrait,
 };
 use std::{future::Future, sync::Arc};
+
+use crate::Store;
 
 #[derive(Clone)]
 pub struct Db {
@@ -156,5 +159,41 @@ impl Db {
             .exec(&*self.conn)
             .await?;
         Ok(())
+    }
+}
+
+#[async_trait]
+impl Store for Db {
+    async fn list_by_hashes(&self, info_hashes: &[String]) -> Result<Vec<Model>> {
+        self.list_download_tasks(info_hashes.to_vec()).await
+    }
+
+    async fn list_by_status(&self, status: &[DownloadStatus]) -> Result<Vec<Model>> {
+        self.list_download_tasks_by_status(status.to_vec()).await
+    }
+
+    async fn update_status(
+        &self,
+        info_hash: &str,
+        status: DownloadStatus,
+        err_msg: Option<String>,
+        result: Option<String>,
+    ) -> Result<()> {
+        self.update_task_status(info_hash, status, err_msg, result)
+            .await
+    }
+
+    async fn upsert(&self, task: Model) -> Result<()> {
+        self.batch_upsert_download_tasks(vec![task]).await
+    }
+
+    async fn update_retry_status(
+        &self,
+        info_hash: &str,
+        next_retry_at: NaiveDateTime,
+        err_msg: Option<String>,
+    ) -> Result<()> {
+        self.update_task_retry_status(info_hash, next_retry_at, err_msg)
+            .await
     }
 }
