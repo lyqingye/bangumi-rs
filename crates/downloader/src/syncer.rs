@@ -87,10 +87,7 @@ impl Worker {
                         warn!("未处理的任务状态: info_hash={}, local_status={:?}, remote_status={:?}, err_msg={:?}", info_hash, local_task.download_status  , status, err_msg);
                     }
                 }
-            } else if status == DownloadStatus::Pending
-                || status == DownloadStatus::Retrying
-                || status == DownloadStatus::Downloading
-            {
+            } else if status == DownloadStatus::Pending || status == DownloadStatus::Downloading {
                 let now = Local::now().naive_utc();
                 let elapsed = now - local_task.updated_at;
                 if elapsed > self.config.download_timeout {

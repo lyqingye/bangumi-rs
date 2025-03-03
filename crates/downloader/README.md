@@ -9,9 +9,11 @@ stateDiagram
   Pending --> Downloading:StartTask
   Pending --> Cancelled:CancelTask
   Pending --> Failed:TaskFailed
+  Pending --> Failed:DownloadTimeout
   Downloading --> Completed:TaskComplete
   Downloading --> Failed:TaskFailed
   Downloading --> Cancelled:CancelTask
+  Downloading --> Failed:DownloadTimeout
 
   Failed --> Retrying:RetryTask
   Failed --> [*]
