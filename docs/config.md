@@ -42,12 +42,18 @@ endpoint = "https://mikanani.me"
 ## 下载器配置
 
 ```toml
-[pan115]
-cookies = "your_cookies"         # 115 网盘 Cookie
-download_dir = "/downloads"      # 下载目录
-max_requests_per_second = 2      # 最大请求速率
-offline_download_timeout = "10m" # 离线下载超时时间
-max_retry_count = 10             # 最大重试时间
+# 下载器配置
+[downloader]
+download_dir = "/animes"   # 下载存放目录，这里统一为UnixPath
+max_retry_count = 5        # 最大重试次数
+download_timeout = "30m"   # 下载超时
+retry_min_interval = "30s" # 重试最小间隔
+retry_max_interval = "10m" # 最大重试间隔
+
+# 115网盘下载器配置
+[downloader.pan115]
+cookies = "Your 115 cookies" # 115 cookit
+max_requests_per_second = 1  # 限流，没秒请求数
 ```
 
 ## 通知配置

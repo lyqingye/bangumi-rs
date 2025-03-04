@@ -59,6 +59,11 @@ const saveConfig = async () => {
     })
   } catch (error) {
     console.error('保存配置失败:', error)
+    showSnackbar({
+      text: `保存配置失败: ${error}`,
+      color: 'error',
+      location: 'top right'
+    })
   } finally {
     loading.value = false
   }
@@ -237,7 +242,7 @@ onMounted(() => {
                 <v-row>
                   <v-col cols="12">
                     <v-textarea
-                      v-model="config.pan115.cookies"
+                      v-model="config.downloader.pan115.cookies"
                       label="Cookies"
                       variant="outlined"
                       density="comfortable"
@@ -248,19 +253,9 @@ onMounted(() => {
                   </v-col>
                 </v-row>
                 <v-row>
-                  <v-col cols="12" md="8">
+                  <v-col cols="12" md="6">
                     <v-text-field
-                      v-model="config.pan115.download_dir"
-                      label="下载目录"
-                      variant="outlined"
-                      density="comfortable"
-                      class="mb-4"
-                      prepend-inner-icon="mdi-folder-download"
-                    />
-                  </v-col>
-                  <v-col cols="12" md="4">
-                    <v-text-field
-                      v-model="config.pan115.max_requests_per_second"
+                      v-model.number="config.downloader.pan115.max_requests_per_second"
                       label="每秒最大请求数"
                       type="number"
                       variant="outlined"
@@ -269,18 +264,58 @@ onMounted(() => {
                       prepend-inner-icon="mdi-speedometer"
                     />
                   </v-col>
-                  <v-col cols="12" md="4">
+                </v-row>
+              </v-card-text>
+            </v-card>
+
+            <v-card variant="outlined" class="mt-6">
+              <v-card-item>
+                <v-card-title>通用下载器配置</v-card-title>
+                <v-card-subtitle>配置所有下载器的通用参数</v-card-subtitle>
+              </v-card-item>
+              <v-card-text>
+                <v-row>
+                  <v-col cols="12" md="6">
                     <v-text-field
-                      v-model="config.pan115.offline_download_timeout"
-                      label="离线下载超时"
-                      variant="outlined"
-                    />
-                  </v-col>
-                  <v-col cols="12" md="4">
-                    <v-text-field
-                      v-model="config.pan115.max_retry_count"
+                      v-model.number="config.downloader.max_retry_count"
                       label="最大重试次数"
                       type="number"
+                      variant="outlined"
+                      density="comfortable"
+                      class="mb-4"
+                      prepend-inner-icon="mdi-refresh"
+                    />
+                  </v-col>
+                  <v-col cols="12" md="6">
+                    <v-text-field
+                      v-model="config.downloader.download_timeout"
+                      label="下载超时"
+                      variant="outlined"
+                      density="comfortable"
+                      class="mb-4"
+                      prepend-inner-icon="mdi-timer-sand"
+                    />
+                  </v-col>
+                </v-row>
+                <v-row>
+                  <v-col cols="12" md="6">
+                    <v-text-field
+                      v-model="config.downloader.retry_min_interval"
+                      label="最小重试间隔"
+                      variant="outlined"
+                      density="comfortable"
+                      class="mb-4"
+                      prepend-inner-icon="mdi-timer-outline"
+                    />
+                  </v-col>
+                  <v-col cols="12" md="6">
+                    <v-text-field
+                      v-model="config.downloader.retry_max_interval"
+                      label="最大重试间隔"
+                      variant="outlined"
+                      density="comfortable"
+                      class="mb-4"
+                      prepend-inner-icon="mdi-timer"
                     />
                   </v-col>
                 </v-row>

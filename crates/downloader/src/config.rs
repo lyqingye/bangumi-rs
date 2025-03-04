@@ -16,9 +16,9 @@ pub struct Config {
     /// 重试任务间隔
     pub retry_processor_interval: Duration,
     /// 重试最小间隔
-    pub retry_min_interval: Duration,
+    pub retry_min_interval: chrono::Duration,
     /// 重试最大间隔
-    pub retry_max_interval: Duration,
+    pub retry_max_interval: chrono::Duration,
     /// 下载目录
     pub download_dir: PathBuf,
     /// 下载超时
@@ -29,24 +29,26 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             sync_interval: Duration::from_secs(10),
-            request_queue_size: 100,
-            event_queue_size: 100,
+            request_queue_size: 128,
+            event_queue_size: 128,
             max_retry_count: 5,
             retry_processor_interval: Duration::from_secs(5),
-            retry_min_interval: Duration::from_secs(30),
-            retry_max_interval: Duration::from_secs(60 * 60),
+            retry_min_interval: chrono::Duration::seconds(30),
+            retry_max_interval: chrono::Duration::minutes(10),
             download_dir: PathBuf::from("/"),
-            download_timeout: chrono::Duration::hours(1),
+            download_timeout: chrono::Duration::minutes(30),
         }
     }
 }
 
 impl Config {
     pub fn calculate_next_retry(&self, retry_count: i32) -> NaiveDateTime {
-        let diff = (self.retry_max_interval - self.retry_min_interval).as_nanos() as u64;
+        let diff = (self.retry_max_interval - self.retry_min_interval)
+            .num_nanoseconds()
+            .unwrap_or_default();
         // 计算当前重试间隔（秒）
         let delay = self.retry_min_interval
-            + Duration::from_nanos(diff * 2u64.pow((retry_count as u32).min(7)));
+            + chrono::Duration::nanoseconds(diff * 2i64.pow((retry_count as u32).min(7)));
 
         // 确保不超过最大间隔
         let final_delay = delay.min(self.retry_max_interval);

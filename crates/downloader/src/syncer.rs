@@ -22,14 +22,12 @@ impl Worker {
     }
 
     pub async fn sync_remote_task_status(&self) -> Result<()> {
-        info!("同步远程任务状态");
         let local_tasks = self
             .store
             .list_by_status(&[DownloadStatus::Downloading, DownloadStatus::Pending])
             .await?;
 
         if local_tasks.is_empty() {
-            info!("没有需要同步的下载任务");
             return Ok(());
         }
 

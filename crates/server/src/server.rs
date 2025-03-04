@@ -112,9 +112,9 @@ impl Server {
 
         // Downloader worker
         let mut pan115 = pan_115::client::Client::new(
-            config.pan115.cookies.as_str(),
+            config.downloader.pan115.cookies.as_str(),
             Some(pan_115::client::RateLimitConfig {
-                max_requests_per_second: config.pan115.max_requests_per_second,
+                max_requests_per_second: config.downloader.pan115.max_requests_per_second,
             }),
         )?;
         pan115.login_check().await?;
@@ -130,9 +130,11 @@ impl Server {
             Box::new(dl_store),
             Box::new(pan115_downloader_impl),
             downloader::config::Config {
-                download_dir: PathBuf::from_str(&config.pan115.download_dir)?,
-                max_retry_count: config.pan115.max_retry_count,
-                download_timeout: config.pan115.offline_download_timeout,
+                download_dir: PathBuf::from_str(&config.downloader.download_dir)?,
+                max_retry_count: config.downloader.max_retry_count,
+                download_timeout: config.downloader.download_timeout,
+                retry_min_interval: config.downloader.retry_min_interval,
+                retry_max_interval: config.downloader.retry_max_interval,
                 ..Default::default()
             },
         )

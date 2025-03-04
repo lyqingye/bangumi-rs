@@ -23,8 +23,8 @@ fn create_test_config() -> Config {
         max_retry_count: 1,
         sync_interval: Duration::from_nanos(1),
         retry_processor_interval: Duration::from_secs(30),
-        retry_min_interval: Duration::from_nanos(1),
-        retry_max_interval: Duration::from_nanos(1),
+        retry_min_interval: chrono::Duration::nanoseconds(1),
+        retry_max_interval: chrono::Duration::nanoseconds(1),
         ..Default::default()
     }
 }
