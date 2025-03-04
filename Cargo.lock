@@ -353,18 +353,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "anitomy"
-version = "0.1.0"
-dependencies = [
- "anitomy",
- "phf 0.11.2",
- "regex",
- "serde",
- "serde_json",
- "uncased",
-]
-
-[[package]]
 name = "anstream"
 version = "0.6.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1049,7 +1037,7 @@ dependencies = [
  "cssparser-macros",
  "dtoa-short",
  "itoa",
- "phf 0.11.3",
+ "phf",
  "smallvec",
 ]
 
@@ -2352,7 +2340,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "82c88c6129bd24319e62a0359cb6b958fa7e8be6e19bb1663bc396b90883aca5"
 dependencies = [
  "log",
- "phf 0.11.3",
+ "phf",
  "phf_codegen",
  "string_cache",
  "string_cache_codegen",
@@ -2869,7 +2857,6 @@ dependencies = [
 name = "parser"
 version = "0.1.0"
 dependencies = [
- "anitomy",
  "anyhow",
  "async-trait",
  "chrono",
@@ -2909,20 +2896,11 @@ checksum = "e3148f5046208a5d56bcfc03053e3ca6334e51da8dfb19b6cdc8b306fae3283e"
 
 [[package]]
 name = "phf"
-version = "0.11.2"
-source = "git+https://github.com/edef1c/rust-phf/?rev=3a86c8a152b587aa572bd17e318b3cf61133040d#3a86c8a152b587aa572bd17e318b3cf61133040d"
-dependencies = [
- "phf_macros 0.11.2",
- "phf_shared 0.11.2",
-]
-
-[[package]]
-name = "phf"
 version = "0.11.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1fd6780a80ae0c52cc120a26a1a42c1ae51b247a253e4e06113d23d2c2edd078"
 dependencies = [
- "phf_macros 0.11.3",
+ "phf_macros",
  "phf_shared 0.11.3",
 ]
 
@@ -2958,19 +2936,6 @@ dependencies = [
 
 [[package]]
 name = "phf_macros"
-version = "0.11.2"
-source = "git+https://github.com/edef1c/rust-phf/?rev=3a86c8a152b587aa572bd17e318b3cf61133040d#3a86c8a152b587aa572bd17e318b3cf61133040d"
-dependencies = [
- "phf_generator 0.11.3",
- "phf_shared 0.11.3",
- "proc-macro2",
- "quote",
- "syn 2.0.96",
- "uncased",
-]
-
-[[package]]
-name = "phf_macros"
 version = "0.11.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f84ac04429c13a7ff43785d75ad27569f2951ce0ffd30a3321230db2fc727216"
@@ -2993,21 +2958,11 @@ dependencies = [
 
 [[package]]
 name = "phf_shared"
-version = "0.11.2"
-source = "git+https://github.com/edef1c/rust-phf/?rev=3a86c8a152b587aa572bd17e318b3cf61133040d#3a86c8a152b587aa572bd17e318b3cf61133040d"
-dependencies = [
- "siphasher 1.0.1",
- "uncased",
-]
-
-[[package]]
-name = "phf_shared"
 version = "0.11.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "67eabc2ef2a60eb7faa00097bd1ffdb5bd28e62bf39990626a582201b7a754e5"
 dependencies = [
  "siphasher 1.0.1",
- "uncased",
 ]
 
 [[package]]
@@ -3986,7 +3941,7 @@ dependencies = [
  "fxhash",
  "log",
  "new_debug_unreachable",
- "phf 0.11.3",
+ "phf",
  "phf_codegen",
  "precomputed-hash",
  "servo_arc",
@@ -5195,15 +5150,6 @@ name = "typenum"
 version = "1.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "42ff0bf0c66b8238c6f3b578df37d0b7848e55df8577b3f74f92a69acceeb825"
-
-[[package]]
-name = "uncased"
-version = "0.9.10"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e1b88fcfe09e89d3866a5c11019378088af2d24c3fbd4f0543f96b479ec90697"
-dependencies = [
- "version_check",
-]
 
 [[package]]
 name = "unicase"

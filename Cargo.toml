@@ -5,7 +5,6 @@ members = [
     "libs/pan-115",
     "crates/server",
     "crates/parser",
-    "libs/anitomy-rs",
     "crates/notify",
     "libs/bangumi-tv",
     "libs/tmdb",
