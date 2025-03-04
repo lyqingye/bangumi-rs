@@ -125,6 +125,7 @@ mod test {
     use crate::client::USER_AGENT;
 
     #[tokio::test]
+    #[ignore]
     async fn test_download_with_ua() -> Result<()> {
         dotenv::dotenv().ok();
         let client = Client::new_from_env()?;
@@ -153,6 +154,7 @@ mod test {
     }
 
     #[tokio::test]
+    #[ignore]
     async fn test_download_file() -> Result<()> {
         dotenv::dotenv().ok();
         let client = Client::new_from_env()?;

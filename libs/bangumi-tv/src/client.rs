@@ -120,6 +120,7 @@ mod test {
     }
 
     #[tokio::test]
+    #[ignore]
     async fn test_calendar() -> Result<()> {
         let cli = create_client().await?;
         let out = cli.get_calendar().await?;
@@ -128,6 +129,7 @@ mod test {
     }
 
     #[tokio::test]
+    #[ignore]
     async fn test_episodes() -> Result<()> {
         let cli = create_client().await?;
         let resp = cli.episodes(475354, EpisodeType::Normal, 100, 0).await?;
@@ -136,6 +138,7 @@ mod test {
     }
 
     #[tokio::test]
+    #[ignore]
     async fn test_subject() -> Result<()> {
         let cli = create_client().await?;
         let resp = cli.get_subject(475354).await?;
@@ -144,6 +147,7 @@ mod test {
     }
 
     #[tokio::test]
+    #[ignore]
     async fn test_download_image() -> Result<()> {
         let cli = create_client().await?;
         cli.download_image(

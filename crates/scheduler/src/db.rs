@@ -430,6 +430,7 @@ mod tests {
     use super::*;
 
     #[tokio::test]
+    #[ignore]
     async fn test_example() -> Result<()> {
         dotenv::dotenv().ok();
         tracing_subscriber::fmt()

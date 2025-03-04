@@ -226,6 +226,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore]
     async fn test_dict() -> Result<()> {
         dotenv::dotenv().ok();
         let _ = Dict::new_from_env().await?;

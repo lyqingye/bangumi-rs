@@ -143,6 +143,7 @@ mod tests {
     use tokio_stream::{self as stream, StreamExt};
 
     #[tokio::test]
+    #[ignore]
     async fn test_login_check() -> Result<()> {
         dotenv::dotenv().ok();
         let mut client = Client::new_from_env()?;

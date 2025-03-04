@@ -305,6 +305,7 @@ pub struct OfflineTask {
     pub move_field: i32, // 改名为 move_field
 }
 
+#[derive(Debug)]
 pub enum OfflineTaskStatus {
     Pending = 0,
     Downloading = 1,

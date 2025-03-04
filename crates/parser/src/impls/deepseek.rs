@@ -318,6 +318,7 @@ mod tests {
     use std::time;
 
     #[tokio::test]
+    #[ignore]
     async fn test_client_creation() -> Result<()> {
         dotenv::dotenv()?;
         tracing_subscriber::fmt()

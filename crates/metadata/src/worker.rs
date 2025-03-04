@@ -463,6 +463,7 @@ mod test {
     use super::*;
 
     #[tokio::test]
+    #[ignore]
     async fn test_refresh_calendar() -> Result<()> {
         dotenv::dotenv()?;
         tracing_subscriber::fmt()

@@ -119,17 +119,25 @@ impl Server {
         )?;
         pan115.login_check().await?;
 
-        let mut downloader_worker = downloader::pan_115_dl::Pan115Downloader::new_with_conn(
-            db.conn_pool(),
-            pan115,
-            downloader::pan_115_dl::Config {
+        let pan115_downloader_impl =
+            downloader::thirdparty::pan_115_impl::Pan115DownloaderImpl::new(
+                pan115,
+                downloader::thirdparty::pan_115_impl::Config::default(),
+            );
+
+        let dl_store = downloader::db::Db::new(db.conn_pool());
+        let mut downloader_worker = downloader::worker::Worker::new_with_conn(
+            Box::new(dl_store),
+            Box::new(pan115_downloader_impl),
+            downloader::config::Config {
                 download_dir: PathBuf::from_str(&config.pan115.download_dir)?,
                 max_retry_count: config.pan115.max_retry_count,
-                offline_download_timeout: config.pan115.offline_download_timeout,
+                download_timeout: config.pan115.offline_download_timeout,
                 ..Default::default()
             },
         )
         .await?;
+
         downloader_worker.spawn().await?;
 
         // Scheduler
@@ -274,6 +282,7 @@ mod tests {
     use anyhow::Result;
 
     #[tokio::test]
+    #[ignore]
     async fn test_server() -> Result<()> {
         let server = Server::new(Config::default(), Box::new(NopWriter)).await?;
         server.serve().await
