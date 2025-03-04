@@ -554,7 +554,7 @@ pub async fn seach_bangumi_at_mikan(
     let result = state
         .metadata
         .fetcher()
-        .seach_bangumi_at_mikan(&name)
+        .search_bangumi_at_mikan(&name)
         .await?;
     let items = result
         .into_iter()

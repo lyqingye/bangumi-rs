@@ -92,7 +92,7 @@ impl Fetcher {
         self.tmdb.download_image_as_response(file_path).await
     }
 
-    pub async fn seach_bangumi_at_mikan(&self, name: &str) -> Result<Vec<SearchResultItem>> {
+    pub async fn search_bangumi_at_mikan(&self, name: &str) -> Result<Vec<SearchResultItem>> {
         self.mikan.search(name).await
     }
 }
