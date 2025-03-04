@@ -15,7 +15,8 @@ import type {
   Metrics,
   Config,
   QueryBangumiParams,
-  MikanSearchResultItem
+  MikanSearchResultItem,
+  AddBangumiParams
 } from './model'
 import { ApiError } from './model'
 import { useSnackbar } from '../composables/useSnackbar'
@@ -255,5 +256,14 @@ export async function searchBangumiAtMikan(name: string): Promise<MikanSearchRes
     return handleResponse(response, '搜索 Mikan 数据失败')
   } catch (error) {
     return handleError(error, '搜索 Mikan 数据失败')
+  }
+}
+
+export async function addBangumi(params: AddBangumiParams): Promise<number> {
+  try {
+    const response = await api.post<ApiResponse<number>>('/bangumi/add', params)
+    return handleResponse(response, '添加番剧失败')
+  } catch (error) {
+    return handleError(error, '添加番剧失败')
   }
 }

@@ -113,7 +113,6 @@
             <v-card
               class="search-result-card"
               elevation="2"
-              @click="handleSearchResultClick(result)"
             >
               <v-img
                 :src="result.image_url || '/placeholder-image.jpg'"
@@ -161,7 +160,7 @@
                 size="small"
                 color="primary"
                 class="add-btn"
-                @click.stop
+                @click.stop="handleSearchResultClick(result)"
               >
                 <v-icon>mdi-plus</v-icon>
                 <v-tooltip
@@ -231,12 +230,13 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed, watch } from 'vue'
-import { fetchCalendar, refreshCalendar, searchBangumiAtMikan } from '@/api/api'
-import { type Bangumi, type MikanSearchResultItem } from '@/api/model'
+import { fetchCalendar, refreshCalendar, searchBangumiAtMikan, addBangumi } from '@/api/api'
+import { type Bangumi, type MikanSearchResultItem, type AddBangumiParams } from '@/api/model'
 import MediaCard from '@/components/MediaCard.vue'
 import RefreshDialog from '@/components/RefreshDialog.vue'
 import { useSnackbar } from '@/composables/useSnackbar'
 import { useSeason } from '@/stores/season'
+import { useRouter } from 'vue-router'
 
 const { showSnackbar } = useSnackbar()
 // 使用season store
@@ -324,6 +324,9 @@ const handleRefreshConfirm = async (force: boolean) => {
   }
 }
 
+// 添加 router
+const router = useRouter()
+
 // 搜索处理函数
 const handleSearch = async () => {
   if (!searchQuery.value.trim()) return
@@ -349,14 +352,34 @@ const clearSearch = () => {
 }
 
 // 处理搜索结果点击
-const handleSearchResultClick = (result: MikanSearchResultItem) => {
-  // 这里可以添加导航到详情页或其他操作
-  showSnackbar({
-    text: `选择了: ${result.title}`,
-    color: 'info',
-    location: 'bottom',
-    timeout: 2000
-  })
+const handleSearchResultClick = async (result: MikanSearchResultItem) => {
+  try {
+    // 准备添加番剧的参数
+    const params: AddBangumiParams = {
+      title: result.title,
+      mikan_id: result.id,
+      bgm_tv_id: result.bangumi_tv_id || null
+    }
+    
+    // 调用添加番剧接口
+    const bangumiId = await addBangumi(params)
+    
+    // 显示成功提示
+    showSnackbar({
+      text: '添加成功，正在跳转...',
+      color: 'success',
+      location: 'top right',
+      timeout: 2000
+    })
+    
+    // 跳转到详情页
+    router.push({
+      name: 'detail',
+      params: { id: bangumiId }
+    })
+  } catch (e) {
+    // 错误已经在 API 层处理，这里不需要额外处理
+  }
 }
 
 // 监听年份变化

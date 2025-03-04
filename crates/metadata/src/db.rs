@@ -140,7 +140,7 @@ impl Db {
                 ep_count: 0,
                 ep_start_number: 0,
                 calendar_season: None,
-                bgm_kind: todo!(),
+                bgm_kind: None,
             }])
             .await?;
         Ok(())

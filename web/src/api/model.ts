@@ -337,3 +337,10 @@ export interface MikanSearchResultItem {
   image_url: string,
   bangumi_tv_id: number
 }
+
+export interface AddBangumiParams {
+  title: string
+  mikan_id: number
+  bgm_tv_id?: number | null
+  tmdb_id?: number | null
+}
