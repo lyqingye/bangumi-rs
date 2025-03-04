@@ -14,7 +14,6 @@ lazy_static = { workspace = true }
 tracing = {workspace = true}
 async-trait = {workspace = true}
 sea-orm = {workspace = true, features = [ "sqlx-mysql", "runtime-tokio-rustls", "macros", "debug-print"]}
-anitomy = {path = "../../libs/anitomy-rs" }
 model = {path = "../../crates/model" }
 chrono = {workspace = true}
 
