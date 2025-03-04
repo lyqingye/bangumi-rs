@@ -161,6 +161,8 @@
                 color="primary"
                 class="add-btn"
                 @click.stop="handleSearchResultClick(result)"
+                :loading="addingBangumi[result.id]"
+                :disabled="addingBangumi[result.id]"
               >
                 <v-icon>mdi-plus</v-icon>
                 <v-tooltip
@@ -327,6 +329,9 @@ const handleRefreshConfirm = async (force: boolean) => {
 // 添加 router
 const router = useRouter()
 
+// 添加加载状态
+const addingBangumi = ref<Record<number, boolean>>({})
+
 // 搜索处理函数
 const handleSearch = async () => {
   if (!searchQuery.value.trim()) return
@@ -353,6 +358,9 @@ const clearSearch = () => {
 
 // 处理搜索结果点击
 const handleSearchResultClick = async (result: MikanSearchResultItem) => {
+  // 设置加载状态
+  addingBangumi.value[result.id] = true
+  
   try {
     // 准备添加番剧的参数
     const params: AddBangumiParams = {
@@ -379,6 +387,9 @@ const handleSearchResultClick = async (result: MikanSearchResultItem) => {
     })
   } catch (e) {
     // 错误已经在 API 层处理，这里不需要额外处理
+  } finally {
+    // 清除加载状态
+    delete addingBangumi.value[result.id]
   }
 }
 
