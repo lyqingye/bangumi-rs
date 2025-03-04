@@ -30,13 +30,18 @@ image_base_url = "https://lain.bgm.tv"
 [mikan]
 endpoint = "https://mikanani.me"
 
+# 下载器配置
+[downloader]
+download_dir = "/animes"
+max_retry_count = 5
+download_timeout = "30m"
+retry_min_interval = "30s"
+retry_max_interval = "10m"
+
 # 115网盘下载器配置
-[pan115]
-cookies = "your_115_cookies"
-download_dir = "/path/to/downloads"
-max_requests_per_second = 2
-offline_download_timeout = "10m"
-max_retry_count = 10
+[downloader.pan115]
+cookies = "Your 115 cookies"
+max_requests_per_second = 1
 
 # Telegram 通知配置
 [notify.telegram]

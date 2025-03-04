@@ -33,10 +33,6 @@ impl Db {
         &self.conn
     }
 
-    pub async fn begin(&self) -> Result<DatabaseTransaction> {
-        Ok(self.conn().begin().await?)
-    }
-
     pub async fn batch_upsert_download_tasks(&self, tasks: Vec<Model>) -> Result<()> {
         torrent_download_tasks::Entity::insert_many(
             tasks.into_iter().map(|t| t.into_active_model()),
@@ -51,43 +47,6 @@ impl Db {
         Ok(())
     }
 
-    pub async fn get_by_info_hash(&self, info_hash: &str) -> Result<Option<Model>> {
-        Ok(torrent_download_tasks::Entity::find()
-            .filter(Column::InfoHash.eq(info_hash))
-            .one(&*self.conn)
-            .await?)
-    }
-
-    /// 在事务中执行操作
-    pub async fn transaction<F, T, E>(&self, f: F) -> Result<T>
-    where
-        F: FnOnce(
-            &DatabaseTransaction,
-        ) -> std::pin::Pin<Box<dyn Future<Output = Result<T, E>> + Send + '_>>,
-        E: Into<anyhow::Error>,
-    {
-        let txn = self.begin().await?;
-
-        match f(&txn).await {
-            Ok(result) => {
-                txn.commit().await?;
-                Ok(result)
-            }
-            Err(e) => {
-                txn.rollback().await?;
-                Err(e.into())
-            }
-        }
-    }
-
-    /// 更新任务状态
-    ///
-    /// 只更新状态、错误信息和更新时间三个字段
-    ///
-    /// # Arguments
-    /// * `info_hash` - 任务的 info hash
-    /// * `status` - 新的状态
-    /// * `err_msg` - 错误信息
     pub async fn update_task_status(
         &self,
         info_hash: &str,
@@ -151,14 +110,6 @@ impl Db {
             .filter(Column::DownloadStatus.is_in(status))
             .all(&*self.conn)
             .await?)
-    }
-
-    pub async fn remove_by_info_hash(&self, info_hash: &str) -> Result<()> {
-        torrent_download_tasks::Entity::delete_many()
-            .filter(Column::InfoHash.eq(info_hash))
-            .exec(&*self.conn)
-            .await?;
-        Ok(())
     }
 }
 

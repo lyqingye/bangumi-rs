@@ -6,7 +6,6 @@ use tracing::{error, info, warn};
 
 impl Worker {
     pub(crate) fn spawn_retry_processor(&self) {
-        info!("启动重试处理器");
         let svc = self.clone();
         let interval = self.config.retry_processor_interval;
 
@@ -23,12 +22,14 @@ impl Worker {
 
     /// 处理重试队列中的任务
     async fn process_retry(&self) -> Result<()> {
-        info!("开始处理重试队列");
         let now = Local::now().naive_utc();
         let mut tasks = self
             .store
             .list_by_status(&[DownloadStatus::Retrying])
             .await?;
+        if tasks.is_empty() {
+            return Ok(());
+        }
         info!("重试队列中的任务数量: {}", tasks.len());
         for task in tasks.as_mut_slice() {
             if now < task.next_retry_at {

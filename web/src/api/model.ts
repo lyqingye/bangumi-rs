@@ -236,12 +236,17 @@ export interface NotifyConfig {
   telegram: TelegramConfig
 }
 
+export interface DownloaderConfig {
+  pan115: Pan115Config
+  max_retry_count: number
+  download_timeout: string
+  retry_min_interval: string
+  retry_max_interval: string
+}
+
 export interface Pan115Config {
   cookies: string
-  download_dir: string
   max_requests_per_second: number
-  offline_download_timeout: string
-  max_retry_count: number
 }
 
 export interface SiliconflowConfig {
@@ -313,7 +318,7 @@ export interface Config {
   bangumi_tv: BangumiTvConfig
   tmdb: TMDBConfig
   parser: ParserConfig
-  pan115: Pan115Config
+  downloader: DownloaderConfig
   notify: NotifyConfig
   proxy: ProxyConfig
 }
