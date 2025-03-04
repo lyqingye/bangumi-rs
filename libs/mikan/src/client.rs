@@ -175,7 +175,10 @@ impl Client {
             .map(|url| {
                 self.endpoint
                     .join(&url)
-                    .map(|u| u.to_string())
+                    .map(|mut u| {
+                        u.set_query(None);
+                        u.to_string()
+                    })
                     .unwrap_or_default()
             });
 
@@ -231,7 +234,10 @@ impl Client {
                     let image_url = img_span.attr("data-src").map(|src| {
                         self.endpoint
                             .join(src)
-                            .map(|t| t.to_string())
+                            .map(|mut t| {
+                                t.set_query(None);
+                                t.to_string()
+                            })
                             .unwrap_or_default()
                     });
 
