@@ -4,7 +4,7 @@ use bangumi_tv::{
     model::{EpisodeList, EpisodeType},
 };
 use chrono::NaiveDateTime;
-use mikan::client::{BangumiInfo, EpisodeItem};
+use mikan::client::{BangumiInfo, EpisodeItem, SearchResultItem};
 use model::{bangumi, episodes, sea_orm_active_enums::SubscribeStatus};
 use tmdb::api::{
     movie::MovieShort,
@@ -90,5 +90,9 @@ impl Fetcher {
         file_path: &str,
     ) -> Result<reqwest::Response> {
         self.tmdb.download_image_as_response(file_path).await
+    }
+
+    pub async fn seach_bangumi_at_mikan(&self, name: &str) -> Result<Vec<SearchResultItem>> {
+        self.mikan.search(name).await
     }
 }

@@ -9,6 +9,7 @@
         <!-- 搜索框居中 -->
         <div class="search-container">
           <v-text-field
+            v-model="searchQuery"
             density="compact"
             hide-details
             prepend-inner-icon="mdi-magnify"
@@ -16,6 +17,11 @@
             variant="solo-filled"
             class="search-field"
             bg-color="rgba(32, 32, 32, 0.95)"
+            @keyup.enter="handleSearch"
+            @click:prepend-inner="handleSearch"
+            :loading="searching"
+            clearable
+            @click:clear="clearSearch"
           />
         </div>
         
@@ -69,7 +75,108 @@
       </div>
     </div>
 
-    <v-row>
+    <!-- 搜索结果展示 -->
+    <div v-if="showSearchResults" class="search-results-container mb-6">
+      <v-card class="search-results-card">
+        <div class="d-flex justify-space-between align-center pa-4">
+          <h3 class="text-h6">搜索结果: {{ searchQuery }}</h3>
+          <v-btn icon variant="text" @click="clearSearch">
+            <v-icon>mdi-close</v-icon>
+          </v-btn>
+        </div>
+        
+        <v-divider></v-divider>
+        
+        <div v-if="searching" class="d-flex justify-center align-center pa-8">
+          <v-progress-circular indeterminate color="primary" size="48" />
+        </div>
+        
+        <div v-else-if="searchError" class="text-center pa-8 text-error">
+          {{ searchError }}
+        </div>
+        
+        <div v-else-if="searchResults.length === 0" class="text-center pa-8 text-medium-emphasis">
+          未找到相关番剧，请尝试其他关键词
+        </div>
+        
+        <v-row v-else class="pa-4">
+          <v-col
+            v-for="result in searchResults"
+            :key="result.id"
+            cols="12"
+            sm="6"
+            md="4"
+            lg="3"
+            xl="2"
+            class="search-result-col"
+          >
+            <v-card
+              class="search-result-card"
+              elevation="2"
+              @click="handleSearchResultClick(result)"
+            >
+              <v-img
+                :src="result.image_url || '/placeholder-image.jpg'"
+                height="400"
+                cover
+                class="search-result-image"
+              >
+                <template v-slot:placeholder>
+                  <div class="d-flex align-center justify-center fill-height">
+                    <v-progress-circular indeterminate color="primary"></v-progress-circular>
+                  </div>
+                </template>
+              </v-img>
+              <v-card-title class="search-result-title text-truncate">
+                {{ result.title }}
+              </v-card-title>
+              <v-card-subtitle class="search-result-links">
+                <div class="d-flex flex-column">
+                  <v-btn
+                    variant="text"
+                    class="link-btn"
+                    :href="`https://mikanani.me/Home/Bangumi/${result.id}`"
+                    target="_blank"
+                    @click.stop
+                  >
+                    <v-icon size="small" class="me-1">mdi-link</v-icon>
+                    Mikan #{{ result.id }}
+                  </v-btn>
+                  <v-btn
+                    v-if="result.bangumi_tv_id"
+                    variant="text"
+                    class="link-btn"
+                    :href="`https://bgm.tv/subject/${result.bangumi_tv_id}`"
+                    target="_blank"
+                    @click.stop
+                  >
+                    <v-icon size="small" class="me-1">mdi-link</v-icon>
+                    BgmTV #{{ result.bangumi_tv_id }}
+                  </v-btn>
+                </div>
+              </v-card-subtitle>
+              <v-btn
+                icon
+                variant="elevated"
+                size="small"
+                color="primary"
+                class="add-btn"
+                @click.stop
+              >
+                <v-icon>mdi-plus</v-icon>
+                <v-tooltip
+                  activator="parent"
+                  location="top"
+                  text="添加到订阅列表"
+                />
+              </v-btn>
+            </v-card>
+          </v-col>
+        </v-row>
+      </v-card>
+    </div>
+
+    <v-row v-if="!showSearchResults">
       <!-- 星期导航条 -->
       <v-col cols="12" class="mb-6">
         <v-card class="weekday-tabs-card" elevation="0">
@@ -124,8 +231,8 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed, watch } from 'vue'
-import { fetchCalendar, refreshCalendar } from '@/api/api'
-import { type Bangumi } from '@/api/model'
+import { fetchCalendar, refreshCalendar, searchBangumiAtMikan } from '@/api/api'
+import { type Bangumi, type MikanSearchResultItem } from '@/api/model'
 import MediaCard from '@/components/MediaCard.vue'
 import RefreshDialog from '@/components/RefreshDialog.vue'
 import { useSnackbar } from '@/composables/useSnackbar'
@@ -162,6 +269,13 @@ const error = ref('')
 
 // 添加刷新对话框状态
 const showRefreshDialog = ref(false)
+
+// 搜索相关状态
+const searchQuery = ref('')
+const searchResults = ref<MikanSearchResultItem[]>([])
+const searching = ref(false)
+const searchError = ref('')
+const showSearchResults = computed(() => searchQuery.value.trim() !== '' && searchResults.value.length > 0)
 
 const filteredCalendarItems = computed(() => {
   if (selectedWeekday.value === '-1') {
@@ -208,6 +322,41 @@ const handleRefreshConfirm = async (force: boolean) => {
     // 关闭对话框
     showRefreshDialog.value = false
   }
+}
+
+// 搜索处理函数
+const handleSearch = async () => {
+  if (!searchQuery.value.trim()) return
+  
+  searching.value = true
+  searchError.value = ''
+  
+  try {
+    searchResults.value = await searchBangumiAtMikan(searchQuery.value.trim())
+  } catch (e) {
+    searchError.value = e instanceof Error ? e.message : '搜索失败'
+    searchResults.value = []
+  } finally {
+    searching.value = false
+  }
+}
+
+// 清除搜索结果
+const clearSearch = () => {
+  searchQuery.value = ''
+  searchResults.value = []
+  searchError.value = ''
+}
+
+// 处理搜索结果点击
+const handleSearchResultClick = (result: MikanSearchResultItem) => {
+  // 这里可以添加导航到详情页或其他操作
+  showSnackbar({
+    text: `选择了: ${result.title}`,
+    color: 'info',
+    location: 'bottom',
+    timeout: 2000
+  })
 }
 
 // 监听年份变化
@@ -280,6 +429,93 @@ onMounted(async () => {
 
 .search-field :deep(.v-field__prepend-inner) {
   padding-left: 12px;
+}
+
+/* 搜索结果样式 */
+.search-results-container {
+  width: 100%;
+}
+
+.search-results-card {
+  background: rgba(32, 32, 32, 0.95);
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.search-result-col {
+  transition: transform 0.2s ease;
+}
+
+.search-result-col:hover {
+  transform: translateY(-4px);
+}
+
+.search-result-card {
+  height: 100%;
+  background: rgba(48, 48, 48, 0.95);
+  border-radius: 12px;
+  overflow: hidden;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  position: relative;
+}
+
+.search-result-card:hover {
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+}
+
+.search-result-image {
+  position: relative;
+}
+
+.add-btn {
+  position: absolute !important;
+  right: 12px;
+  bottom: 12px;
+  opacity: 0;
+  transform: scale(0.8);
+  transition: all 0.3s ease !important;
+  z-index: 1;
+}
+
+.search-result-card:hover .add-btn {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.search-result-title {
+  font-size: 0.95rem;
+  line-height: 1.3;
+  padding: 12px 12px 4px;
+  padding-right: 48px;
+  font-weight: 500;
+}
+
+.search-result-links {
+  padding: 4px 12px 12px;
+  padding-right: 48px;
+}
+
+.search-result-links .d-flex {
+  gap: 4px;
+}
+
+.link-btn {
+  height: 24px !important;
+  min-width: unset !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border-radius: 4px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: normal;
+  justify-content: flex-start;
+}
+
+.link-btn:hover {
+  color: rgba(255, 255, 255, 0.9);
 }
 
 .weekday-tabs-card {

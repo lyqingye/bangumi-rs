@@ -14,7 +14,8 @@ import type {
   UpdateMDBParams,
   Metrics,
   Config,
-  QueryBangumiParams
+  QueryBangumiParams,
+  MikanSearchResultItem
 } from './model'
 import { ApiError } from './model'
 import { useSnackbar } from '../composables/useSnackbar'
@@ -244,5 +245,15 @@ export async function retryDownloadTask(bangumiId: number, episodeNumber: number
     handleResponse(response, '重试下载任务失败')
   } catch (error) {
     handleError(error, '重试下载任务失败')
+  }
+}
+
+
+export async function searchBangumiAtMikan(name: string): Promise<MikanSearchResultItem[]> {
+  try {
+    const response = await api.get<ApiResponse<MikanSearchResultItem[]>>(`/mikan/search/${encodeURIComponent(name)}`)
+    return handleResponse(response, '搜索 Mikan 数据失败')
+  } catch (error) {
+    return handleError(error, '搜索 Mikan 数据失败')
   }
 }
