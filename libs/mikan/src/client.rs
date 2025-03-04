@@ -21,6 +21,11 @@ lazy_static::lazy_static! {
     static ref WEEK_BANGUMI_IMAGE_SELECTOR: Selector = Selector::parse("span.js-expand_bangumi").unwrap();
     static ref WEEK_BANGUMI_AIR_DATE_SELECTOR: Selector = Selector::parse("div.date-text").unwrap();
     static ref WEEK_BANGUMI_SEASON_SELECTOR: Selector = Selector::parse("#sk-data-nav > div > ul.navbar-nav.date-select > li > div > div.sk-col.date-text").unwrap();
+
+    static ref SEARCH_RESULT_SELECTOR: Selector = Selector::parse("ul.list-inline.an-ul > li").unwrap();
+    static ref SEARCH_RESULT_LINK_SELECTOR: Selector = Selector::parse("a").unwrap();
+    static ref SEARCH_RESULT_TITLE_SELECTOR: Selector = Selector::parse("div.an-info div.an-text").unwrap();
+    static ref SEARCH_RESULT_IMAGE_SELECTOR: Selector = Selector::parse("span.b-lazy").unwrap();
 }
 
 #[derive(Debug, Clone, Default)]
@@ -69,6 +74,15 @@ pub struct MikanBangumi {
     pub image_url: Option<String>,
     pub air_date: Option<NaiveDateTime>,
 }
+
+#[derive(Debug, Clone)]
+pub struct SearchResultItem {
+    pub id: i32,
+    pub title: String,
+    pub image_url: String,
+    pub bangumi_tv_id: i32,
+}
+
 impl Client {
     pub fn new_with_client(cli: reqwest::Client, endpoint: &str) -> Result<Client> {
         Ok(Client {
@@ -161,7 +175,10 @@ impl Client {
             .map(|url| {
                 self.endpoint
                     .join(&url)
-                    .map(|u| u.to_string())
+                    .map(|mut u| {
+                        u.set_query(None);
+                        u.to_string()
+                    })
                     .unwrap_or_default()
             });
 
@@ -217,7 +234,10 @@ impl Client {
                     let image_url = img_span.attr("data-src").map(|src| {
                         self.endpoint
                             .join(src)
-                            .map(|t| t.to_string())
+                            .map(|mut t| {
+                                t.set_query(None);
+                                t.to_string()
+                            })
                             .unwrap_or_default()
                     });
 
@@ -275,6 +295,86 @@ impl Client {
         Ok(calendar)
     }
 
+    pub async fn search(&self, keyword: &str) -> Result<Vec<SearchResultItem>> {
+        // 构建搜索URL
+        let base_url = self.endpoint.join("Home/Search")?;
+        let url = Url::parse_with_params(base_url.as_str(), &[("searchstr", keyword)])?;
+
+        info!("搜索URL: {}", url);
+
+        // 发送请求获取搜索结果页面
+        let search_result_page_html = self.cli.get(url).send().await?.text().await?;
+
+        // 解析搜索结果
+        let document = scraper::Html::parse_document(&search_result_page_html);
+
+        let mut results = Vec::new();
+
+        for item in document.select(&SEARCH_RESULT_SELECTOR) {
+            // 获取链接元素
+            if let Some(link_element) = item.select(&SEARCH_RESULT_LINK_SELECTOR).next() {
+                if let Some(href) = link_element.value().attr("href") {
+                    // 提取番剧ID
+                    let id = if href.starts_with("/Home/Bangumi/") {
+                        // 直接从 /Home/Bangumi/3560 格式的链接中提取ID
+                        href.trim_start_matches("/Home/Bangumi/")
+                            .parse::<i32>()
+                            .unwrap_or(0)
+                    } else {
+                        0
+                    };
+
+                    // 提取标题
+                    let title = link_element
+                        .select(&SEARCH_RESULT_TITLE_SELECTOR)
+                        .next()
+                        .and_then(|el| el.value().attr("title"))
+                        .unwrap_or("")
+                        .to_string();
+
+                    // 提取图片URL
+                    let image_url = link_element
+                        .select(&SEARCH_RESULT_IMAGE_SELECTOR)
+                        .next()
+                        .and_then(|el| el.value().attr("data-src"))
+                        .unwrap_or_default()
+                        .to_string();
+
+                    // 构建完整的图片URL
+                    let full_image_url = if image_url.starts_with("/images/Bangumi/") {
+                        // 相对路径，需要添加基础URL
+                        let base = self.endpoint.clone();
+                        base.join(&image_url[1..]).map_or_else(
+                            |_| image_url,
+                            |mut url| {
+                                url.set_query(None);
+                                url.to_string()
+                            },
+                        )
+                    } else {
+                        image_url
+                    };
+
+                    let mut bangumi_tv_id = 0;
+                    if let Ok(info) = self.get_bangumi_info(id).await {
+                        bangumi_tv_id = info.bangumi_tv_id.unwrap_or(0);
+                    }
+
+                    if id > 0 && !title.is_empty() {
+                        results.push(SearchResultItem {
+                            id,
+                            title,
+                            image_url: full_image_url,
+                            bangumi_tv_id,
+                        });
+                    }
+                }
+            }
+        }
+
+        Ok(results)
+    }
+
     fn extract_subject_id_from_link(link: &str) -> Option<i32> {
         // 从链接中提取 subject id
         link.split("subject/")
@@ -301,8 +401,9 @@ mod test {
     #[ignore]
     async fn test_search() -> Result<()> {
         let mikan = create_clinet()?;
-        let result = mikan.collect_by_bangumi_id(3422).await?;
-        println!("result: {:?}", result);
+        let result = mikan.search("我独自升级").await?;
+        println!("搜索结果: {:?}", result);
+        assert!(!result.is_empty(), "搜索结果不应为空");
         Ok(())
     }
 

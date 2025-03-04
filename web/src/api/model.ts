@@ -330,3 +330,17 @@ export interface QueryBangumiParams {
   status?: SubscribeStatus
   calendar_season?: string
 }
+
+export interface MikanSearchResultItem {
+  id: number
+  title: string
+  image_url: string,
+  bangumi_tv_id: number
+}
+
+export interface AddBangumiParams {
+  title: string
+  mikan_id: number
+  bgm_tv_id?: number | null
+  tmdb_id?: number | null
+}

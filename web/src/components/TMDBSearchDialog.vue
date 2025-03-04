@@ -109,6 +109,10 @@
                           <div class="episode-count">{{ season.ep_count }}集</div>
                         </div>
                         <div class="season-name">{{ season.name }}</div>
+                        <div class="season-air-date" v-if="season.air_date">
+                          <v-icon icon="mdi-calendar" size="small" class="me-1" />
+                          {{ formatDate(season.air_date) }}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -248,6 +252,15 @@ const selectSeason = (tmdbId: number, seasonNumber: number) => {
 
 const close = () => {
   dialog.value = false
+}
+
+// 添加 formatDate 函数
+const formatDate = (date: string) => {
+  return new Date(date).toLocaleDateString('zh-CN', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  })
 }
 </script>
 
@@ -506,6 +519,20 @@ const close = () => {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.season-air-date {
+  font-size: 0.8rem;
+  color: rgba(var(--v-theme-on-surface), 0.6);
+  display: flex;
+  align-items: center;
+  margin-top: 4px;
+}
+
+.season-air-date .v-icon {
+  font-size: 14px;
+  opacity: 0.7;
+  margin-right: 4px;
 }
 
 .action-area {

@@ -37,6 +37,7 @@ pub enum Inner {
 #[derive(Debug)]
 enum Cmd {
     Refresh(Inner),
+    AddBangumi(String, i32, Option<i32>, Option<u64>),
     Shutdown(),
 }
 
@@ -150,6 +151,16 @@ impl Worker {
                         }
                         false
                     }
+                    Cmd::AddBangumi(title, mikan_id, bgm_tv_id, tmdb_id) => {
+                        match worker
+                            .handle_add_bangumi(title, mikan_id, bgm_tv_id, tmdb_id)
+                            .await
+                        {
+                            Ok(_) => {}
+                            Err(e) => error!("处理添加番剧请求失败: {}", e),
+                        };
+                        false
+                    }
                     Cmd::Shutdown() => {
                         info!("元数据 Worker 收到停机信号");
                         true
@@ -212,6 +223,25 @@ impl Worker {
     ) -> Result<()> {
         self.send_cmd(Cmd::Refresh(Inner::Calendar(season, force)), None)
             .await
+    }
+
+    pub async fn request_add_bangumi(
+        &self,
+        title: String,
+        mikan_id: i32,
+        bgm_tv_id: Option<i32>,
+        tmdb_id: Option<u64>,
+    ) -> Result<()> {
+        let (done_tx, done_rx) = oneshot::channel();
+        self.send_cmd(
+            Cmd::AddBangumi(title, mikan_id, bgm_tv_id, tmdb_id),
+            Some(done_tx),
+        )
+        .await?;
+        tokio::time::timeout(Duration::from_secs(60), done_rx)
+            .await
+            .context("等待添加番剧超时")??;
+        Ok(())
     }
 
     async fn send_cmd(&self, cmd: Cmd, done_tx: Option<oneshot::Sender<()>>) -> Result<()> {
@@ -410,6 +440,23 @@ impl Worker {
         info!("已收集 {} 个番剧 {} 的种子信息", torrents.len(), bgm.name);
 
         self.db.save_mikan_torrents(bgm.id, torrents).await?;
+        Ok(())
+    }
+
+    async fn handle_add_bangumi(
+        &self,
+        title: String,
+        mikan_id: i32,
+        bgm_tv_id: Option<i32>,
+        tmdb_id: Option<u64>,
+    ) -> Result<()> {
+        if self.db.get_bangumi_by_mikan_id(mikan_id).await?.is_some() {
+            return Ok(());
+        }
+
+        self.db
+            .add_bangumi(title, mikan_id, bgm_tv_id, tmdb_id)
+            .await?;
         Ok(())
     }
 }

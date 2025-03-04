@@ -51,6 +51,18 @@
                         <v-icon icon="mdi-refresh" size="20" />
                         <v-tooltip activator="parent" location="top"> 刷新元数据 </v-tooltip>
                       </v-btn>
+                      <!-- TMDB 搜索按钮 -->
+                      <v-btn
+                        variant="text"
+                        size="small"
+                        class="action-btn"
+                        @click.stop="showTMDBSearch"
+                      >
+                        <v-icon icon="mdi-magnify" size="20" />
+                        <v-tooltip activator="parent" location="top">
+                          搜索 TMDB
+                        </v-tooltip>
+                      </v-btn>
                       <!-- 删除按钮 -->
                       <v-btn
                         variant="text"
@@ -119,7 +131,7 @@
                     </div>
                     <div class="info-content">
                       <div class="info-label">更新时间</div>
-                      <div class="info-value">2025-02-03</div>
+                      <div class="info-value">{{ formatDate(anime.updated_at) }}</div>
                     </div>
                   </div>
                   <div class="info-card">
@@ -436,6 +448,14 @@
     <RefreshDialog
       v-model="showRefreshDialog"
       @confirm="handleRefreshConfirm"
+    />
+
+    <!-- TMDB 搜索对话框 -->
+    <TMDBSearchDialog
+      v-model="showTMDBSearchDialog"
+      :bangumi-id="anime.id"
+      :initial-query="anime.name"
+      @selected="handleTMDBSelected"
     />
   </div>
 </template>
@@ -1460,6 +1480,7 @@ import {
 import { useSnackbar } from '../composables/useSnackbar'
 import SubscribeDialog from '../components/SubscribeDialog.vue'
 import RefreshDialog from '../components/RefreshDialog.vue'
+import TMDBSearchDialog from '../components/TMDBSearchDialog.vue'
 
 const route = useRoute()
 const anime = ref<Bangumi>()
@@ -1516,6 +1537,9 @@ const isRefreshing = ref(false)
 
 // 添加刷新对话框状态
 const showRefreshDialog = ref(false)
+
+// 添加 TMDB 搜索相关状态
+const showTMDBSearchDialog = ref(false)
 
 // 处理刷新操作
 const handleRefresh = async () => {
@@ -1853,6 +1877,16 @@ const currentSubscribeSettings = computed(() => {
 const isEarlyRelease = (pubDate: string, airDate: string | null) => {
   if (!airDate) return false
   return new Date(pubDate) < new Date(airDate)
+}
+
+// 添加 TMDB 搜索处理函数
+const showTMDBSearch = () => {
+  showTMDBSearchDialog.value = true
+}
+
+const handleTMDBSelected = () => {
+  // 选择后刷新数据
+  fetchAnimeDetail()
 }
 
 onMounted(() => {

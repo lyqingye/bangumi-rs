@@ -5,6 +5,7 @@ use actix_web::{
     web::{self, Json},
     HttpRequest, HttpResponse,
 };
+use anyhow::Context;
 use dict::DictCode;
 use model::sea_orm_active_enums::{BgmKind, State, SubscribeStatus};
 use parser::{Language, VideoResolution};
@@ -14,8 +15,9 @@ use tracing::{info, instrument};
 use crate::{
     config::Config,
     model::{
-        BangumiListResp, CalendarQuery, DownloadTask, Metrics, ProcessMetrics, QueryBangumiParams,
-        QueryDownloadTask, TMDBMetadata, TMDBSeason, UpdateMDBParams,
+        AddBangumiParams, BangumiListResp, CalendarQuery, DownloadTask, Metrics,
+        MikanSearchResultItem, ProcessMetrics, QueryBangumiParams, QueryDownloadTask, TMDBMetadata,
+        TMDBSeason, UpdateMDBParams,
     },
 };
 use crate::{
@@ -541,6 +543,56 @@ pub async fn update_bangumi_mdb(
         )
         .await?;
     Ok(Json(Resp::ok(())))
+}
+
+#[get("/api/mikan/search/{name}")]
+pub async fn seach_bangumi_at_mikan(
+    state: web::Data<Arc<AppState>>,
+    name: web::Path<String>,
+) -> Result<Json<Resp<Vec<MikanSearchResultItem>>>, ServerError> {
+    let name = name.into_inner();
+    let result = state
+        .metadata
+        .fetcher()
+        .search_bangumi_at_mikan(&name)
+        .await?;
+    let items = result
+        .into_iter()
+        .map(|item| MikanSearchResultItem {
+            id: item.id,
+            title: item.title,
+            image_url: item.image_url,
+            bangumi_tv_id: item.bangumi_tv_id,
+        })
+        .collect();
+    Ok(Json(Resp::ok(items)))
+}
+
+#[post("/api/bangumi/add")]
+pub async fn add_bangumi(
+    state: web::Data<Arc<AppState>>,
+    params: Json<AddBangumiParams>,
+) -> Result<Json<Resp<i32>>, ServerError> {
+    let params = params.into_inner();
+    state
+        .metadata
+        .request_add_bangumi(
+            params.title,
+            params.mikan_id,
+            params.bgm_tv_id,
+            params.tmdb_id,
+        )
+        .await?;
+    let bangumi = state
+        .db
+        .get_bangumi_by_mikan_id(params.mikan_id)
+        .await?
+        .context("番剧添加失败，找不到")?;
+    state
+        .metadata
+        .request_refresh_metadata(bangumi.id, true)
+        .await?;
+    Ok(Json(Resp::ok(bangumi.id)))
 }
 
 #[get("/api/tmdb/search/{name}")]

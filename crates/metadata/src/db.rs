@@ -51,6 +51,15 @@ impl Db {
         Ok(one)
     }
 
+    pub async fn get_bangumi_by_mikan_id(&self, id: i32) -> Result<Option<bangumi::Model>> {
+        let db = self.conn();
+        let one = bangumi::Entity::find()
+            .filter(bangumi::Column::MikanId.eq(id))
+            .one(db)
+            .await?;
+        Ok(one)
+    }
+
     pub async fn update_bangumi(&self, bgm: bangumi::Model) -> Result<()> {
         let db = self.conn();
         let now = chrono::Local::now().naive_utc();
@@ -102,6 +111,39 @@ impl Db {
             .await?;
 
         Ok(bangumis)
+    }
+
+    pub async fn add_bangumi(
+        &self,
+        title: String,
+        mikan_id: i32,
+        bangumi_tv_id: Option<i32>,
+        tmdb_id: Option<u64>,
+    ) -> Result<()> {
+        let now = chrono::Local::now().naive_utc();
+        let ids = self
+            .batch_insert_bangumi(vec![bangumi::Model {
+                id: 0,
+                name: title,
+                description: None,
+                bangumi_tv_id,
+                tmdb_id,
+                mikan_id: Some(mikan_id),
+                air_date: None,
+                air_week: None,
+                rating: None,
+                created_at: now,
+                updated_at: now,
+                poster_image_url: None,
+                backdrop_image_url: None,
+                season_number: None,
+                ep_count: 0,
+                ep_start_number: 0,
+                calendar_season: None,
+                bgm_kind: None,
+            }])
+            .await?;
+        Ok(())
     }
 
     pub async fn save_mikan_calendar(&self, calendar: Calendar) -> Result<Vec<i32>> {

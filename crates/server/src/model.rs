@@ -205,3 +205,19 @@ pub struct BangumiListResp {
 pub struct CalendarQuery {
     pub season: Option<String>,
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct MikanSearchResultItem {
+    pub id: i32,
+    pub title: String,
+    pub image_url: String,
+    pub bangumi_tv_id: i32,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct AddBangumiParams {
+    pub title: String,
+    pub mikan_id: i32,
+    pub bgm_tv_id: Option<i32>,
+    pub tmdb_id: Option<u64>,
+}
