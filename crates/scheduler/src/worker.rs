@@ -116,11 +116,6 @@ impl BangumiWorker {
 
     /// 收集并解析种子，然后为任务选择合适的种子
     async fn collect_and_process_torrents(&self) -> Result<()> {
-        {
-            let mut metrics = self.metrics.write().unwrap();
-            metrics.set_state(WorkerState::Collecting);
-        }
-
         // 1. 收集种子
         info!("开始收集番剧 {} 的种子", self.bangumi.name);
         self.metadata
@@ -214,12 +209,6 @@ impl BangumiWorker {
         }
 
         info!("番剧 {} 种子收集处理完成", self.bangumi.name);
-
-        {
-            let mut metrics = self.metrics.write().unwrap();
-            metrics.set_state(WorkerState::Idle);
-            metrics.set_last_collection_time(chrono::Utc::now());
-        }
         Ok(())
     }
 
@@ -239,8 +228,16 @@ impl BangumiWorker {
         loop {
             tokio::select! {
                 _ = collector_interval.tick() => {
+                    {
+                        let mut metrics = worker.metrics.write().unwrap();
+                        metrics.set_state(WorkerState::Collecting);
+                    }
                     if let Err(e) = worker.collect_and_process_torrents().await {
                         error!("番剧 {} 处理种子失败: {}", worker.bangumi.name, e);
+                    }
+                    {
+                        let mut metrics = worker.metrics.write().unwrap();
+                        metrics.set_state(WorkerState::Idle);
                     }
                 }
                 _ = metadata_interval.tick() => {
@@ -261,8 +258,16 @@ impl BangumiWorker {
                         }
                         WorkerCommand::TriggerCollection => {
                             info!("手动触发番剧 {} 的种子收集", worker.bangumi.name);
+                            {
+                                let mut metrics = worker.metrics.write().unwrap();
+                                metrics.set_state(WorkerState::Collecting);
+                            }
                             if let Err(e) = worker.collect_and_process_torrents().await {
                                 error!("番剧 {} 处理种子失败: {}", worker.bangumi.name, e);
+                            }
+                            {
+                                let mut metrics = worker.metrics.write().unwrap();
+                                metrics.set_state(WorkerState::Idle);
                             }
                         }
                     }

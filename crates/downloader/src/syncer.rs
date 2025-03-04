@@ -51,6 +51,9 @@ impl Worker {
                     remote_task.err_msg.clone(),
                     remote_task.result.clone(),
                 )
+            } else if local_task.download_status == DownloadStatus::Pending {
+                // NOTE: 说明本地任务还没被处理，可能还在队列中排队，所以在这里忽略
+                (DownloadStatus::Pending, None, None)
             } else {
                 warn!("任务在下载器中不存在: {}", info_hash);
                 (
