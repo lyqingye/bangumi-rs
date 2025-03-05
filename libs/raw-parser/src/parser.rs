@@ -51,8 +51,9 @@ lazy_static! {
 }
 
 /// 动画文件名解析器
+#[derive(Debug, Clone)]
 pub struct Parser {
-    pub(crate) config: Config,
+    config: Config,
 }
 
 impl Parser {
@@ -91,9 +92,9 @@ impl Parser {
 
         // 移除特定标记
         for &arg in &arg_group {
-            if (arg.contains("新番") || arg.contains("月番")) && arg.len() <= 5 {
-                result = result.replace(arg, "");
-            } else if arg.contains("港澳台地区") {
+            if (arg.contains("新番") || arg.contains("月番")) && arg.len() <= 5
+                || arg.contains("港澳台地区")
+            {
                 result = result.replace(arg, "");
             }
         }
@@ -126,9 +127,7 @@ impl Parser {
                 .unwrap_or(1)
         } else {
             let season_text = season_raw
-                .replace('第', "")
-                .replace('季', "")
-                .replace('期', "")
+                .replace(['第', '季', '期'], "")
                 .trim()
                 .to_string();
 
@@ -150,7 +149,7 @@ impl Parser {
 
         // 分割标题
         let mut splits: Vec<String> = name
-            .split(|c| c == '/' || c == '-' || c == '_')
+            .split(['/', '-', '_'])
             .map(|s| s.trim().to_string())
             .filter(|s| !s.is_empty())
             .collect();
@@ -239,6 +238,11 @@ impl Parser {
         // 获取字幕组信息
         let group = Self::get_group(&content_title);
 
+        // 在严格模式下检查字幕组信息
+        if self.config.strict_mode && group.is_none() {
+            return Err(anyhow!("无法解析字幕组信息"));
+        }
+
         // 解析标题格式
         let captures = TITLE_PATTERN
             .captures(&content_title)
@@ -263,6 +267,11 @@ impl Parser {
         let episode = EPISODE_PATTERN
             .find(episode_info)
             .and_then(|m| m.as_str().parse().ok());
+
+        // 在严格模式下检查集数信息
+        if self.config.strict_mode && episode.is_none() {
+            return Err(anyhow!("无法解析集数信息"));
+        }
 
         // 处理其他标签
         let (sub, resolution) = Self::find_tags(other);

@@ -1,4 +1,4 @@
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct ParseResult {
     pub name_en: Option<String>,
     pub name_zh: Option<String>,
@@ -8,21 +8,6 @@ pub struct ParseResult {
     pub subtitle_group: Option<String>,
     pub resolution: Option<String>,
     pub sub_type: Vec<String>,
-}
-
-impl Default for ParseResult {
-    fn default() -> Self {
-        Self {
-            name_en: None,
-            name_zh: None,
-            name_jp: None,
-            episode: None,
-            season: None,
-            subtitle_group: None,
-            resolution: None,
-            sub_type: Vec::new(),
-        }
-    }
 }
 
 // 中文数字映射
