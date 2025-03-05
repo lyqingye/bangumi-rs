@@ -1,8 +1,11 @@
 use std::path::Path;
 
 use anyhow::{Context, Result};
+use chrono::{Datelike, Months, NaiveDate};
 use reqwest::{header::USER_AGENT, Client as ReqwestClient, Url};
 use tracing::instrument;
+
+use crate::model::{FilterCondition, PageResponse, SearchFilter, SubjectType};
 
 use super::model::{CalendarResponse, EpisodeList, EpisodeType, Subject};
 
@@ -37,6 +40,55 @@ impl Client {
             &base_url,
             &image_base_url,
         )
+    }
+
+    pub async fn search(
+        &self,
+        filter: SearchFilter,
+        offset: i32,
+        limit: i32,
+    ) -> Result<PageResponse<Subject>> {
+        let url = format!("{}/v0/search/subjects", self.base_url);
+        let body = serde_json::to_string(&filter)?;
+        let response = self
+            .cli
+            .post(&url)
+            .header(USER_AGENT, UA)
+            .query(&[("limit", limit), ("offset", offset)])
+            .body(body)
+            .send()
+            .await?
+            .text()
+            .await?;
+        let resp: PageResponse<Subject> = serde_json::from_str(&response)
+            .with_context(|| format!("解析搜索结果失败: {}", response))?;
+        Ok(resp)
+    }
+
+    pub async fn match_bangumi(
+        &self,
+        name: &str,
+        air_date: Option<NaiveDate>,
+    ) -> Result<Option<Subject>> {
+        let mut condition = FilterCondition {
+            subject_type: vec![SubjectType::Anime],
+            ..Default::default()
+        };
+        if let Some(air_date) = air_date {
+            let start_date = air_date.with_day(1).unwrap_or(air_date);
+            let end_date = air_date
+                .checked_add_months(Months::new(1))
+                .unwrap_or(air_date);
+            condition.add_start_date(start_date);
+            condition.add_end_date(end_date);
+        }
+        let filter = SearchFilter {
+            keyword: name.to_string(),
+            filter: condition,
+            ..Default::default()
+        };
+        let resp = self.search(filter, 0, 1).await?;
+        Ok(resp.data.first().cloned())
     }
 
     #[instrument(name = "获取放送列表")]
@@ -110,6 +162,10 @@ impl Client {
 
 #[cfg(test)]
 mod test {
+    use std::str::FromStr;
+
+    use crate::model::{FilterCondition, SubjectType};
+
     use super::*;
     use anyhow::Result;
 
@@ -155,6 +211,42 @@ mod test {
             "/Users/lyqingye/Desktop/test.jpg",
         )
         .await?;
+        Ok(())
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn test_search() -> Result<()> {
+        let cli = create_client().await?;
+        let resp = cli
+            .search(
+                SearchFilter {
+                    keyword: "我独自升级".to_string(),
+                    filter: FilterCondition {
+                        subject_type: vec![SubjectType::Anime],
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                },
+                0,
+                10,
+            )
+            .await?;
+        println!("{:?}", resp);
+        Ok(())
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn test_match_bangumi() -> Result<()> {
+        let cli = create_client().await?;
+        let resp = cli
+            .match_bangumi(
+                "我独自升级",
+                Some(NaiveDate::from_str("2025-01-04").unwrap()),
+            )
+            .await?;
+        println!("{:?}", resp);
         Ok(())
     }
 }

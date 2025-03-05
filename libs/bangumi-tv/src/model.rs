@@ -1,8 +1,8 @@
 use std::fmt;
 
 use chrono::{NaiveDate, NaiveDateTime};
-use serde::Deserialize;
-use serde_repr::Deserialize_repr;
+use serde::{Deserialize, Serialize};
+use serde_repr::{Deserialize_repr, Serialize_repr};
 
 #[derive(Debug, Deserialize, Clone)]
 #[serde(untagged)]
@@ -180,16 +180,15 @@ pub struct Collection {
     pub dropped: i32,
 }
 
-#[derive(Deserialize_repr, PartialEq, Debug, Clone, Default)]
+#[derive(Deserialize_repr, Serialize_repr, PartialEq, Debug, Clone, Default)]
 #[repr(u8)]
 pub enum SubjectType {
     #[default]
-    Anime = 1,
-    Manga = 2,
-    Book = 3,
+    Book = 1,
+    Anime = 2,
+    Music = 3,
     Game = 4,
-    Music = 5,
-    Movie = 6,
+    Real = 6,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Deserialize_repr, Default)]
@@ -317,12 +316,19 @@ pub struct Subject {
     pub summary: String,
     pub series: bool,
     pub date: Option<NaiveDate>,
-    pub platform: Platform,
+    pub platform: Option<Platform>,
     pub images: Images,
+    pub image: Option<String>,
     pub eps: i32,
     pub total_episodes: i32,
     pub rating: Rating,
     pub collection: Collection,
+    pub nsfw: bool,
+    pub locked: bool,
+    pub volumes: i32,
+    pub meta_tags: Vec<String>,
+    pub tags: Vec<Tag>,
+    pub infobox: Vec<InfoboxItem>,
 }
 impl Subject {
     pub fn get_air_date(&self) -> Option<NaiveDateTime> {
@@ -340,7 +346,7 @@ impl Subject {
     }
 }
 
-#[derive(Debug, Deserialize, Clone, Default)]
+#[derive(Debug, Deserialize, Clone, Default, PartialEq)]
 pub enum Platform {
     #[serde(rename = "TV")]
     TV,
@@ -353,6 +359,93 @@ pub enum Platform {
     #[serde(other)]
     #[default]
     Unknown,
+}
+
+#[derive(Debug, Deserialize, Default, Clone)]
+pub struct Tag {
+    pub name: String,
+    pub count: i32,
+    #[serde(rename = "total_cont")]
+    pub total_count: i32,
+}
+
+#[derive(Debug, Deserialize, Default, Clone)]
+pub struct InfoboxItem {
+    pub key: String,
+    #[serde(default)]
+    pub value: InfoboxValue,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+#[serde(untagged)]
+pub enum InfoboxValue {
+    String(String),
+    Array(Vec<InfoboxArrayItem>),
+}
+
+impl Default for InfoboxValue {
+    fn default() -> Self {
+        InfoboxValue::String(String::new())
+    }
+}
+
+#[derive(Debug, Deserialize, Default, Clone)]
+pub struct InfoboxArrayItem {
+    pub v: String,
+}
+
+#[derive(Debug, Deserialize, Serialize, Default, Clone)]
+#[serde(rename_all = "snake_case")]
+pub enum SortType {
+    #[default]
+    Rank,
+    Score,
+    Name,
+    AirDate,
+}
+
+#[derive(Debug, Serialize, Deserialize, Default, Clone)]
+pub struct SearchFilter {
+    #[serde(default)]
+    pub keyword: String,
+    #[serde(default)]
+    pub sort: SortType,
+    #[serde(default)]
+    pub filter: FilterCondition,
+}
+
+#[derive(Debug, Serialize, Deserialize, Default, Clone)]
+pub struct FilterCondition {
+    #[serde(rename = "type", default)]
+    pub subject_type: Vec<SubjectType>,
+    #[serde(default)]
+    pub meta_tags: Vec<String>,
+    #[serde(default)]
+    pub tag: Vec<String>,
+    #[serde(default)]
+    pub air_date: Vec<String>,
+    #[serde(default)]
+    pub rating: Vec<String>,
+    #[serde(default)]
+    pub rank: Vec<String>,
+    #[serde(default)]
+    pub nsfw: bool,
+}
+
+impl FilterCondition {
+    pub fn add_start_date(&mut self, date: NaiveDate) {
+        self.air_date.push(format!(">={}", date.format("%Y-%m-%d")));
+    }
+    pub fn add_end_date(&mut self, date: NaiveDate) {
+        self.air_date.push(format!("<={}", date.format("%Y-%m-%d")));
+    }
+}
+
+#[derive(Debug, Deserialize, Default, Clone)]
+pub struct PageResponse<T> {
+    #[serde(flatten)]
+    pub pagination: Pagination,
+    pub data: Vec<T>,
 }
 
 #[cfg(test)]
@@ -478,5 +571,152 @@ mod test {
         "#;
         let res: LegacySubjectSmall = serde_json::from_str(json).unwrap();
         println!("{:?}", res);
+    }
+
+    #[test]
+    fn test_search_filter_deserialize() {
+        let json = r#"
+        {
+            "keyword": "string",
+            "sort": "rank",
+            "filter": {
+                "type": [2],
+                "meta_tags": ["童年", "原创"],
+                "tag": ["童年", "原创"],
+                "air_date": [">=2020-07-01", "<2020-10-01"],
+                "rating": [">=6", "<8"],
+                "rank": [">10", "<=18"],
+                "nsfw": true
+            }
+        }
+        "#;
+        let res: SearchFilter = serde_json::from_str(json).unwrap();
+        println!("{:?}", res);
+
+        // 验证反序列化结果
+        assert_eq!(res.keyword, "string");
+        assert!(matches!(res.sort, SortType::Rank));
+        assert_eq!(res.filter.subject_type, vec![SubjectType::Anime]);
+        assert_eq!(res.filter.meta_tags, vec!["童年", "原创"]);
+        assert_eq!(res.filter.tag, vec!["童年", "原创"]);
+        assert_eq!(res.filter.air_date, vec![">=2020-07-01", "<2020-10-01"]);
+        assert_eq!(res.filter.rating, vec![">=6", "<8"]);
+        assert_eq!(res.filter.rank, vec![">10", "<=18"]);
+        assert!(res.filter.nsfw);
+    }
+
+    #[test]
+    fn test_legacy_subject_deserialize() {
+        let json = r#"
+        {
+            "date": "2024-11-29",
+            "platform": "剧场版",
+            "images": {
+                "small": "https://lain.bgm.tv/r/200/pic/cover/l/50/64/513314_XG0Y4.jpg",
+                "grid": "https://lain.bgm.tv/r/100/pic/cover/l/50/64/513314_XG0Y4.jpg",
+                "large": "https://lain.bgm.tv/pic/cover/l/50/64/513314_XG0Y4.jpg",
+                "medium": "https://lain.bgm.tv/r/800/pic/cover/l/50/64/513314_XG0Y4.jpg",
+                "common": "https://lain.bgm.tv/r/400/pic/cover/l/50/64/513314_XG0Y4.jpg"
+            },
+            "image": "https://lain.bgm.tv/pic/cover/l/50/64/513314_XG0Y4.jpg",
+            "summary": "TVアニメ『俺だけレベルアップな件Season 2 -Arise from the Shadow-』の放送を記念して、\r\nアニメ『俺だけレベルアップな件 -ReAwakening-』の全世界劇場上映が決定！\r\n第１期の特別編集版と第２期の１・２話を先行上映。\r\n日本では11/29公開、海外では韓国にて11/28、その他地域も順次公開予定。\r\n続報をお楽しみに。",
+            "name": "俺だけレベルアップな件 -ReAwakening-",
+            "name_cn": "我独自升级 -ReAwakening-",
+            "tags": [
+                {
+                    "name": "剧场版",
+                    "count": 21,
+                    "total_cont": 0
+                },
+                {
+                    "name": "2024",
+                    "count": 13,
+                    "total_cont": 0
+                }
+            ],
+            "infobox": [
+                {
+                    "key": "中文名",
+                    "value": "我独自升级 -ReAwakening-"
+                },
+                {
+                    "key": "别名",
+                    "value": [
+                        {
+                            "v": "나 혼자만 레벨업 -ReAwakening-"
+                        },
+                        {
+                            "v": "Solo Leveling -ReAwakening-"
+                        }
+                    ]
+                }
+            ],
+            "rating": {
+                "rank": 0,
+                "total": 39,
+                "count": {
+                    "1": 0,
+                    "2": 0,
+                    "3": 0,
+                    "4": 1,
+                    "5": 3,
+                    "6": 13,
+                    "7": 13,
+                    "8": 6,
+                    "9": 1,
+                    "10": 2
+                },
+                "score": 6.8
+            },
+            "collection": {
+                "on_hold": 13,
+                "dropped": 8,
+                "wish": 104,
+                "collect": 94,
+                "doing": 34
+            },
+            "id": 513314,
+            "eps": 1,
+            "meta_tags": [
+                "剧场版",
+                "日本",
+                "奇幻",
+                "战斗"
+            ],
+            "volumes": 0,
+            "series": false,
+            "locked": false,
+            "nsfw": false,
+            "type": 2
+        }
+        "#;
+        let res: Subject = serde_json::from_str(json).unwrap();
+        println!("{:?}", res);
+
+        // 验证反序列化结果
+        assert_eq!(res.id, 513314);
+        assert_eq!(res.name, "俺だけレベルアップな件 -ReAwakening-");
+        assert_eq!(res.name_cn, Some("我独自升级 -ReAwakening-".to_string()));
+        assert_eq!(res.eps, 1);
+        assert_eq!(res.volumes, 0);
+        assert_eq!(res.meta_tags, vec!["剧场版", "日本", "奇幻", "战斗"]);
+        assert!(!res.nsfw);
+        assert!(!res.locked);
+        assert!(!res.series);
+        assert_eq!(res.subject_type, SubjectType::Anime);
+        assert_eq!(res.platform, Some(Platform::Movie));
+
+        // 验证标签
+        assert_eq!(res.tags.len(), 2);
+        assert_eq!(res.tags[0].name, "剧场版");
+        assert_eq!(res.tags[0].count, 21);
+
+        // 验证信息框
+        assert_eq!(res.infobox.len(), 2);
+        assert_eq!(res.infobox[0].key, "中文名");
+        match &res.infobox[0].value {
+            InfoboxValue::String(s) => assert_eq!(s, "我独自升级 -ReAwakening-"),
+            _ => panic!("Expected String value"),
+        }
     }
 }
