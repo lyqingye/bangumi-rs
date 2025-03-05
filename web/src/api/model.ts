@@ -325,6 +325,7 @@ export interface Config {
 
 // 番剧查询参数
 export interface QueryBangumiParams {
+  name?: string
   offset: number
   limit: number
   status?: SubscribeStatus
