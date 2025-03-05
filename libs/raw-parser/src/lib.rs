@@ -18,7 +18,7 @@ mod tests {
         season: Option<i32>,
         subtitle_group: Option<String>,
         resolution: Option<String>,
-        sub_type: Option<String>,
+        sub_type: Vec<String>,
     }
 
     #[derive(Debug, Deserialize)]
@@ -79,8 +79,7 @@ mod tests {
                 case.description
             );
             assert_eq!(
-                result.season,
-                case.expected.season.map(|s| s),
+                result.season, case.expected.season,
                 "Failed on '{}' - season mismatch",
                 case.description
             );
@@ -100,6 +99,5 @@ mod tests {
                 case.description
             );
         }
-        
     }
 }

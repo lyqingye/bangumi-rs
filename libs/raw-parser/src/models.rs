@@ -7,7 +7,7 @@ pub struct ParseResult {
     pub season: Option<i32>,
     pub subtitle_group: Option<String>,
     pub resolution: Option<String>,
-    pub sub_type: Option<String>,
+    pub sub_type: Vec<String>,
 }
 
 impl Default for ParseResult {
@@ -20,7 +20,7 @@ impl Default for ParseResult {
             season: None,
             subtitle_group: None,
             resolution: None,
-            sub_type: None,
+            sub_type: Vec::new(),
         }
     }
 }

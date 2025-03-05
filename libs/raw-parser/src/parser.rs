@@ -17,9 +17,17 @@ lazy_static! {
     // 匹配视频分辨率的正则表达式
     static ref RESOLUTION_PATTERN: Regex = Regex::new(r"1080|720|2160|4K").unwrap();
 
-    // 匹配字幕类型的正则表达式
-    static ref SUB_PATTERN: Regex =
-        Regex::new(r"[简中繁日字幕]|CH|BIG5|GB|CHT|CHS|JPSC|JP|EN|SC|ENG").unwrap();
+    // 匹配简体中文字幕的正则表达式
+    static ref SUB_CHS_PATTERN: Regex = Regex::new(r"[简中]|CHS|SC").unwrap();
+
+    // 匹配繁体中文字幕的正则表达式
+    static ref SUB_CHT_PATTERN: Regex = Regex::new(r"繁|CHT|BIG5|GB").unwrap();
+
+    // 匹配日语字幕的正则表达式
+    static ref SUB_JPN_PATTERN: Regex = Regex::new(r"[日]|JP|JPSC").unwrap();
+
+    // 匹配英语字幕的正则表达式
+    static ref SUB_ENG_PATTERN: Regex = Regex::new(r"ENG|英语|英文").unwrap();
 
     // 匹配非法前缀字符的正则表达式
     static ref PREFIX_PATTERN: Regex =
@@ -184,27 +192,43 @@ impl Parser {
     }
 
     /// 从其他信息中提取字幕类型和分辨率
-    fn find_tags(other: &str) -> (Option<String>, Option<String>) {
+    fn find_tags(other: &str) -> (Vec<String>, Option<String>) {
         let replaced = BRACKET_PATTERN.replace_all(other, " ").into_owned();
         let elements: Vec<&str> = replaced.split_whitespace().collect();
 
-        let mut sub = None;
+        let mut subs = Vec::new();
         let mut resolution = None;
 
         for &element in &elements {
-            if SUB_PATTERN.is_match(element) {
-                sub = Some(element.to_string());
-            } else if RESOLUTION_PATTERN.is_match(element) {
+            if SUB_CHS_PATTERN.is_match(element) {
+                subs.push("CHS".to_string());
+            }
+            if SUB_CHT_PATTERN.is_match(element) {
+                subs.push("CHT".to_string());
+            }
+            if SUB_JPN_PATTERN.is_match(element) {
+                subs.push("JPN".to_string());
+            }
+            if SUB_ENG_PATTERN.is_match(element) {
+                subs.push("ENG".to_string());
+            }
+            if RESOLUTION_PATTERN.is_match(element) {
                 resolution = Some(element.to_string());
             }
         }
 
-        (sub, resolution)
+        // 去重
+        subs.sort();
+        subs.dedup();
+
+        (subs, resolution)
     }
 
     /// 清理字幕类型信息，移除无关后缀
-    fn clean_sub(sub: Option<String>) -> Option<String> {
-        sub.map(|s| s.replace("_MP4", "").replace("_MKV", ""))
+    fn clean_sub(subs: Vec<String>) -> Vec<String> {
+        subs.into_iter()
+            .map(|s| s.replace("_MP4", "").replace("_MKV", ""))
+            .collect()
     }
 
     /// 解析动画文件名，提取所有相关信息
