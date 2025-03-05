@@ -1,0 +1,151 @@
+{
+  "success_cases": [
+    {
+      "description": "基本格式测试",
+      "input": "[Nekomoe kissaten][Lycoris Recoil][01][1080p][JPSC].mp4",
+      "expected": {
+        "name_en": "Lycoris Recoil",
+        "name_zh": null,
+        "name_jp": null,
+        "episode": 1,
+        "season": null,
+        "subtitle_group": "Nekomoe kissaten",
+        "resolution": "1080p",
+        "sub_type": "JPSC"
+      }
+    },
+    {
+      "description": "带季度的格式测试",
+      "input": "[ANi] Spy x Family S2 - 01 [1080P][Baha][WEB-DL][AAC AVC][CHT].mp4",
+      "expected": {
+        "name_en": "Spy x Family",
+        "name_zh": null,
+        "name_jp": null,
+        "episode": 1,
+        "season": 2,
+        "subtitle_group": "ANi",
+        "resolution": "1080P",
+        "sub_type": "CHT"
+      }
+    },
+    {
+      "description": "复杂格式测试",
+      "input": "[动漫国字幕组&LoliHouse] THE MARGINAL SERVICE - 08 [WebRip 1080p HEVC-10bit AAC][简繁内封字幕].mp4",
+      "expected": {
+        "name_en": "THE MARGINAL SERVICE",
+        "name_zh": null,
+        "name_jp": null,
+        "episode": 8,
+        "season": null,
+        "subtitle_group": "动漫国字幕组&LoliHouse",
+        "resolution": "1080p",
+        "sub_type": "简繁内封字幕"
+      }
+    },
+    {
+      "description": "中文标题测试",
+      "input": "[喵萌奶茶屋&LoliHouse] 药屋少女的呢喃 / 药师少女的独语 - 01 [WebRip 1080p HEVC-10bit AAC][简繁日内封字幕].mp4",
+      "expected": {
+        "name_en": null,
+        "name_zh": "药屋少女的呢喃",
+        "name_jp": null,
+        "episode": 1,
+        "season": null,
+        "subtitle_group": "喵萌奶茶屋&LoliHouse",
+        "resolution": "1080p",
+        "sub_type": "简繁日内封字幕"
+      }
+    },
+    {
+      "description": "日文标题测试",
+      "input": "[桜都字幕组] 葬送のフリーレン / Sousou no Frieren [01][1080p][简繁内封].mp4",
+      "expected": {
+        "name_en": "Sousou no Frieren",
+        "name_zh": null,
+        "name_jp": "葬送のフリーレン",
+        "episode": 1,
+        "season": null,
+        "subtitle_group": "桜都字幕组",
+        "resolution": "1080p",
+        "sub_type": "简繁内封"
+      }
+    },
+    {
+      "description": "带有 Season 的格式测试",
+      "input": "[Lilith-Raws] 盾之勇者成名录 Season 3 / Tate no Yuusha no Nariagari S3 - 01 [Baha][WEB-DL][1080p][AVC AAC][CHT][MP4].mp4",
+      "expected": {
+        "name_en": "Tate no Yuusha no Nariagari",
+        "name_zh": "盾之勇者成名录",
+        "name_jp": null,
+        "episode": 1,
+        "season": 3,
+        "subtitle_group": "Lilith-Raws",
+        "resolution": "1080p",
+        "sub_type": "CHT"
+      }
+    },
+    {
+      "description": "带有中文季度的格式测试",
+      "input": "[喵萌Production&LoliHouse] 无职转生 ～在异世界认真地活下去～ 第二季 / Mushoku Tensei S2 - 00 [WebRip 1080p HEVC-10bit AAC][简繁内封字幕].mp4",
+      "expected": {
+        "name_en": "Mushoku Tensei",
+        "name_zh": "无职转生 ～在异世界认真地活下去～",
+        "name_jp": null,
+        "episode": 0,
+        "season": 2,
+        "subtitle_group": "喵萌Production&LoliHouse",
+        "resolution": "1080p",
+        "sub_type": "简繁内封字幕"
+      }
+    },
+    {
+      "description": "带有 END 标记的格式测试",
+      "input": "[Sakurato] 我的推是坏人大小姐 / Watashi no Oshi wa Akuyaku Reijou [13.END][1080p][简繁内封].mp4",
+      "expected": {
+        "name_en": "Watashi no Oshi wa Akuyaku Reijou",
+        "name_zh": "我的推是坏人大小姐",
+        "name_jp": null,
+        "episode": 13,
+        "season": null,
+        "subtitle_group": "Sakurato",
+        "resolution": "1080p",
+        "sub_type": "简繁内封"
+      }
+    },
+    {
+      "description": "带有多种分辨率的格式测试",
+      "input": "[NC-Raws] 咒术回战 第二季 / Jujutsu Kaisen S2 - 21 [B-Global][WEB-DL][2160p][HDR][HEVC-10bit][AAC][Multi-Audio][Multi-Subs].mp4",
+      "expected": {
+        "name_en": "Jujutsu Kaisen",
+        "name_zh": "咒术回战",
+        "name_jp": null,
+        "episode": 21,
+        "season": 2,
+        "subtitle_group": "NC-Raws",
+        "resolution": "2160p",
+        "sub_type": null
+      }
+    },
+    {
+      "description": "Example1",
+      "input": "[Strange-Raw] 战队红战士在异世界当冒险者 第一季 / Sentai Red Isekai de Boukensha ni Naru S01 [06] [Bilibili] [WEB-DL] [1080P AVC-8Bits AAC 2.0] [简日内嵌字幕]",
+      "expected": {
+        "name_en": "Sentai Red Isekai de Boukensha ni Naru",
+        "name_zh": "战队红战士在异世界当冒险者",
+        "name_jp": null,
+        "episode": 6,
+        "season": 1,
+        "subtitle_group": "Strange-Raw",
+        "resolution": "1080P",
+        "sub_type": "简日内嵌字幕"
+      }
+    }
+  ]
+}
+
+
+
+
+
+
+
