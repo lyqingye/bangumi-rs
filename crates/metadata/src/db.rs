@@ -168,7 +168,7 @@ impl Db {
                 bangumi_tv_id: None,
                 tmdb_id: None,
                 mikan_id: Some(bgm.id),
-                air_date: None,
+                air_date: bgm.air_date,
                 air_week: Some(bgm.weekday),
                 ep_count: 0,
                 rating: None,

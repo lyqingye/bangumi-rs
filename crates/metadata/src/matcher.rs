@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use bangumi_tv::model::Subject;
 use model::{bangumi, sea_orm_active_enums::BgmKind};
 use tmdb::api::{
@@ -88,11 +88,36 @@ impl Matcher {
             return Ok(None);
         }
         if bgm.bangumi_tv_id.is_none() {
-            warn!(
-                "[bgm.tv] 无法根据 MikanId 关联到 bangumi_tv_id，跳过匹配, mikan_id: {}",
-                bgm.mikan_id.unwrap()
-            );
-            return Ok(None);
+            // 尝试搜索
+            let air_date = bgm.air_date.map(|dt| dt.and_utc().date_naive());
+            let subject = self
+                .bgm_tv
+                .match_bangumi(&bgm.name, air_date)
+                .await
+                .with_context(|| {
+                    format!(
+                        "[bgm.tv] 在BangumiTV 搜索番剧失败, name: {}, air_date: {}",
+                        bgm.name,
+                        air_date.unwrap_or_default()
+                    )
+                })?;
+            if let Some(subject) = subject {
+                bgm.bangumi_tv_id = Some(subject.id);
+                info!(
+                    "[bgm.tv] 在BangumiTV 搜索到相关番剧，name: {}, mikan_id: {}, bangumi_tv_id: {}",
+                    subject.name_cn.clone().unwrap_or(subject.name.clone()),
+                    bgm.mikan_id.unwrap(),
+                    subject.id
+                );
+                return Ok(Some(subject));
+            } else {
+                warn!(
+                    "[bgm.tv] 无法根据 MikanId 关联到 bangumi_tv_id，跳过匹配, name: {}, mikan_id: {}, 在BangumiTV 无法搜索到相关番剧",
+                    bgm.name,
+                    bgm.mikan_id.unwrap(),
+                );
+                return Ok(None);
+            }
         }
 
         let subject = self.bgm_tv.get_subject(bgm.bangumi_tv_id.unwrap()).await?;

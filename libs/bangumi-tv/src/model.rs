@@ -432,6 +432,15 @@ pub struct FilterCondition {
     pub nsfw: bool,
 }
 
+impl FilterCondition {
+    pub fn add_start_date(&mut self, date: NaiveDate) {
+        self.air_date.push(format!(">={}", date.format("%Y-%m-%d")));
+    }
+    pub fn add_end_date(&mut self, date: NaiveDate) {
+        self.air_date.push(format!("<={}", date.format("%Y-%m-%d")));
+    }
+}
+
 #[derive(Debug, Deserialize, Default, Clone)]
 pub struct PageResponse<T> {
     #[serde(flatten)]
