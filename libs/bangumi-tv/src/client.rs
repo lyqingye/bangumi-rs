@@ -4,6 +4,8 @@ use anyhow::{Context, Result};
 use reqwest::{header::USER_AGENT, Client as ReqwestClient, Url};
 use tracing::instrument;
 
+use crate::model::{PageResponse, SearchFilter};
+
 use super::model::{CalendarResponse, EpisodeList, EpisodeType, Subject};
 
 #[derive(Debug, Clone)]
@@ -37,6 +39,29 @@ impl Client {
             &base_url,
             &image_base_url,
         )
+    }
+
+    pub async fn search(
+        &self,
+        filter: SearchFilter,
+        offset: i32,
+        limit: i32,
+    ) -> Result<PageResponse<Subject>> {
+        let url = format!("{}/v0/search/subjects", self.base_url);
+        let body = serde_json::to_string(&filter)?;
+        let response = self
+            .cli
+            .post(&url)
+            .header(USER_AGENT, UA)
+            .query(&[("limit", limit), ("offset", offset)])
+            .body(body)
+            .send()
+            .await?
+            .text()
+            .await?;
+        let resp: PageResponse<Subject> = serde_json::from_str(&response)
+            .with_context(|| format!("解析搜索结果失败: {}", response))?;
+        Ok(resp)
     }
 
     #[instrument(name = "获取放送列表")]
@@ -110,6 +135,8 @@ impl Client {
 
 #[cfg(test)]
 mod test {
+    use crate::model::{FilterCondition, SubjectType};
+
     use super::*;
     use anyhow::Result;
 
@@ -155,6 +182,28 @@ mod test {
             "/Users/lyqingye/Desktop/test.jpg",
         )
         .await?;
+        Ok(())
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn test_search() -> Result<()> {
+        let cli = create_client().await?;
+        let resp = cli
+            .search(
+                SearchFilter {
+                    keyword: "我独自升级".to_string(),
+                    filter: FilterCondition {
+                        subject_type: vec![SubjectType::Anime],
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                },
+                0,
+                10,
+            )
+            .await?;
+        println!("{:?}", resp);
         Ok(())
     }
 }
