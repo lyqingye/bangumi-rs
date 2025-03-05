@@ -1,5 +1,6 @@
 use anyhow::Result;
 use bangumi_tv::model::EpisodeList;
+use chrono::NaiveDateTime;
 use mikan::client::{Calendar, EpisodeItem, MikanBangumi};
 use model::prelude::Bangumi;
 use model::{
@@ -76,11 +77,23 @@ impl Db {
                 air_week: Set(bgm.air_week),
                 ep_count: Set(bgm.ep_count),
                 rating: Set(bgm.rating),
-                updated_at: Set(now),
                 backdrop_image_url: Set(bgm.backdrop_image_url),
                 poster_image_url: Set(bgm.poster_image_url),
                 season_number: Set(bgm.season_number),
                 bgm_kind: Set(bgm.bgm_kind),
+                ..Default::default()
+            })
+            .exec(db)
+            .await?;
+        Ok(())
+    }
+
+    pub async fn update_bangumi_update_time(&self, bgm_id: i32, time: NaiveDateTime) -> Result<()> {
+        let db = self.conn();
+        bangumi::Entity::update_many()
+            .filter(bangumi::Column::Id.eq(bgm_id))
+            .set(bangumi::ActiveModel {
+                updated_at: Set(time),
                 ..Default::default()
             })
             .exec(db)
@@ -277,23 +290,23 @@ impl Db {
     pub async fn save_mikan_torrents(
         &self,
         bangumi_id: i32,
-        torrents: Vec<EpisodeItem>,
+        torrents: &[EpisodeItem],
     ) -> Result<()> {
         if torrents.is_empty() {
             return Ok(());
         }
 
         let models: Vec<torrents::Model> = torrents
-            .into_iter()
+            .iter()
             .filter_map(|t| {
                 t.pub_date.map(|pub_date| torrents::Model {
                     bangumi_id,
-                    title: t.file_name.unwrap_or_default(),
+                    title: t.file_name.clone().unwrap_or_default(),
                     size: t.file_size as i64,
-                    info_hash: t.info_hash,
-                    magnet: t.magnet_link,
+                    info_hash: t.info_hash.clone(),
+                    magnet: t.magnet_link.clone(),
                     data: None,
-                    download_url: t.torrent_download_url.map(|url| url.to_string()),
+                    download_url: t.torrent_download_url.as_ref().map(|url| url.to_string()),
                     pub_date,
                 })
             })
