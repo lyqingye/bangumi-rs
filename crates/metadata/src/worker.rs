@@ -439,7 +439,15 @@ impl Worker {
 
         info!("已收集 {} 个番剧 {} 的种子信息", torrents.len(), bgm.name);
 
-        self.db.save_mikan_torrents(bgm.id, torrents).await?;
+        self.db.save_mikan_torrents(bgm.id, &torrents).await?;
+
+        // 获取torrents中最新的种子对应的发布时间
+        let latest_torrent = torrents.into_iter().max_by_key(|t| t.pub_date);
+        if let Some(torrent) = latest_torrent {
+            if let Some(pub_date) = torrent.pub_date {
+                self.db.update_bangumi_update_time(bgm.id, pub_date).await?;
+            }
+        }
         Ok(())
     }
 
