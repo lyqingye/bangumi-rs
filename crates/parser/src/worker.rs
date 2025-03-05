@@ -1,5 +1,7 @@
 use anyhow::{Context, Result};
+use lazy_static::lazy_static;
 use model::sea_orm_active_enums::ParserStatus;
+use regex::Regex;
 use sea_orm::DatabaseConnection;
 use std::{collections::HashSet, sync::Arc};
 use tokio::sync::{mpsc, oneshot};
@@ -8,6 +10,19 @@ use tracing::{error, info};
 use crate::{db::Db, ParseResult, Parser};
 
 const CHANNEL_BUFFER_SIZE: usize = 100;
+
+lazy_static! {
+    // 匹配以下格式：
+    // - 01-12
+    // - 1-12
+    // - E01-E12
+    // - EP01-EP12
+    // 通过限制数字长度来避免匹配日期格式（如 2023-01）
+    static ref EPISODE_RANGE: Regex = Regex::new(r"(?i)(?:EP?\.?\s*)?([0-9]{1,2})-(?:EP?\.?\s*)?([0-9]{1,2})\b").unwrap();
+
+    // 匹配年份-月份格式（如 2023-01）
+    static ref DATE_PATTERN: Regex = Regex::new(r"\d{4}-(?:0[1-9]|1[0-2])").unwrap();
+}
 
 #[derive(Debug)]
 enum WorkerMessage {
@@ -20,6 +35,19 @@ pub struct Worker {
     db: Db,
     sender: Option<mpsc::Sender<WorkerMessage>>,
     is_spawned: Arc<std::sync::atomic::AtomicBool>,
+}
+
+fn filter_file_name(f: &str) -> bool {
+    // 如果包含年份-月份格式（如 2023-01），不应该被当作合集
+    if DATE_PATTERN.is_match(f) {
+        return true;
+    }
+
+    !f.contains("合集") &&
+    !f.contains("全集") &&
+    !f.contains("完结") &&
+    // 使用正则表达式匹配集数范围
+    !EPISODE_RANGE.is_match(f)
 }
 
 impl Worker {
@@ -109,6 +137,12 @@ impl Worker {
 
     pub async fn parse_file_names(&self, file_names: Vec<String>) -> Result<Vec<ParseResult>> {
         info!("开始处理文件名解析请求，文件数量：{}", file_names.len());
+
+        // 预处理，过滤掉合集
+        let file_names: Vec<String> = file_names
+            .into_iter()
+            .filter(|f| filter_file_name(f))
+            .collect();
 
         // 先查询所有记录（包括失败的记录）
         let all_records = self.db.get_all_parse_records(&file_names).await?;
@@ -201,6 +235,57 @@ impl Worker {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_filter_file_name() {
+        // 应该通过的文件名（非合集）
+        let should_pass = vec![
+            // 普通单集
+            "[字幕组] 动画名称 - 01 [1080P].mp4",
+            "[字幕组] 动画名称 - E01 [1080P].mp4",
+            "孤nsingle人的异世界攻略 / Hitoribocchi no Isekai Kouryaku - 12 [WebRip 1080p HEVC-10bit AAC][简日双语]",
+            // 包含日期的文件名
+            "2023-01 动画名称 第一集.mp4",
+            "[2023-12] 动画名称 01.mp4",
+            // 其他正常格式
+            "[ANi] 我的推是坏人大小姐。 - 01 [1080P][Baha][WEB-DL][AAC AVC][CHT].mp4",
+            "[Lilith-Raws] 我的推是坏人大小姐 / Watashi no Oshi wa Akuyaku Reijou - 01 [Baha][WEB-DL][1080p][AVC AAC][CHT][MP4]",
+        ];
+
+        // 应该被过滤的文件名（合集）
+        let should_filter = vec![
+            // 显式标记为合集
+            "[字幕组] 动画名称 01-12 合集.mp4",
+            "[字幕组] 动画名称 EP.01-EP.12 [1080P].mp4",
+            "动画名称 E1-E12 完结.mp4",
+            "[动漫] 全集 01-13.mp4",
+            // 使用分隔符的合集
+            "动画名称 | 01-12 | 1080P",
+            "[7³ACG x 桜都字幕组] 异世界归来的舅舅/异世界おじさん/Isekai Ojisan | 01-13 [简繁字幕] BDrip 1080p AV1 FLAC 2.0",
+            // 其他合集格式
+            "动漫国字幕组】★07月新番[异世界舅舅][01-13(全集)][720P][繁体][MP4]",
+            "[喵萌奶茶屋&LoliHouse] 无职转生 01-11 合集 [WebRip 1080p HEVC-10bit AAC][简繁内封字幕]",
+            "[桜都字幕组] 无职转生 01-23 [BDrip][1080P][HEVC_FLACx2]",
+        ];
+
+        // 测试应该通过的文件名
+        for file_name in should_pass {
+            assert!(
+                filter_file_name(file_name),
+                "应该通过但被过滤：{}",
+                file_name
+            );
+        }
+
+        // 测试应该被过滤的文件名
+        for file_name in should_filter {
+            assert!(
+                !filter_file_name(file_name),
+                "应该被过滤但通过了：{}",
+                file_name
+            );
+        }
+    }
 
     #[tokio::test]
     #[ignore]
