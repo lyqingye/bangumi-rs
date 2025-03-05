@@ -47,9 +47,7 @@ fn filter_file_name(f: &str) -> bool {
     !f.contains("全集") &&
     !f.contains("完结") &&
     // 使用正则表达式匹配集数范围
-    !EPISODE_RANGE.is_match(f) &&
-    // 额外检查分隔符
-    !f.contains(" | ")
+    !EPISODE_RANGE.is_match(f)
 }
 
 impl Worker {
