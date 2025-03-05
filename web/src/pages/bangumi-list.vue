@@ -1,46 +1,71 @@
 <template>
   <div class="bangumi-list-content">
-    <div class="d-flex align-center justify-space-between mb-6">
-      <h1 class="text-h5 font-weight-bold">番剧列表</h1>
-      <div class="d-flex align-center">
-        <!-- 年份选择器 -->
-        <v-select
-          v-model="selectedYear"
-          :items="yearOptions"
-          label="年份"
-          variant="outlined"
-          density="compact"
-          class="me-2 year-select"
-          bg-color="rgba(48, 48, 48, 0.95)"
-          item-color="white"
-          hide-details
-        ></v-select>
+    <div class="position-relative mb-6">
+      <div class="d-flex align-center justify-space-between">
+        <!-- 左侧空白区域，用于平衡布局 -->
+        <div class="flex-grow-1 flex-shrink-1" style="max-width: 200px;">
+          <h1 class="text-h5 font-weight-bold">番剧列表</h1>
+        </div>
         
-        <!-- 季节选择器 -->
-        <v-select
-          v-model="selectedSeason"
-          :items="seasonOptions"
-          label="季节"
-          variant="outlined"
-          density="compact"
-          hide-details
-          class="me-2 season-select"
-          bg-color="rgba(48, 48, 48, 0.95)"
-          item-color="white"
-        ></v-select>
+        <!-- 搜索框居中 -->
+        <div class="search-container">
+          <v-text-field
+            v-model="searchQuery"
+            density="compact"
+            hide-details
+            prepend-inner-icon="mdi-magnify"
+            placeholder="搜索..."
+            variant="solo-filled"
+            class="search-field"
+            bg-color="rgba(32, 32, 32, 0.95)"
+            @keyup.enter="handleSearch"
+            @click:prepend-inner="handleSearch"
+            clearable
+            @click:clear="clearSearch"
+          />
+        </div>
         
-        <!-- 订阅状态过滤器 -->
-        <v-select
-          v-model="selectedStatus"
-          :items="statusOptions"
-          label="订阅状态"
-          variant="outlined"
-          density="compact"
-          class="me-2 season-select"
-          hide-details
-          bg-color="rgba(48, 48, 48, 0.95)"
-          item-color="white"
-        ></v-select>
+        <!-- 右侧筛选器 -->
+        <div class="d-flex align-center filter-container">
+          <!-- 年份选择器 -->
+          <v-select
+            v-model="selectedYear"
+            :items="yearOptions"
+            label="年份"
+            variant="outlined"
+            density="compact"
+            hide-details
+            class="me-2 year-select"
+            bg-color="rgba(48, 48, 48, 0.95)"
+            item-color="white"
+          ></v-select>
+          
+          <!-- 季节选择器 -->
+          <v-select
+            v-model="selectedSeason"
+            :items="seasonOptions"
+            label="季节"
+            variant="outlined"
+            density="compact"
+            hide-details
+            class="me-2 season-select"
+            bg-color="rgba(48, 48, 48, 0.95)"
+            item-color="white"
+          ></v-select>
+          
+          <!-- 订阅状态过滤器 -->
+          <v-select
+            v-model="selectedStatus"
+            :items="statusOptions"
+            label="订阅状态"
+            variant="outlined"
+            density="compact"
+            class="season-select"
+            hide-details
+            bg-color="rgba(48, 48, 48, 0.95)"
+            item-color="white"
+          ></v-select>
+        </div>
       </div>
     </div>
 
@@ -104,6 +129,9 @@ const currentPage = ref(1)
 const total = ref(0)
 const totalPages = computed(() => Math.ceil(total.value / pageSize))
 
+// 搜索参数
+const searchQuery = ref('')
+
 // 使用season store
 const { 
   state: seasonState, 
@@ -153,7 +181,8 @@ const loadBangumiList = async () => {
       offset: (currentPage.value - 1) * pageSize,
       limit: pageSize,
       status: selectedStatus.value || undefined,
-      calendar_season: getCalendarSeason()
+      calendar_season: getCalendarSeason(),
+      name: searchQuery.value || undefined
     }
     
     // 调用API
@@ -171,6 +200,19 @@ const loadBangumiList = async () => {
 
 // 处理页码变化
 const handlePageChange = () => {
+  loadBangumiList()
+}
+
+// 处理搜索
+const handleSearch = () => {
+  currentPage.value = 1 // 重置到第一页
+  loadBangumiList()
+}
+
+// 清除搜索
+const clearSearch = () => {
+  searchQuery.value = ''
+  currentPage.value = 1
   loadBangumiList()
 }
 
@@ -192,6 +234,13 @@ watch(selectedStatus, () => {
   loadBangumiList()
 })
 
+// 监听搜索关键词变化
+watch(searchQuery, () => {
+  if (!searchQuery.value) {
+    loadBangumiList()
+  }
+})
+
 // 组件挂载时加载数据
 onMounted(async () => {
   // 初始化季节信息
@@ -206,6 +255,42 @@ onMounted(async () => {
   max-width: 1920px;
   margin: 0 auto;
   padding: 24px;
+}
+
+.position-relative {
+  position: relative;
+}
+
+.search-container {
+  max-width: 300px;
+  width: 100%;
+}
+
+.filter-container {
+  flex-shrink: 0;
+}
+
+/* 搜索框样式 */
+.search-field {
+  width: 100%;
+}
+
+.search-field :deep(.v-field__input) {
+  min-height: 40px;
+  font-size: 0.875rem;
+}
+
+.search-field :deep(.v-field) {
+  border-radius: 8px;
+  background: rgba(32, 32, 32, 0.95);
+}
+
+.search-field :deep(.v-field__input) {
+  padding: 8px 12px;
+}
+
+.search-field :deep(.v-field__prepend-inner) {
+  padding-left: 12px;
 }
 
 .media-card-col {
@@ -252,5 +337,54 @@ onMounted(async () => {
 .season-select :deep(.v-list-item--active) {
   color: rgb(var(--v-theme-primary)) !important;
   background: rgba(var(--v-theme-primary), 0.15) !important;
+}
+
+/* 响应式调整 */
+@media (max-width: 1200px) {
+  .search-container {
+    max-width: 240px;
+  }
+}
+
+@media (max-width: 960px) {
+  .d-flex.align-center.justify-space-between {
+    flex-direction: column;
+    align-items: stretch !important;
+  }
+
+  .search-container {
+    max-width: 100%;
+    margin: 16px 0;
+    order: 1;
+  }
+
+  .filter-container {
+    width: 100%;
+    justify-content: flex-end;
+    gap: 8px;
+    flex-wrap: wrap;
+    order: 2;
+  }
+
+  .year-select,
+  .season-select {
+    flex: 1;
+    min-width: 120px;
+  }
+
+  h1.text-h5 {
+    margin-bottom: 0;
+  }
+}
+
+@media (max-width: 600px) {
+  .filter-container {
+    justify-content: stretch;
+  }
+  
+  .year-select,
+  .season-select {
+    min-width: calc(33.33% - 6px);
+  }
 }
 </style> 

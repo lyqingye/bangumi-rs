@@ -189,6 +189,7 @@ pub struct ProcessMetrics {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct QueryBangumiParams {
+    pub name: Option<String>,
     pub offset: u64,
     pub limit: u64,
     pub status: Option<SubscribeStatus>,

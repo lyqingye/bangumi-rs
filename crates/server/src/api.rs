@@ -738,14 +738,19 @@ pub async fn list_bangumi(
     // 构建查询条件
     let mut condition = Condition::all();
 
-    // 添加订阅状态过滤条件
-    if let Some(status) = &params.status {
-        condition = condition.add(SubscriptionColumn::SubscribeStatus.eq(status.clone()));
-    }
+    // 添加名称过滤条件
+    if let Some(name) = &params.name {
+        condition = condition.add(BangumiColumn::Name.like(format!("%{}%", name)));
+    } else {
+        // 添加订阅状态过滤条件
+        if let Some(status) = &params.status {
+            condition = condition.add(SubscriptionColumn::SubscribeStatus.eq(status.clone()));
+        }
 
-    // 添加季度过滤条件
-    if let Some(season) = &params.calendar_season {
-        condition = condition.add(BangumiColumn::CalendarSeason.eq(season.clone()));
+        // 添加季度过滤条件
+        if let Some(season) = &params.calendar_season {
+            condition = condition.add(BangumiColumn::CalendarSeason.eq(season.clone()));
+        }
     }
 
     // 查询总条数
