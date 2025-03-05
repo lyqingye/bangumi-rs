@@ -6,17 +6,23 @@ edition = "2021"
 [dependencies]
 anyhow = { workspace = true }
 thiserror = { workspace = true }
-reqwest = { workspace = true, features = ["json"]}
-tokio = { workspace = true ,features = ["full"]}
-serde = { workspace = true, features = ["derive"]}
+reqwest = { workspace = true, features = ["json"] }
+tokio = { workspace = true, features = ["full"] }
+serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 lazy_static = { workspace = true }
-tracing = {workspace = true}
-async-trait = {workspace = true}
-sea-orm = {workspace = true, features = [ "sqlx-mysql", "runtime-tokio-rustls", "macros", "debug-print"]}
-model = {path = "../../crates/model" }
-chrono = {workspace = true}
+tracing = { workspace = true }
+async-trait = { workspace = true }
+sea-orm = { workspace = true, features = [
+    "sqlx-mysql",
+    "runtime-tokio-rustls",
+    "macros",
+    "debug-print",
+] }
+model = { path = "../../crates/model" }
+chrono = { workspace = true }
+regex = { workspace = true }
 
 [dev-dependencies]
-dotenv = {workspace = true}
+dotenv = { workspace = true }
 tracing-subscriber = { workspace = true }
