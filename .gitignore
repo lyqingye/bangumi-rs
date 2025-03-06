@@ -31,3 +31,7 @@ config.toml
 /data/
 
 .cursor/
+node_modules
+
+docs/site/.vuepress/cache
+docs/site/.vuepress/temp

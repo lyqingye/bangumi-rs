@@ -115,7 +115,7 @@ mod tests {
     #[ignore]
     async fn test_search_all() -> Result<()> {
         let cli = create_client().await?;
-        let resp = cli.search_all("我独自升级").await?;
+        let resp = cli.search_all("我独自升级 第二季").await?;
         println!("找到 {} 个结果", resp.len());
         Ok(())
     }
