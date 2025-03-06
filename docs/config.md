@@ -86,7 +86,7 @@ api_key = "your_api_key"
 base_url = "https://api.deepbricks.com"
 model = "gpt-4"
 
-[parser.raw] .              # 原生解析器
+[parser.raw]              # 原生解析器
 enabled = true
 ```
 
