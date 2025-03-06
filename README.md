@@ -26,6 +26,7 @@
 
 - 🔍 资源解析
 
+  - 采用传统方式解析文件名
   - 采用 ChatGPT 进行解析，支持多个 API 服务提供商 (SiliconFlow、OpenAI、Claude、DeepSeek)
 
 - 📥 智能下载
