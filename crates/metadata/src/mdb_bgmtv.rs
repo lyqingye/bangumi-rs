@@ -67,7 +67,7 @@ impl MetadataDb for MdbBgmTV {
         if attrs.is_required(MetadataAttr::Poster) && (bgm.poster_image_url.is_none() || force) {
             match self
                 .download_image_from_bangumi_tv(
-                    &subject.images.common,
+                    &subject.images.large,
                     format_poster_image_file_name(bgm).as_str(),
                 )
                 .await
