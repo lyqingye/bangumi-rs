@@ -22,7 +22,7 @@ sea-orm = { workspace = true, features = [
 model = { path = "../../crates/model" }
 chrono = { workspace = true }
 regex = { workspace = true }
-
+raw-parser = { path = "../../libs/raw-parser" }
 [dev-dependencies]
 dotenv = { workspace = true }
 tracing-subscriber = { workspace = true }

@@ -2863,6 +2863,7 @@ dependencies = [
  "dotenv",
  "lazy_static",
  "model",
+ "raw-parser",
  "regex",
  "reqwest",
  "sea-orm",
@@ -3359,6 +3360,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c6928fa44c097620b706542d428957635951bade7143269085389d42c8a4927e"
 dependencies = [
  "bitflags 2.8.0",
+]
+
+[[package]]
+name = "raw-parser"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "lazy_static",
+ "phf",
+ "regex",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.11",
+ "tracing",
 ]
 
 [[package]]

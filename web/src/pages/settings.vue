@@ -31,7 +31,12 @@ const logLevelOptions = [
 
 // 解析器类型
 type Parser = keyof ParserConfig
-const parsers: Parser[] = ['siliconflow', 'deepseek', 'deepbricks']
+const parsers: Parser[] = ['raw', 'siliconflow', 'deepseek', 'deepbricks']
+
+// 判断是否为需要完整配置的解析器
+const isLLMParser = (parser: Parser) => {
+  return parser !== 'raw'
+}
 
 // 加载配置
 const loadConfig = async () => {
@@ -380,7 +385,7 @@ onMounted(() => {
             >
               <v-card-item>
                 <v-card-title>{{ parser }}</v-card-title>
-                <v-card-subtitle>配置 {{ parser }} 解析器</v-card-subtitle>
+                <v-card-subtitle>配置 {{ parser === 'raw' ? '原生' : parser }} 解析器</v-card-subtitle>
               </v-card-item>
               <v-card-text>
                 <v-row>
@@ -394,43 +399,45 @@ onMounted(() => {
                     />
                   </v-col>
                 </v-row>
-                <v-row>
-                  <v-col cols="12" md="6">
-                    <v-text-field
-                      v-model="config.parser[parser].api_key"
-                      label="API Key"
-                      variant="outlined"
-                      density="comfortable"
-                      class="mb-4"
-                      :disabled="!config.parser[parser].enabled"
-                      prepend-inner-icon="mdi-key"
-                    />
-                  </v-col>
-                  <v-col cols="12" md="6">
-                    <v-text-field
-                      v-model="config.parser[parser].model"
-                      label="模型"
-                      variant="outlined"
-                      density="comfortable"
-                      class="mb-4"
-                      :disabled="!config.parser[parser].enabled"
-                      prepend-inner-icon="mdi-brain"
-                    />
-                  </v-col>
-                </v-row>
-                <v-row>
-                  <v-col cols="12">
-                    <v-text-field
-                      v-model="config.parser[parser].base_url"
-                      label="Base URL"
-                      variant="outlined"
-                      density="comfortable"
-                      class="mb-4"
-                      :disabled="!config.parser[parser].enabled"
-                      prepend-inner-icon="mdi-web"
-                    />
-                  </v-col>
-                </v-row>
+                <template v-if="isLLMParser(parser)">
+                  <v-row>
+                    <v-col cols="12" md="6">
+                      <v-text-field
+                        v-model="config.parser[parser].api_key"
+                        label="API Key"
+                        variant="outlined"
+                        density="comfortable"
+                        class="mb-4"
+                        :disabled="!config.parser[parser].enabled"
+                        prepend-inner-icon="mdi-key"
+                      />
+                    </v-col>
+                    <v-col cols="12" md="6">
+                      <v-text-field
+                        v-model="config.parser[parser].model"
+                        label="模型"
+                        variant="outlined"
+                        density="comfortable"
+                        class="mb-4"
+                        :disabled="!config.parser[parser].enabled"
+                        prepend-inner-icon="mdi-brain"
+                      />
+                    </v-col>
+                  </v-row>
+                  <v-row>
+                    <v-col cols="12">
+                      <v-text-field
+                        v-model="config.parser[parser].base_url"
+                        label="Base URL"
+                        variant="outlined"
+                        density="comfortable"
+                        class="mb-4"
+                        :disabled="!config.parser[parser].enabled"
+                        prepend-inner-icon="mdi-web"
+                      />
+                    </v-col>
+                  </v-row>
+                </template>
               </v-card-text>
             </v-card>
           </template>

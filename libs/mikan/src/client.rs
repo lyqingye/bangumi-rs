@@ -26,6 +26,8 @@ lazy_static::lazy_static! {
     static ref SEARCH_RESULT_LINK_SELECTOR: Selector = Selector::parse("a").unwrap();
     static ref SEARCH_RESULT_TITLE_SELECTOR: Selector = Selector::parse("div.an-info div.an-text").unwrap();
     static ref SEARCH_RESULT_IMAGE_SELECTOR: Selector = Selector::parse("span.b-lazy").unwrap();
+
+    static ref USER_AGENT: String = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36".to_string();
 }
 
 #[derive(Debug, Clone, Default)]
@@ -108,7 +110,14 @@ impl Client {
         info!("url: {}", url);
 
         // 获取 RSS XML 内容
-        let xml = self.cli.get(url).send().await?.text().await?;
+        let xml = self
+            .cli
+            .get(url)
+            .header(reqwest::header::USER_AGENT, USER_AGENT.as_str())
+            .send()
+            .await?
+            .text()
+            .await?;
 
         // 解析 XML 为 MikanRss 结构体
         let rss = MikanRss::from_xml(&xml)?;
@@ -152,7 +161,14 @@ impl Client {
             .join(format!("/Home/Bangumi/{}", bangumi_id).as_str())?;
         info!("url: {}", url);
 
-        let search_result_page_html = self.cli.get(url).send().await?.text().await?;
+        let search_result_page_html = self
+            .cli
+            .get(url)
+            .header(reqwest::header::USER_AGENT, USER_AGENT.as_str())
+            .send()
+            .await?
+            .text()
+            .await?;
         let document = scraper::Html::parse_document(&search_result_page_html);
 
         // 从 Bangumi 链接中提取 ID
@@ -194,6 +210,7 @@ impl Client {
         let search_result_page_html = self
             .cli
             .get(self.endpoint.clone())
+            .header(reqwest::header::USER_AGENT, USER_AGENT.as_str())
             .send()
             .await?
             .text()
@@ -289,7 +306,14 @@ impl Client {
             ],
         )?;
         info!("url: {}", url);
-        let search_result_page_html = self.cli.get(url).send().await?.text().await?;
+        let search_result_page_html = self
+            .cli
+            .get(url)
+            .header(reqwest::header::USER_AGENT, USER_AGENT.as_str())
+            .send()
+            .await?
+            .text()
+            .await?;
         let mut calendar = self.parse_home_page(search_result_page_html.as_str())?;
         calendar.season = Some(season.to_string());
         Ok(calendar)
@@ -303,7 +327,14 @@ impl Client {
         info!("搜索URL: {}", url);
 
         // 发送请求获取搜索结果页面
-        let search_result_page_html = self.cli.get(url).send().await?.text().await?;
+        let search_result_page_html = self
+            .cli
+            .get(url)
+            .header(reqwest::header::USER_AGENT, USER_AGENT.as_str())
+            .send()
+            .await?
+            .text()
+            .await?;
 
         // 解析搜索结果
         let document = scraper::Html::parse_document(&search_result_page_html);

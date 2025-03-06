@@ -98,9 +98,15 @@ impl Default for Pan115Config {
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
 pub struct ParserConfig {
+    pub raw: RawParserConfig,
     pub siliconflow: SiliconflowConfig,
     pub deepseek: DeepseekConfig,
     pub deepbricks: DeepbricksConfig,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+pub struct RawParserConfig {
+    pub enabled: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]

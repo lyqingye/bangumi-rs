@@ -68,10 +68,25 @@ chat_id = "chat_id"             # 聊天 ID
 ## 解析器配置
 
 ```toml
-[parser.siliconflow]            # 使用 SiliconFlow API 解析文件名
+[parser.siliconflow]            # 使用 SiliconFlow API 解析器
 enabled = true
 api_key = "your_api_key"
 base_url = "https://api.siliconflow.com"
 model = "gpt-4"
+
+[parser.deepseek]               # 使用 Deepseek API 解析器
+enabled = false
+api_key = "your_api_key"
+base_url = "https://api.deepseek.com"
+model = "deepseek-chat"
+
+[parser.deepbricks]             # deepbricks LLM API 解析器
+enabled = false
+api_key = "your_api_key"
+base_url = "https://api.deepbricks.com"
+model = "gpt-4"
+
+[parser.raw]              # 原生解析器
+enabled = true
 ```
 

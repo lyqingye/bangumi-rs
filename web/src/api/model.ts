@@ -270,10 +270,15 @@ export interface DeepbricksConfig {
   base_url: string
 }
 
+export interface RawParserConfig {
+  enabled: boolean
+}
+
 export interface ParserConfig {
   siliconflow: SiliconflowConfig
   deepseek: DeepseekConfig
   deepbricks: DeepbricksConfig
+  raw: RawParserConfig
 }
 
 // 日志级别枚举

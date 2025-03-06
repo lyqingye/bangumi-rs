@@ -198,6 +198,8 @@ impl Server {
                 },
                 client,
             ));
+        } else if config.parser.raw.enabled {
+            parser_impl = Arc::new(parser::impls::raw::Raw::new());
         } else {
             panic!("No parser enabled");
         }
