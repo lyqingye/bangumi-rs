@@ -2863,6 +2863,7 @@ dependencies = [
  "dotenv",
  "lazy_static",
  "model",
+ "raw-parser",
  "regex",
  "reqwest",
  "sea-orm",

@@ -1,10 +1,8 @@
-pub mod config;
 pub mod models;
 pub mod parser;
 
 #[cfg(test)]
 mod tests {
-    use crate::config::Config;
     use crate::parser::Parser;
     use serde::Deserialize;
     use std::fs;
@@ -35,16 +33,14 @@ mod tests {
 
     #[test]
     fn test_example() {
-        let config = Config::default();
-        let parser = Parser::new(config);
+        let parser = Parser::new();
         let result = parser.parse("[Up to 21°C] 最弱技能《果实大师》 ～关于能无限食用技能果实（吃了就会死）这件事～ / Hazure Skill 'Kinomi Master' - 02 (CR 1920x1080 AVC AAC MKV)").unwrap();
         println!("{:?}", result);
     }
 
     #[test]
     fn test_parser() {
-        let config = Config::default();
-        let parser = Parser::new(config);
+        let parser = Parser::new();
 
         // 读取测试数据
         let test_data_str =

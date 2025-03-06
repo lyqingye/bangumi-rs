@@ -1,4 +1,3 @@
-use crate::config::Config;
 use crate::models::{ParseResult, CHINESE_NUMBER_MAP};
 use anyhow::{anyhow, Result};
 use lazy_static::lazy_static;
@@ -20,10 +19,10 @@ lazy_static! {
     static ref RESOLUTION_2160_PATTERN: Regex = Regex::new(r"2160|4096x2160|4K|4k").unwrap();
 
     // 匹配简体中文字幕的正则表达式
-    static ref SUB_CHS_PATTERN: Regex = Regex::new(r"[简中]|CHS|SC").unwrap();
+    static ref SUB_CHS_PATTERN: Regex = Regex::new(r"[简中]|CHS|SC|GB|GBK|GB2312").unwrap();
 
     // 匹配繁体中文字幕的正则表达式
-    static ref SUB_CHT_PATTERN: Regex = Regex::new(r"繁|CHT|BIG5|GB").unwrap();
+    static ref SUB_CHT_PATTERN: Regex = Regex::new(r"繁|CHT|BIG5").unwrap();
 
     // 匹配日语字幕的正则表达式
     static ref SUB_JPN_PATTERN: Regex = Regex::new(r"[日]|JP|JPSC").unwrap();
@@ -53,15 +52,13 @@ lazy_static! {
 }
 
 /// 动画文件名解析器
-#[derive(Debug, Clone)]
-pub struct Parser {
-    config: Config,
-}
+#[derive(Debug, Clone, Default)]
+pub struct Parser;
 
 impl Parser {
     /// 创建新的解析器实例
-    pub fn new(config: Config) -> Self {
-        Self { config }
+    pub fn new() -> Self {
+        Self {}
     }
 
     /// 从方括号中提取字幕组信息
@@ -248,11 +245,6 @@ impl Parser {
         // 获取字幕组信息
         let group = Self::get_group(&content_title);
 
-        // 在严格模式下检查字幕组信息
-        if self.config.strict_mode && group.is_none() {
-            return Err(anyhow!("无法解析字幕组信息"));
-        }
-
         // 解析标题格式
         let captures = TITLE_PATTERN
             .captures(&content_title)
@@ -277,11 +269,6 @@ impl Parser {
         let episode = EPISODE_PATTERN
             .find(episode_info)
             .and_then(|m| m.as_str().parse().ok());
-
-        // 在严格模式下检查集数信息
-        if self.config.strict_mode && episode.is_none() {
-            return Err(anyhow!("无法解析集数信息"));
-        }
 
         // 处理其他标签
         let (sub, resolution) = Self::find_tags(other);
