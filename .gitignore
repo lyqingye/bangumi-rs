@@ -33,5 +33,5 @@ config.toml
 .cursor/
 node_modules
 
-docs/site/.vuepress/cache
-docs/site/.vuepress/temp
+docs/site/docs/.vuepress/cache
+docs/site/docs/.vuepress/temp
