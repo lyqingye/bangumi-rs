@@ -15,7 +15,9 @@ lazy_static! {
     ).unwrap();
 
     // 匹配视频分辨率的正则表达式
-    static ref RESOLUTION_PATTERN: Regex = Regex::new(r"1080|720|2160|4K").unwrap();
+    static ref RESOLUTION_1080_PATTERN: Regex = Regex::new(r"1080|1920x1080").unwrap();
+    static ref RESOLUTION_720_PATTERN: Regex = Regex::new(r"720|1280x720").unwrap();
+    static ref RESOLUTION_2160_PATTERN: Regex = Regex::new(r"2160|4096x2160|4K|4k").unwrap();
 
     // 匹配简体中文字幕的正则表达式
     static ref SUB_CHS_PATTERN: Regex = Regex::new(r"[简中]|CHS|SC").unwrap();
@@ -161,12 +163,14 @@ impl Parser {
                 .map(|s| s.to_string())
                 .collect();
 
-            for &idx in &[0, split_space.len() - 1] {
-                if let Some(word) = split_space.get(idx) {
-                    if CHS_PATTERN.is_match(word) {
-                        let joined_space = split_space.join(" ");
-                        splits = vec![word.clone(), joined_space];
-                        break;
+            if !split_space.is_empty() {
+                for &idx in &[0, split_space.len() - 1] {
+                    if let Some(word) = split_space.get(idx) {
+                        if CHS_PATTERN.is_match(word) {
+                            let joined_space = split_space.join(" ");
+                            splits = vec![word.clone(), joined_space];
+                            break;
+                        }
                     }
                 }
             }
@@ -211,8 +215,14 @@ impl Parser {
             if SUB_ENG_PATTERN.is_match(element) {
                 subs.push("ENG".to_string());
             }
-            if RESOLUTION_PATTERN.is_match(element) {
-                resolution = Some(element.to_string());
+            if RESOLUTION_1080_PATTERN.is_match(element) {
+                resolution = Some("1080P".to_string());
+            }
+            if RESOLUTION_720_PATTERN.is_match(element) {
+                resolution = Some("720P".to_string());
+            }
+            if RESOLUTION_2160_PATTERN.is_match(element) {
+                resolution = Some("2160P".to_string());
             }
         }
 

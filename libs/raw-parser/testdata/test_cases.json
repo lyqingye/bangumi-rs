@@ -10,7 +10,7 @@
         "episode": 1,
         "season": null,
         "subtitle_group": "Nekomoe kissaten",
-        "resolution": "1080p",
+        "resolution": "1080P",
         "sub_type": ["CHS", "JPN"]
       }
     },
@@ -38,7 +38,7 @@
         "episode": 8,
         "season": null,
         "subtitle_group": "动漫国字幕组&LoliHouse",
-        "resolution": "1080p",
+        "resolution": "1080P",
         "sub_type": ["CHS", "CHT"]
       }
     },
@@ -52,7 +52,7 @@
         "episode": 1,
         "season": null,
         "subtitle_group": "喵萌奶茶屋&LoliHouse",
-        "resolution": "1080p",
+        "resolution": "1080P",
         "sub_type": ["CHS", "CHT", "JPN"]
       }
     },
@@ -66,7 +66,7 @@
         "episode": 1,
         "season": null,
         "subtitle_group": "桜都字幕组",
-        "resolution": "1080p",
+        "resolution": "1080P",
         "sub_type": ["CHS", "CHT"]
       }
     },
@@ -80,7 +80,7 @@
         "episode": 1,
         "season": 3,
         "subtitle_group": "Lilith-Raws",
-        "resolution": "1080p",
+        "resolution": "1080P",
         "sub_type": ["CHT"]
       }
     },
@@ -94,7 +94,7 @@
         "episode": 0,
         "season": 2,
         "subtitle_group": "喵萌Production&LoliHouse",
-        "resolution": "1080p",
+        "resolution": "1080P",
         "sub_type": ["CHS", "CHT"]
       }
     },
@@ -108,7 +108,7 @@
         "episode": 13,
         "season": null,
         "subtitle_group": "Sakurato",
-        "resolution": "1080p",
+        "resolution": "1080P",
         "sub_type": ["CHS", "CHT"]
       }
     },
@@ -122,7 +122,7 @@
         "episode": 21,
         "season": 2,
         "subtitle_group": "NC-Raws",
-        "resolution": "2160p",
+        "resolution": "2160P",
         "sub_type": []
       }
     },
