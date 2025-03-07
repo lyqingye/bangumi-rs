@@ -155,8 +155,8 @@ export async function manualSelectTorrent(bangumiId: number, episodeNumber: numb
     handleError(error, '手动选择种子下载失败')
   }
 }
-export async function getOnlineWatchUrl(bangumiId: number, episodeId: number): Promise<string> {
-  return  `${window.location.origin}/api/bangumi/${bangumiId}/${episodeId}/online_watch`
+export async function getOnlineWatchUrl(bangumiId: number, episodeId: number, fileName: string): Promise<string> {
+  return  `${window.location.origin}/api/bangumi/${bangumiId}/${episodeId}/online_watch/${fileName}`
 }
 
 // 下载任务相关 API

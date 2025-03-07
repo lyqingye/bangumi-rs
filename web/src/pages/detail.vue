@@ -1789,11 +1789,12 @@ async function handleSubscribe(params: SubscribeParams) {
   }
 }
 
+
 // 修改播放方法，分为IINA和Infuse两个
 const playWithIINA = async (episode: Episode) => {
   if (!anime.value) return
 
-  const apiUrl = await getOnlineWatchUrl(anime.value.id, episode.number)
+  const apiUrl = await getOnlineWatchUrl(anime.value.id, episode.number, `${anime.value.name}-第${episode.number}集`)
   const playUrl = `iina://weblink?url=${encodeURIComponent(apiUrl)}`
   window.location.href = playUrl
 }
@@ -1801,7 +1802,7 @@ const playWithIINA = async (episode: Episode) => {
 const playWithInfuse = async (episode: Episode) => {
   if (!anime.value) return
 
-  const apiUrl = await getOnlineWatchUrl(anime.value.id, episode.number)
+  const apiUrl = await getOnlineWatchUrl(anime.value.id, episode.number, `${anime.value.name}-第${episode.number}集`)
   const playUrl = `infuse://x-callback-url/play?url=${encodeURIComponent(apiUrl)}`
   window.location.href = playUrl
 }
