@@ -103,7 +103,7 @@ impl Server {
             dict.clone(),
             config.server.assets_path.clone(),
         )?;
-        metadata_worker.spawn().await?;
+        metadata_worker.spawn()?;
 
         // Parser worker
         let parser_impl = Self::create_parser(config, client.clone());
@@ -137,8 +137,7 @@ impl Server {
                 retry_max_interval: config.downloader.retry_max_interval,
                 ..Default::default()
             },
-        )
-        .await?;
+        )?;
 
         downloader_worker.spawn().await?;
 
@@ -264,7 +263,7 @@ impl Server {
 
         if first_run.is_none() || first_run.unwrap() {
             info!("检测到首次运行，开始执行初始化...");
-            Self::do_first_run(state).await?;
+            Self::do_first_run(state)?;
             state
                 .dict
                 .set_value_as::<bool>(DictCode::FirstRun, &false)
@@ -273,8 +272,8 @@ impl Server {
         Ok(())
     }
 
-    async fn do_first_run(state: &Arc<AppState>) -> Result<()> {
-        state.metadata.request_refresh_calendar(None, true).await?;
+    fn do_first_run(state: &Arc<AppState>) -> Result<()> {
+        state.metadata.request_refresh_calendar(None, true)?;
         Ok(())
     }
 }

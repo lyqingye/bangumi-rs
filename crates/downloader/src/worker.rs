@@ -77,7 +77,7 @@ pub struct Worker {
 }
 
 impl Worker {
-    pub async fn new_with_conn(
+    pub fn new_with_conn(
         store: Box<dyn Store>,
         downloader: Box<dyn ThirdPartyDownloader>,
         config: Config,
@@ -262,7 +262,7 @@ impl Worker {
         result
     }
 
-    pub async fn subscribe(&self) -> broadcast::Receiver<Event> {
+    pub fn subscribe(&self) -> broadcast::Receiver<Event> {
         self.notify_tx.subscribe()
     }
 
@@ -549,7 +549,7 @@ impl Downloader for Worker {
     }
 
     async fn subscribe(&self) -> broadcast::Receiver<Event> {
-        self.subscribe().await
+        self.subscribe()
     }
 
     async fn retry(&self, info_hash: &str) -> Result<()> {
@@ -562,7 +562,7 @@ impl Worker {
         let db = Db::new_from_env().await?;
         let downloader = Pan115DownloaderImpl::new_from_env()?;
         let config = Config::default();
-        Self::new_with_conn(Box::new(db), Box::new(downloader), config).await
+        Self::new_with_conn(Box::new(db), Box::new(downloader), config)
     }
 }
 
@@ -586,7 +586,7 @@ mod tests {
                 PathBuf::from("test"),
             )
             .await?;
-        let mut rx = worker.subscribe().await;
+        let mut rx = worker.subscribe();
         loop {
             let event = rx.recv().await?;
             #[allow(irrefutable_let_patterns)]

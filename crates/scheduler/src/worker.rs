@@ -65,7 +65,7 @@ impl BangumiWorker {
     }
 
     /// 为指定集数选择最合适的种子
-    async fn select_episode_torrent(
+    fn select_episode_torrent(
         &self,
         episode_number: i32,
         ep_start_number: i32,
@@ -150,7 +150,7 @@ impl BangumiWorker {
             self.db
                 .update_subscription_as_downloaded(self.bangumi.id)
                 .await?;
-            self.shutdown_no_wait().await;
+            self.shutdown_no_wait();
             return Ok(());
         }
 
@@ -189,15 +189,12 @@ impl BangumiWorker {
 
         // 6. 为每个 Missing 任务选择合适的种子
         for task in missing_tasks {
-            if let Some(torrent) = self
-                .select_episode_torrent(
-                    task.episode_number,
-                    self.bangumi.ep_start_number,
-                    &unused_torrents,
-                    &episodes,
-                )
-                .await?
-            {
+            if let Some(torrent) = self.select_episode_torrent(
+                task.episode_number,
+                self.bangumi.ep_start_number,
+                &unused_torrents,
+                &episodes,
+            )? {
                 info!(
                     "已为番剧 {} 第 {} 集选择合适的种子",
                     self.bangumi.name, task.episode_number
@@ -244,7 +241,6 @@ impl BangumiWorker {
                     if let Err(e) = worker
                         .metadata
                         .request_refresh_metadata(worker.bangumi.id, false)
-                        .await
                     {
                         error!("番剧 {} 刷新元数据失败: {}", worker.bangumi.name, e);
                     }
@@ -300,7 +296,7 @@ impl BangumiWorker {
         Ok(())
     }
 
-    async fn shutdown_no_wait(&self) {
+    fn shutdown_no_wait(&self) {
         // 创建一个 mpsc 通道来等待 worker 完全停止
         let (tx, _) = mpsc::channel(1);
         // 发送停止命令

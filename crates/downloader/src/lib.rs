@@ -1,3 +1,4 @@
+#![deny(clippy::unused_async)]
 pub mod config;
 pub mod context;
 pub mod db;

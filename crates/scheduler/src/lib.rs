@@ -1,3 +1,4 @@
+#![deny(clippy::unused_async)]
 mod db;
 pub mod metrics;
 mod scheduler;

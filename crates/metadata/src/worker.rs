@@ -114,7 +114,7 @@ impl Worker {
         })
     }
 
-    pub async fn spawn(&mut self) -> Result<()> {
+    pub fn spawn(&mut self) -> Result<()> {
         if self.sender.is_some() {
             return Err(anyhow::anyhow!("Worker 已经启动"));
         }
@@ -186,33 +186,25 @@ impl Worker {
     }
 
     /// 快捷命令, 外部使用
-    pub async fn request_refresh_metadata(&self, bangumi_id: i32, force: bool) -> Result<()> {
+    pub fn request_refresh_metadata(&self, bangumi_id: i32, force: bool) -> Result<()> {
         self.send_cmd(Cmd::Refresh(Inner::Metadata(bangumi_id, force)), None)
-            .await
     }
 
-    pub async fn request_refresh_torrents(&self, bangumi_id: i32) -> Result<()> {
+    pub fn request_refresh_torrents(&self, bangumi_id: i32) -> Result<()> {
         self.send_cmd(Cmd::Refresh(Inner::Torrents(bangumi_id)), None)
-            .await
     }
 
     pub async fn request_refresh_torrents_and_wait(&self, bangumi_id: i32) -> Result<()> {
         let (done_tx, done_rx) = oneshot::channel();
-        self.send_cmd(Cmd::Refresh(Inner::Torrents(bangumi_id)), Some(done_tx))
-            .await?;
+        self.send_cmd(Cmd::Refresh(Inner::Torrents(bangumi_id)), Some(done_tx))?;
         tokio::time::timeout(Duration::from_secs(60), done_rx)
             .await
             .context("等待种子刷新超时")??;
         Ok(())
     }
 
-    pub async fn request_refresh_calendar(
-        &self,
-        season: Option<String>,
-        force: bool,
-    ) -> Result<()> {
+    pub fn request_refresh_calendar(&self, season: Option<String>, force: bool) -> Result<()> {
         self.send_cmd(Cmd::Refresh(Inner::Calendar(season, force)), None)
-            .await
     }
 
     pub async fn request_add_bangumi(
@@ -226,15 +218,14 @@ impl Worker {
         self.send_cmd(
             Cmd::AddBangumi(title, mikan_id, bgm_tv_id, tmdb_id),
             Some(done_tx),
-        )
-        .await?;
+        )?;
         tokio::time::timeout(Duration::from_secs(60), done_rx)
             .await
             .context("等待添加番剧超时")??;
         Ok(())
     }
 
-    async fn send_cmd(&self, cmd: Cmd, done_tx: Option<oneshot::Sender<()>>) -> Result<()> {
+    fn send_cmd(&self, cmd: Cmd, done_tx: Option<oneshot::Sender<()>>) -> Result<()> {
         let sender = self.sender.as_ref().context("Worker 未启动")?;
 
         sender.send((cmd, done_tx)).context("发送刷新请求失败")?;
@@ -384,7 +375,7 @@ impl Worker {
                 }
             };
 
-            self.request_refresh_metadata(bgm_id, force).await?;
+            self.request_refresh_metadata(bgm_id, force)?;
         }
         info!("放送列表刷新完成");
         Ok(())
@@ -490,7 +481,7 @@ impl Worker {
         bgm.bgm_kind = Some(kind);
         self.db.update_bangumi(bgm).await?;
 
-        self.request_refresh_metadata(bgm_id, true).await?;
+        self.request_refresh_metadata(bgm_id, true)?;
         Ok(())
     }
 
@@ -513,7 +504,7 @@ mod test {
             .init();
 
         let mut worker = Worker::new_from_env().await?;
-        worker.spawn().await?;
+        worker.spawn()?;
         worker.request_refresh_torrents_and_wait(20).await?;
         // tokio::time::sleep(Duration::from_secs(120)).await;
         worker.shutdown().await?;

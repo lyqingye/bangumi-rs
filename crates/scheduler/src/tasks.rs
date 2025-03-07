@@ -38,7 +38,7 @@ impl TaskManager {
         }
     }
 
-    pub async fn spawn(&mut self) -> Result<()> {
+    pub fn spawn(&mut self) -> Result<()> {
         let (cmd_tx, mut cmd_rx) = mpsc::unbounded_channel();
         self.cmd_tx = Some(cmd_tx);
 
