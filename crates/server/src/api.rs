@@ -408,11 +408,11 @@ pub async fn refresh_bangumi(
     Ok(Json(Resp::ok(())))
 }
 
-#[get("/api/bangumi/{id}/{episode_number}/online_watch")]
+#[get("/api/bangumi/{id}/{episode_number}/online_watch/{file_name}")]
 pub async fn online_watch(
     req: HttpRequest,
     state: web::Data<Arc<AppState>>,
-    path: web::Path<(i32, i32)>,
+    path: web::Path<(i32, i32, String)>,
 ) -> Result<HttpResponse, ServerError> {
     use model::episode_download_tasks::Column as TaskColumn;
     use model::episode_download_tasks::Entity as EpisodeDownloadTasks;
@@ -420,7 +420,7 @@ pub async fn online_watch(
     use sea_orm::EntityTrait;
     use sea_orm::QueryFilter;
 
-    let (id, episode_number) = path.into_inner();
+    let (id, episode_number, _) = path.into_inner();
 
     // 获取 User-Agent，如果没有则使用默认值
     let user_agent = req
