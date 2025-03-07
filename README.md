@@ -13,7 +13,7 @@
 ## 简介
 
 <div align="center">
-<img src="docs/screenshot/home.png" width="80%" style="box-shadow: 0 12px 32px rgba(0, 0, 0, 0.7); border-radius: 8px; margin: 20px 0;" />
+<img src="docs/screenshot/home.png" width="80%" style="box-shadow: 0 12px 32px rgba(0, 0, 0, 0.7); border-radius: 8px; margin: 40px 0;" />
 
 </div>
 
