@@ -69,7 +69,7 @@ pub struct Context {
 
 #[derive(Clone)]
 pub struct Worker {
-    event_queue: Option<mpsc::Sender<Tx>>,
+    event_queue: Option<mpsc::UnboundedSender<Tx>>,
     pub(crate) store: Arc<Box<dyn Store>>,
     pub(crate) downloader: Arc<Box<dyn ThirdPartyDownloader>>,
     pub(crate) config: Config,
@@ -96,7 +96,7 @@ impl Worker {
 
 impl Worker {
     pub async fn spawn(&mut self) -> Result<()> {
-        let (event_queue, event_receiver) = mpsc::channel(100);
+        let (event_queue, event_receiver) = mpsc::unbounded_channel();
         self.event_queue = Some(event_queue);
         // 启动事件循环
         self.spawn_event_loop(event_receiver);
@@ -111,19 +111,18 @@ impl Worker {
         Ok(())
     }
 
-    pub(crate) async fn send_event(&self, event: Tx) -> Result<()> {
+    pub(crate) fn send_event(&self, event: Tx) -> Result<()> {
         self.event_queue
             .as_ref()
             .context("Downloader 未启动")?
-            .send(event)
-            .await?;
+            .send(event)?;
         Ok(())
     }
 
     pub async fn shutdown(&self) -> Result<()> {
         info!("正在关闭 Downloader...");
         let (tx, rx) = oneshot::channel();
-        self.send_event(Tx::Shutdown(tx)).await?;
+        self.send_event(Tx::Shutdown(tx));
         rx.await?;
         info!("Downloader 已完全关闭");
         Ok(())
@@ -139,7 +138,7 @@ impl Worker {
 
         info!("找到 {} 个未处理的任务", pending_tasks.len());
         for task in pending_tasks {
-            if let Err(e) = self.send_event(Tx::StartTask(task.info_hash.clone())).await {
+            if let Err(e) = self.send_event(Tx::StartTask(task.info_hash.clone())) {
                 error!("恢复任务到队列失败: {} - {}", task.info_hash, e);
             } else {
                 info!("成功恢复任务: info_hash={}", task.info_hash);
@@ -150,7 +149,7 @@ impl Worker {
         Ok(())
     }
 
-    fn spawn_event_loop(&self, mut receiver: mpsc::Receiver<Tx>) -> Result<()> {
+    fn spawn_event_loop(&self, mut receiver: mpsc::UnboundedReceiver<Tx>) -> Result<()> {
         let worker = self.clone();
         tokio::spawn(async move {
             while let Some(event) = receiver.recv().await {
@@ -205,8 +204,7 @@ impl Worker {
             dir.display()
         );
         self.create_task(info_hash, &dir).await?;
-        self.send_event(Tx::StartTask(info_hash.to_string()))
-            .await?;
+        self.send_event(Tx::StartTask(info_hash.to_string()));
         Ok(())
     }
 
@@ -230,17 +228,15 @@ impl Worker {
         Ok(())
     }
 
-    pub async fn cancel_task(&self, info_hash: &str) -> Result<()> {
+    pub fn cancel_task(&self, info_hash: &str) -> Result<()> {
         info!("取消下载任务: info_hash={}", info_hash);
-        self.send_event(Tx::CancelTask(info_hash.to_string()))
-            .await?;
+        self.send_event(Tx::CancelTask(info_hash.to_string()));
         Ok(())
     }
 
-    pub async fn retry_task(&self, info_hash: &str) -> Result<()> {
+    pub fn retry_task(&self, info_hash: &str) -> Result<()> {
         info!("重试下载任务: info_hash={}", info_hash);
-        self.send_event(Tx::RetryTask(info_hash.to_string()))
-            .await?;
+        self.send_event(Tx::RetryTask(info_hash.to_string()));
         Ok(())
     }
 
@@ -547,7 +543,7 @@ impl Downloader for Worker {
     }
 
     async fn cancel_task(&self, info_hash: &str) -> Result<()> {
-        self.cancel_task(info_hash).await
+        self.cancel_task(info_hash)
     }
 
     async fn metrics(&self) -> metrics::Metrics {
@@ -559,7 +555,7 @@ impl Downloader for Worker {
     }
 
     async fn retry(&self, info_hash: &str) -> Result<()> {
-        self.retry_task(info_hash).await
+        self.retry_task(info_hash)
     }
 }
 

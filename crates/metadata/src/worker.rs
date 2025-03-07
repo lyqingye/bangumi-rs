@@ -23,8 +23,6 @@ use chrono::NaiveDateTime;
 use tracing::{error, info, warn};
 
 const REFRESH_COOLDOWN: i64 = 1; // minutes
-const CHANNEL_CAPACITY: usize = 100;
-const POLL_TIMEOUT: Duration = Duration::from_secs(1);
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub enum Inner {
@@ -53,7 +51,7 @@ pub struct Worker {
     mikan: mikan::client::Client,
     client: reqwest::Client,
     fetcher: Fetcher,
-    sender: Option<mpsc::Sender<(Cmd, Option<oneshot::Sender<()>>)>>,
+    sender: Option<mpsc::UnboundedSender<(Cmd, Option<oneshot::Sender<()>>)>>,
     dict: dict::Dict,
     matcher: Matcher,
     assets_path: String,
@@ -129,7 +127,7 @@ impl Worker {
             return Err(anyhow::anyhow!("Worker 已经启动"));
         }
 
-        let (sender, mut receiver) = mpsc::channel(CHANNEL_CAPACITY);
+        let (sender, mut receiver) = mpsc::unbounded_channel();
         self.sender = Some(sender);
 
         let worker = self.clone();
@@ -247,10 +245,7 @@ impl Worker {
     async fn send_cmd(&self, cmd: Cmd, done_tx: Option<oneshot::Sender<()>>) -> Result<()> {
         let sender = self.sender.as_ref().context("Worker 未启动")?;
 
-        sender
-            .send((cmd, done_tx))
-            .await
-            .context("发送刷新请求失败")?;
+        sender.send((cmd, done_tx)).context("发送刷新请求失败")?;
 
         Ok(())
     }
@@ -260,7 +255,7 @@ impl Worker {
 
         if let Some(sender) = &self.sender {
             let (done_tx, done_rx) = oneshot::channel();
-            sender.send((Cmd::Shutdown(), Some(done_tx))).await?;
+            sender.send((Cmd::Shutdown(), Some(done_tx)))?;
             done_rx.await?;
         }
         info!("元数据 Worker 已停止");

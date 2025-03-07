@@ -71,17 +71,15 @@ impl Worker {
 
                 match status {
                     DownloadStatus::Completed => {
-                        self.send_event(Tx::TaskCompleted(info_hash, result))
-                            .await?;
+                        self.send_event(Tx::TaskCompleted(info_hash, result))?;
                     }
 
                     DownloadStatus::Cancelled => {
-                        self.send_event(Tx::CancelTask(info_hash)).await?;
+                        self.send_event(Tx::CancelTask(info_hash))?;
                     }
 
                     DownloadStatus::Failed => {
-                        self.send_event(Tx::TaskFailed(info_hash, err_msg.unwrap_or_default()))
-                            .await?;
+                        self.send_event(Tx::TaskFailed(info_hash, err_msg.unwrap_or_default()))?;
                     }
 
                     _ => {
@@ -93,8 +91,7 @@ impl Worker {
                 let elapsed = now - local_task.updated_at;
                 if elapsed > self.config.download_timeout {
                     warn!("下载超时: info_hash={}", info_hash);
-                    self.send_event(Tx::TaskFailed(info_hash, "下载超时".to_string()))
-                        .await?;
+                    self.send_event(Tx::TaskFailed(info_hash, "下载超时".to_string()))?;
                 }
             }
         }

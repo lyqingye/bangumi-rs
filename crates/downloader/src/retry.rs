@@ -42,8 +42,7 @@ impl Worker {
             );
 
             // 重试
-            self.send_event(Tx::AutoRetry(task.info_hash.clone()))
-                .await?;
+            self.send_event(Tx::AutoRetry(task.info_hash.clone()))?;
         }
 
         info!("重试队列处理完成");

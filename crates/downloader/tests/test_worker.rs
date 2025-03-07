@@ -325,7 +325,7 @@ async fn test_worker_add_cancel_downloading_task() {
 
     tokio::time::sleep(Duration::from_secs(1)).await;
     worker_clone.sync_remote_task_status().await.unwrap();
-    worker_clone.cancel_task("456").await.unwrap();
+    worker_clone.cancel_task("456").unwrap();
     worker_clone.shutdown().await.unwrap();
 
     // 验证下载中的任务状态
@@ -389,7 +389,7 @@ async fn test_worker_add_retry_failed_task() {
 
     tokio::time::sleep(Duration::from_secs(1)).await;
     worker_clone.sync_remote_task_status().await.unwrap();
-    worker_clone.retry_task("456").await.unwrap();
+    worker_clone.retry_task("456").unwrap();
     worker_clone.sync_remote_task_status().await.unwrap();
     worker_clone.shutdown().await.unwrap();
 
