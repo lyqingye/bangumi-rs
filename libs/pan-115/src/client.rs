@@ -1,28 +1,14 @@
 use std::{
-    collections::HashMap,
     env,
     num::NonZero,
     sync::Arc,
-    time::{Duration, SystemTime, UNIX_EPOCH},
+    time::{SystemTime, UNIX_EPOCH},
 };
 
-use super::{
-    decode, encode,
-    errors::Pan115Error,
-    gen_key,
-    iter::FileStream,
-    model::{
-        BasicResp, DownloadResp, FileInfo, FileListResp, LoginResp, OfflineAddUrlResponse,
-        OfflineTask, OfflineTaskResp,
-    },
-};
+use super::{errors::Pan115Error, model::LoginResp};
 use anyhow::Result;
-use governor::{Jitter, Quota, RateLimiter};
-use reqwest::{
-    cookie::{CookieStore, Jar},
-    Url,
-};
-use serde::{Deserialize, Serialize};
+use governor::{Quota, RateLimiter};
+use reqwest::{cookie::Jar, Url};
 
 pub const API_LOGIN_CHECK: &str = "https://passportapi.115.com/app/1.0/web/1.0/check/sso";
 pub const USER_AGENT: &str = "Mozilla/5.0 115Browser/27.0.5.7";
@@ -138,9 +124,6 @@ impl Client {
 mod tests {
     use super::*;
     use anyhow::Result;
-    use reqwest::{header, Url};
-    use std::{env, sync::Arc};
-    use tokio_stream::{self as stream, StreamExt};
 
     #[tokio::test]
     #[ignore]

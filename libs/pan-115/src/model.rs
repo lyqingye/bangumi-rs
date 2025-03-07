@@ -1,4 +1,4 @@
-use std::{collections::HashMap, vec};
+use std::collections::HashMap;
 
 use anyhow::Result;
 use reqwest::header::HeaderMap;
@@ -229,7 +229,6 @@ impl FileInfo {
         match &self.category_id {
             StringInt::Int(i) => i.to_string(),
             StringInt::String(s) => s.to_owned(),
-            _ => unreachable!(),
         }
     }
 }
@@ -459,8 +458,8 @@ mod tests {
     }
     "#;
 
-        let resp1: BasicResp = serde_json::from_str(json1).unwrap();
-        let resp2: BasicResp = serde_json::from_str(json2).unwrap();
+        let _: BasicResp = serde_json::from_str(json1).unwrap();
+        let _: BasicResp = serde_json::from_str(json2).unwrap();
     }
 
     #[test]

@@ -1,4 +1,3 @@
-#![allow(unused)]
 pub mod config;
 pub mod context;
 pub mod db;
@@ -11,7 +10,6 @@ pub mod worker;
 use anyhow::Result;
 use async_trait::async_trait;
 use chrono::NaiveDateTime;
-use mockall::automock;
 use pan_115::model::DownloadInfo;
 use std::{collections::HashMap, path::PathBuf};
 use tokio::sync::broadcast;

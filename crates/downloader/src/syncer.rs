@@ -1,11 +1,8 @@
-use crate::{
-    worker::{Tx, Worker},
-    RemoteTaskStatus,
-};
+use crate::worker::{Tx, Worker};
 use anyhow::Result;
 use chrono::Local;
 use model::sea_orm_active_enums::DownloadStatus;
-use tracing::{debug, info, warn};
+use tracing::{debug, error, info, warn};
 
 impl Worker {
     pub(crate) fn spawn_syncer(&self) -> Result<()> {
@@ -15,7 +12,9 @@ impl Worker {
             let mut ticker = tokio::time::interval(worker.config.sync_interval);
             loop {
                 ticker.tick().await;
-                worker.sync_remote_task_status().await;
+                if let Err(e) = worker.sync_remote_task_status().await {
+                    error!("同步远程任务状态失败: {}", e);
+                }
             }
         });
         Ok(())

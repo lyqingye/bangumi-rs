@@ -1,8 +1,9 @@
 use anyhow::Result;
 use async_trait::async_trait;
-use model::bangumi;
 use tokio::fs;
 use tracing::{error, info, warn};
+
+use model::bangumi;
 
 use crate::{format_poster_image_file_name, MetadataAttr, MetadataAttrSet, MetadataDb};
 

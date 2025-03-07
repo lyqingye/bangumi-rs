@@ -1,26 +1,18 @@
-use dict::DictCode;
-use model::{
-    bangumi::{self, Entity},
-    sea_orm_active_enums::{BgmKind, SubscribeStatus},
-};
+use std::{collections::HashMap, sync::Arc, time::Duration};
+
+use anyhow::{Context, Result};
+use chrono::NaiveDateTime;
 use sea_orm::DatabaseConnection;
-use std::{
-    collections::HashMap,
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc,
-    },
-    time::Duration,
-};
 use tokio::sync::{mpsc, oneshot, Mutex};
+use tracing::{error, info};
+
+use dict::DictCode;
+use model::sea_orm_active_enums::BgmKind;
 
 use crate::{
     db::Db, fetcher::Fetcher, matcher::Matcher, mdb_bgmtv::MdbBgmTV, mdb_mikan::MdbMikan,
     mdb_tmdb::MdbTmdb, MetadataAttr, MetadataAttrSet, MetadataDb,
 };
-use anyhow::{Context, Result};
-use chrono::NaiveDateTime;
-use tracing::{error, info, warn};
 
 const REFRESH_COOLDOWN: i64 = 1; // minutes
 
@@ -273,7 +265,6 @@ impl Worker {
             Inner::Calendar(season, force) => {
                 self.handle_refresh_calendar(season, force).await?;
             }
-            _ => warn!("无效的刷新请求: {:?}", request),
         }
         Ok(())
     }
@@ -383,7 +374,7 @@ impl Worker {
 
         info!("正在匹配番剧: {}", mikan_ids.len());
         let bangumis = self.db.list_bangumi_by_mikan_ids(mikan_ids).await?;
-        for mut bgm in bangumis {
+        for bgm in bangumis {
             let bgm_id = bgm.id;
 
             match self.try_match_bangumi(bgm).await {

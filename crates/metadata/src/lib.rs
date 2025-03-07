@@ -1,4 +1,8 @@
-#![allow(unused)]
+use anyhow::Result;
+use async_trait::async_trait;
+
+use model::bangumi;
+
 mod db;
 pub mod fetcher;
 mod matcher;
@@ -6,10 +10,6 @@ mod mdb_bgmtv;
 mod mdb_mikan;
 mod mdb_tmdb;
 pub mod worker;
-use anyhow::Result;
-use async_trait::async_trait;
-use model::bangumi;
-
 fn format_poster_image_file_name(bgm: &bangumi::Model) -> String {
     format!("bangumi_poster_{}", bgm.id)
 }

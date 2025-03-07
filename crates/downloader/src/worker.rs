@@ -5,13 +5,12 @@ use async_trait::async_trait;
 use chrono::{Local, NaiveDateTime};
 use model::{sea_orm_active_enums::DownloadStatus, torrent_download_tasks::Model};
 use pan_115::model::DownloadInfo;
-use sea_orm::DatabaseConnection;
 use tokio::sync::{broadcast, mpsc, oneshot};
-use tracing::{debug, error, info, trace, warn};
+use tracing::{debug, error, info, warn};
 
 use crate::{
     config::Config, db::Db, metrics, thirdparty::pan_115_impl::Pan115DownloaderImpl, Downloader,
-    Event, RemoteTaskStatus, Store, ThirdPartyDownloader,
+    Event, Store, ThirdPartyDownloader,
 };
 
 type State = DownloadStatus;
@@ -122,7 +121,7 @@ impl Worker {
     pub async fn shutdown(&self) -> Result<()> {
         info!("正在关闭 Downloader...");
         let (tx, rx) = oneshot::channel();
-        self.send_event(Tx::Shutdown(tx));
+        self.send_event(Tx::Shutdown(tx))?;
         rx.await?;
         info!("Downloader 已完全关闭");
         Ok(())
@@ -149,7 +148,7 @@ impl Worker {
         Ok(())
     }
 
-    fn spawn_event_loop(&self, mut receiver: mpsc::UnboundedReceiver<Tx>) -> Result<()> {
+    fn spawn_event_loop(&self, mut receiver: mpsc::UnboundedReceiver<Tx>) {
         let worker = self.clone();
         tokio::spawn(async move {
             while let Some(event) = receiver.recv().await {
@@ -166,7 +165,6 @@ impl Worker {
                 }
             }
         });
-        Ok(())
     }
 
     async fn handle_event(&self, event: Tx) -> Result<()> {
@@ -204,7 +202,7 @@ impl Worker {
             dir.display()
         );
         self.create_task(info_hash, &dir).await?;
-        self.send_event(Tx::StartTask(info_hash.to_string()));
+        self.send_event(Tx::StartTask(info_hash.to_string()))?;
         Ok(())
     }
 
@@ -230,13 +228,13 @@ impl Worker {
 
     pub fn cancel_task(&self, info_hash: &str) -> Result<()> {
         info!("取消下载任务: info_hash={}", info_hash);
-        self.send_event(Tx::CancelTask(info_hash.to_string()));
+        self.send_event(Tx::CancelTask(info_hash.to_string()))?;
         Ok(())
     }
 
     pub fn retry_task(&self, info_hash: &str) -> Result<()> {
         info!("重试下载任务: info_hash={}", info_hash);
-        self.send_event(Tx::RetryTask(info_hash.to_string()));
+        self.send_event(Tx::RetryTask(info_hash.to_string()))?;
         Ok(())
     }
 
@@ -494,7 +492,7 @@ impl Worker {
     ) -> Result<()> {
         self.store
             .update_retry_status(info_hash, next_retry_at, err_msg.clone())
-            .await;
+            .await?;
 
         // 推送事件
         let _ = self.notify_tx.send(Event::TaskUpdated((
@@ -514,7 +512,7 @@ impl Worker {
     ) -> Result<()> {
         self.store
             .update_status(info_hash, status.clone(), err_msg.clone(), result.clone())
-            .await;
+            .await?;
 
         let _ = self
             .notify_tx
@@ -570,8 +568,6 @@ impl Worker {
 
 #[cfg(test)]
 mod tests {
-    use std::time::Duration;
-
     use super::*;
 
     #[ignore]

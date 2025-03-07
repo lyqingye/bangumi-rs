@@ -2,7 +2,7 @@ use crate::worker::{Tx, Worker};
 use anyhow::Result;
 use chrono::Local;
 use model::sea_orm_active_enums::DownloadStatus;
-use tracing::{error, info, warn};
+use tracing::{error, info};
 
 impl Worker {
     pub(crate) fn spawn_retry_processor(&self) {
