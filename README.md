@@ -13,11 +13,13 @@
 ## 简介
 
 <div align="center">
-<img src="docs/screenshot/home.png" width="80%" style="box-shadow: 0 12px 32px rgba(0, 0, 0, 0.7); border-radius: 8px; margin: 40px 0;" />
+<img src="docs/screenshot/home.png" width="80%" alt="home" style="box-shadow: 0 12px 32px rgba(0, 0, 0, 0.7); border-radius: 8px; margin: 40px 0;" />
 
 </div>
 
+<p>
 基于 Rust + Vue 3 开发的动漫追番工具，支持订阅番剧、智能下载、在线播放等功能。
+</p>
 
 ## 功能特性
 
