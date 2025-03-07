@@ -1,6 +1,4 @@
-#![allow(unused)]
-use anyhow::{Context, Result};
-use model::torrent_download_tasks;
+use anyhow::Result;
 use model::{
     episode_download_tasks, file_name_parse_record, sea_orm_active_enums::State, subscriptions,
     torrents,

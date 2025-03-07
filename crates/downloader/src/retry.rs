@@ -2,7 +2,7 @@ use crate::worker::{Tx, Worker};
 use anyhow::Result;
 use chrono::Local;
 use model::sea_orm_active_enums::DownloadStatus;
-use tracing::{error, info, warn};
+use tracing::{error, info};
 
 impl Worker {
     pub(crate) fn spawn_retry_processor(&self) {
@@ -42,8 +42,7 @@ impl Worker {
             );
 
             // 重试
-            self.send_event(Tx::AutoRetry(task.info_hash.clone()))
-                .await?;
+            self.send_event(Tx::AutoRetry(task.info_hash.clone()))?;
         }
 
         info!("重试队列处理完成");

@@ -18,7 +18,7 @@ pub const XOR_CLIENT_KEY: [u8; 12] = [
 pub fn xor_derive_key(seed: &[u8], size: usize) -> Vec<u8> {
     let mut key = vec![0; size];
     for i in 0..size {
-        key[i] = (seed[i].wrapping_add(XOR_SEED[size * i]));
+        key[i] = seed[i].wrapping_add(XOR_SEED[size * i]);
         key[i] ^= XOR_SEED[size * (size - i - 1)];
     }
     key

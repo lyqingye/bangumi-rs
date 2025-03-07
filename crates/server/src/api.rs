@@ -404,7 +404,7 @@ pub async fn refresh_bangumi(
 ) -> Result<Json<Resp<()>>, ServerError> {
     let (id, force) = params.into_inner();
     state.scheduler.trigger_collection(id).await?;
-    state.metadata.request_refresh_metadata(id, force).await?;
+    state.metadata.request_refresh_metadata(id, force)?;
     Ok(Json(Resp::ok(())))
 }
 
@@ -514,10 +514,7 @@ pub async fn refresh_calendar(
 ) -> Result<Json<Resp<()>>, ServerError> {
     let force = force.into_inner();
     let season = query.season.as_ref().filter(|s| !s.is_empty()).cloned();
-    state
-        .metadata
-        .request_refresh_calendar(season, force)
-        .await?;
+    state.metadata.request_refresh_calendar(season, force)?;
     Ok(Json(Resp::ok(())))
 }
 
@@ -588,10 +585,7 @@ pub async fn add_bangumi(
         .get_bangumi_by_mikan_id(params.mikan_id)
         .await?
         .context("番剧添加失败，找不到")?;
-    state
-        .metadata
-        .request_refresh_metadata(bangumi.id, true)
-        .await?;
+    state.metadata.request_refresh_metadata(bangumi.id, true)?;
     Ok(Json(Resp::ok(bangumi.id)))
 }
 

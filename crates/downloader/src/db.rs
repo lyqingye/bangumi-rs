@@ -7,10 +7,9 @@ use model::{
 };
 use sea_orm::{
     sea_query::{OnConflict, SimpleExpr},
-    ColumnTrait, DatabaseConnection, DatabaseTransaction, EntityTrait, IntoActiveModel,
-    QueryFilter, TransactionTrait,
+    ColumnTrait, DatabaseConnection, EntityTrait, IntoActiveModel, QueryFilter,
 };
-use std::{future::Future, sync::Arc};
+use std::sync::Arc;
 
 use crate::Store;
 

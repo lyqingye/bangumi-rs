@@ -1,17 +1,13 @@
 use anyhow::Result;
+use tracing::warn;
+
 use bangumi_tv::{
     self,
     model::{EpisodeList, EpisodeType},
 };
-use chrono::NaiveDateTime;
-use mikan::client::{BangumiInfo, EpisodeItem, SearchResultItem};
-use model::{bangumi, episodes, sea_orm_active_enums::SubscribeStatus};
-use tmdb::api::{
-    movie::MovieShort,
-    tvshow::{SeasonShort, TVShow},
-};
-use tokio::fs;
-use tracing::{error, info, warn};
+use mikan::client::{EpisodeItem, SearchResultItem};
+use model::bangumi;
+use tmdb::api::{movie::MovieShort, tvshow::TVShow};
 
 #[derive(Clone)]
 pub struct Fetcher {

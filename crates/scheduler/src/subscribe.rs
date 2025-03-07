@@ -37,9 +37,7 @@ impl Scheduler {
         });
 
         // 刷新元数据
-        self.metadata
-            .request_refresh_metadata(bangumi_id, false)
-            .await?;
+        self.metadata.request_refresh_metadata(bangumi_id, false)?;
 
         // 4. 获取所有剧集信息
         let episodes = self.db.get_bangumi_episodes(bangumi_id).await?;

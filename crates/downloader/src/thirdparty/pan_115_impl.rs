@@ -13,7 +13,7 @@ use pan_115::{
     model::{DownloadInfo, OfflineTaskStatus},
 };
 use tokio::sync::Mutex;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, info, warn};
 
 use crate::{context::Pan115Context, RemoteTaskStatus, ThirdPartyDownloader};
 use anyhow::Result;
@@ -165,7 +165,7 @@ impl ThirdPartyDownloader for Pan115DownloaderImpl {
         match result {
             Some(result) => {
                 let context: Pan115Context = serde_json::from_str(&result)?;
-                let mut client = self.pan115.clone();
+                let client = self.pan115.clone();
                 let expect_file_name = context.file_name.clone();
                 let files = client
                     .list_files_with_fn(&context.file_id, move |file| {
