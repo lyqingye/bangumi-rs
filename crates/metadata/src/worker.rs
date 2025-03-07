@@ -322,7 +322,7 @@ impl Worker {
         }
         match mdbs
             .bgmtv
-            .update_bangumi_metadata(&mut bgm, attrs, false)
+            .update_bangumi_metadata(&mut bgm, attrs, force)
             .await
         {
             Ok(_) => {}
