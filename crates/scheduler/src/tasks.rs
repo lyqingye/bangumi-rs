@@ -16,7 +16,7 @@ pub struct TaskManager {
     db: Db,
     downloader: Arc<Box<dyn Downloader>>,
     notify: notify::worker::Worker,
-    cmd_tx: Option<mpsc::Sender<Cmd>>,
+    cmd_tx: Option<mpsc::UnboundedSender<Cmd>>,
 }
 
 enum Cmd {
@@ -39,7 +39,7 @@ impl TaskManager {
     }
 
     pub async fn spawn(&mut self) -> Result<()> {
-        let (cmd_tx, mut cmd_rx) = mpsc::channel(128);
+        let (cmd_tx, mut cmd_rx) = mpsc::unbounded_channel();
         self.cmd_tx = Some(cmd_tx);
 
         let task_manager = self.clone();
@@ -88,8 +88,7 @@ impl TaskManager {
         self.cmd_tx
             .as_ref()
             .expect("tasks unspawn")
-            .send(Cmd::Stop(tx))
-            .await?;
+            .send(Cmd::Stop(tx))?;
         let _ = rx.await;
         Ok(())
     }
@@ -115,8 +114,7 @@ impl TaskManager {
             .await?;
 
         // 发送状态变化命令
-        self.send_state_update_cmd(bangumi_id, episode_number)
-            .await?;
+        self.send_state_update_cmd(bangumi_id, episode_number)?;
         Ok(())
     }
 
@@ -128,17 +126,15 @@ impl TaskManager {
             .await?;
 
         // 发送状态变化命令
-        self.send_state_update_cmd(bangumi_id, episode_number)
-            .await?;
+        self.send_state_update_cmd(bangumi_id, episode_number)?;
         Ok(())
     }
 
-    async fn send_state_update_cmd(&self, bangumi_id: i32, episode_number: i32) -> Result<()> {
+    fn send_state_update_cmd(&self, bangumi_id: i32, episode_number: i32) -> Result<()> {
         self.cmd_tx
             .as_ref()
             .expect("tasks unspawn")
-            .send(Cmd::StateUpdate((bangumi_id, episode_number)))
-            .await?;
+            .send(Cmd::StateUpdate((bangumi_id, episode_number)))?;
 
         Ok(())
     }
