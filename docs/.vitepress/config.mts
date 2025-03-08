@@ -42,10 +42,7 @@ export default defineConfig({
         text: '部署',
         collapsed: false,
         items: [
-          { text: '部署概述', link: '/deploy/' },
-          { text: '本地部署', link: '/deploy/binary' },
           { text: 'Docker 部署', link: '/deploy/docker' },
-          { text: '源码部署', link: '/deploy/source' },
         ]
       },
       {
@@ -53,12 +50,12 @@ export default defineConfig({
         collapsed: false,
         items: [
           { text: '配置概览', link: '/configuration/' },
-          { text: '服务器配置', link: '/configuration/server' },
-          { text: '资源站点配置', link: '/configuration/sites' },
-          { text: '解析器配置', link: '/configuration/parser' },
-          { text: '下载器配置', link: '/configuration/downloader' },
+          { text: '服务配置', link: '/configuration/server' },
+          { text: '站点配置', link: '/configuration/sites' },
           { text: '通知配置', link: '/configuration/notification' },
           { text: '代理配置', link: '/configuration/proxy' },
+          { text: '解析器配置', link: '/configuration/parser' },
+          { text: '下载器配置', link: '/configuration/downloader' },
         ]
       },
       {
