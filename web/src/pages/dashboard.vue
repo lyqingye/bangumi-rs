@@ -204,19 +204,31 @@ onUnmounted(() => {
           </v-card-item>
           <v-divider />
           <v-card-text class="pt-4" v-if="metrics?.metadata">
+            <div class="d-flex align-center justify-space-between mb-3">
+              <div class="d-flex align-center">
+                <v-icon icon="mdi-update" color="info" class="mr-3" />
+                <span class="text-subtitle-1">最后刷新</span>
+              </div>
+              <span class="text-body-1 font-weight-medium">{{ formatTimestamp(metrics.metadata.last_refresh_time) }}</span>
+            </div>
+            <v-divider class="my-3" />
             <div v-for="service in metrics.metadata.services" :key="service.name" class="mb-2">
               <div class="d-flex align-center justify-space-between">
                 <span class="text-subtitle-2">{{ service.name }}</span>
                 <v-chip
                   size="small"
-                  :color="service.status.success ? 'success' : 'error'"
+                  :color="service.status && typeof service.status === 'object' ? 
+                    service.status.status ? 'success' : 'error' : 
+                    service.status ? 'success' : 'error'"
                   class="font-weight-medium"
                 >
-                  {{ service.status.success ? '正常' : '异常' }}
+                  {{ service.status && typeof service.status === 'object' ? 
+                    service.status.status ? '正常' : '异常' : 
+                    service.status ? '正常' : '异常' }}
                 </v-chip>
               </div>
-              <div v-if="service.status.error" class="text-caption text-error mt-1">
-                {{ service.status.error }}
+              <div v-if="service.error || (service.status && typeof service.status === 'object' && service.status.error)" class="text-caption text-error mt-1">
+                {{ service.error || (service.status && typeof service.status === 'object' ? service.status.error : null) }}
               </div>
             </div>
           </v-card-text>
