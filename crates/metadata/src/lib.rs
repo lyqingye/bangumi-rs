@@ -10,6 +10,7 @@ mod matcher;
 mod mdb_bgmtv;
 mod mdb_mikan;
 mod mdb_tmdb;
+pub mod metrics;
 pub mod worker;
 fn format_poster_image_file_name(bgm: &bangumi::Model) -> String {
     format!("bangumi_poster_{}", bgm.id)

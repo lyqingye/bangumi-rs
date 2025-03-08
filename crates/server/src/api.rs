@@ -687,11 +687,13 @@ pub async fn metrics(state: web::Data<Arc<AppState>>) -> Result<Json<Resp<Metric
             run_time_sec: 0,
         }
     };
+    let metadata_metrics = state.metadata.metrics().await;
 
     Ok(Json(Resp::ok(Metrics {
         scheduler: scheduler_metrics,
         downloader: downloader_metrics,
         process,
+        metadata: metadata_metrics,
     })))
 }
 

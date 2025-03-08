@@ -3,7 +3,7 @@ use std::{collections::HashMap, sync::Arc, time::Duration};
 use anyhow::{Context, Result};
 use chrono::NaiveDateTime;
 use sea_orm::DatabaseConnection;
-use tokio::sync::{mpsc, oneshot, Mutex};
+use tokio::sync::{mpsc, oneshot, Mutex, RwLock};
 use tracing::{error, info};
 
 use dict::DictCode;
@@ -11,7 +11,7 @@ use model::sea_orm_active_enums::BgmKind;
 
 use crate::{
     db::Db, fetcher::Fetcher, matcher::Matcher, mdb_bgmtv::MdbBgmTV, mdb_mikan::MdbMikan,
-    mdb_tmdb::MdbTmdb, MetadataAttr, MetadataAttrSet, MetadataDb,
+    mdb_tmdb::MdbTmdb, metrics, MetadataAttr, MetadataAttrSet, MetadataDb,
 };
 
 const REFRESH_COOLDOWN: i64 = 1; // minutes
@@ -47,6 +47,7 @@ pub struct Worker {
     dict: dict::Dict,
     matcher: Matcher,
     assets_path: String,
+    metrics: Arc<RwLock<metrics::Metrics>>,
 }
 
 impl Worker {
@@ -68,6 +69,7 @@ impl Worker {
             dict,
             matcher,
             assets_path,
+            metrics: Arc::new(RwLock::new(metrics::Metrics::default())),
         }
     }
 
@@ -498,6 +500,85 @@ impl Worker {
 
     pub fn fetcher(&self) -> &Fetcher {
         &self.fetcher
+    }
+
+    pub async fn metrics(&self) -> metrics::Metrics {
+        let now = chrono::Local::now().timestamp();
+
+        // 使用读锁检查是否需要刷新
+        {
+            let guard = self.metrics.read().await;
+            if now <= guard.last_refresh_time {
+                return guard.clone();
+            }
+        }
+
+        // 需要刷新时才获取写锁
+        let mut guard = self.metrics.write().await;
+
+        // 双重检查，避免多个线程同时刷新
+        if now <= guard.last_refresh_time {
+            return guard.clone();
+        }
+
+        // 清空旧的服务状态
+        guard.services.clear();
+
+        // 并行检查所有服务
+        let bgm_tv_fut = self.fetcher.bgm_tv.get_subject(1);
+        let mikan_fut = self.mikan.get_bangumi_info(3333);
+        let tmdb_fut = self.fetcher.tmdb.get_movie(822119);
+
+        let (bgm_tv_result, mikan_result, tmdb_result) =
+            tokio::join!(bgm_tv_fut, mikan_fut, tmdb_fut);
+
+        // 添加服务状态
+        guard.services.push(metrics::Service {
+            name: "bgm.tv".to_string(),
+            status: match bgm_tv_result {
+                Ok(_) => metrics::ServiceStatus {
+                    success: true,
+                    error: None,
+                },
+                Err(e) => metrics::ServiceStatus {
+                    success: false,
+                    error: Some(e.to_string()),
+                },
+            },
+        });
+
+        guard.services.push(metrics::Service {
+            name: "mikan".to_string(),
+            status: match mikan_result {
+                Ok(_) => metrics::ServiceStatus {
+                    success: true,
+                    error: None,
+                },
+                Err(e) => metrics::ServiceStatus {
+                    success: false,
+                    error: Some(e.to_string()),
+                },
+            },
+        });
+
+        guard.services.push(metrics::Service {
+            name: "tmdb".to_string(),
+            status: match tmdb_result {
+                Ok(_) => metrics::ServiceStatus {
+                    success: true,
+                    error: None,
+                },
+                Err(e) => metrics::ServiceStatus {
+                    success: false,
+                    error: Some(e.to_string()),
+                },
+            },
+        });
+
+        // 更新刷新时间
+        guard.last_refresh_time = now + Duration::from_secs(60).as_secs() as i64;
+
+        guard.clone()
     }
 }
 
