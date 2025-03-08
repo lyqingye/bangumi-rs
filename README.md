@@ -30,17 +30,14 @@
 <img src="docs/public/screenshot/home.png" width="90%" alt="home" style="box-shadow: 0 12px 32px rgba(0, 0, 0, 0.7); border-radius: 12px; margin: 20px 0;" />
 </div>
 
+<br>
 <p align="center">
-<b>Bangumi-rs</b> 是一款功能强大的动漫追番工具，支持订阅番剧、智能下载、在线播放等功能。<br>
+<b>Bangumi-rs</b> 是一款追番工具，支持订阅番剧、智能下载、在线播放等功能。<br>
 采用 <b>Rust</b> 后端 + <b>Vue 3</b> 前端开发，高效稳定，界面美观。
 </p>
 <br>
 
 ## ✨ 功能特性
-
-<table>
-<tr>
-<td width="50%">
 
 ### 🎯 番剧订阅
 
@@ -62,9 +59,6 @@
   - OpenAI
   - DeepSeek
 
-</td>
-<td width="50%">
-
 ### 📥 智能下载
 
 - ✅ 支持剧集偏移
@@ -84,34 +78,12 @@
 - ✅ 支持手动刷新元数据
 - ✅ 支持剧集、海报墙、封面等信息显示
 
-### 🔔 通知提醒
 
-- ✅ 支持 Telegram 通知
-
-</td>
-</tr>
-</table>
-
-## 🖼️ 更多截图
-
-<div align="center">
-<table>
-<tr>
-<td><img src="docs/public/screenshot/detail.png" alt="详情页" style="border-radius: 12px; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);"/></td>
-<td><img src="docs/public/screenshot/subscribe.png" alt="订阅页" style="border-radius: 12px; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);"/></td>
-</tr>
-<tr>
-<td><img src="docs/public/screenshot/settings.png" alt="设置页" style="border-radius: 12px; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);"/></td>
-<td><img src="docs/public/screenshot/download.png" alt="下载页" style="border-radius: 12px; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);"/></td>
-</tr>
-</table>
-</div>
-
-## 🤝 贡献
+## 贡献
 
 欢迎提交 Pull Request 或创建 Issue！
 
-## 📜 许可证
+## 许可证
 
 [MIT License](LICENSE)
 
