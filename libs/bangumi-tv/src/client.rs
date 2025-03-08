@@ -197,8 +197,9 @@ mod test {
     #[ignore]
     async fn test_subject() -> Result<()> {
         let cli = create_client().await?;
-        let resp = cli.get_subject(475354).await?;
+        let resp = cli.get_subject(425910).await?;
         println!("{:?}", resp);
+        println!("air_date: {:?}", resp.unwrap().get_air_date());
         Ok(())
     }
 
