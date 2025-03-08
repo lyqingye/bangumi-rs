@@ -179,6 +179,7 @@ pub struct Metrics {
     pub downloader: downloader::metrics::Metrics,
     pub scheduler: scheduler::metrics::Metrics,
     pub process: ProcessMetrics,
+    pub metadata: metadata::metrics::Metrics,
 }
 
 #[derive(Debug, Serialize)]
