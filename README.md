@@ -21,7 +21,7 @@
 
 </div>
 
-<div align="center">
+<div align="center", style = "margin-top: 20px;">
 <img src="docs/public/screenshot/home.png" width="80%" alt="home" style="box-shadow: 0 12px 32px rgba(0, 0, 0, 0.7); border-radius: 8px; margin: 40px 0;" />
 
 </div>
