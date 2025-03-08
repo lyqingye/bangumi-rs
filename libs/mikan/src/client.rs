@@ -3,7 +3,6 @@ use chrono::NaiveDateTime;
 use reqwest::Url;
 use scraper::Selector;
 use tracing::{info, instrument};
-use utils::date::smart_parse_date;
 
 use crate::model::MikanRss;
 
@@ -19,7 +18,6 @@ lazy_static::lazy_static! {
     static ref WEEK_BANGUMI_ITEM_SELECTOR: Selector = Selector::parse("ul.an-ul > li").unwrap();
     static ref WEEK_BANGUMI_INFO_SELECTOR: Selector = Selector::parse("div.an-info").unwrap();
     static ref WEEK_BANGUMI_IMAGE_SELECTOR: Selector = Selector::parse("span.js-expand_bangumi").unwrap();
-    static ref WEEK_BANGUMI_AIR_DATE_SELECTOR: Selector = Selector::parse("div.date-text").unwrap();
     static ref WEEK_BANGUMI_SEASON_SELECTOR: Selector = Selector::parse("#sk-data-nav > div > ul.navbar-nav.date-select > li > div > div.sk-col.date-text").unwrap();
 
     static ref SEARCH_RESULT_SELECTOR: Selector = Selector::parse("ul.list-inline.an-ul > li").unwrap();
@@ -74,7 +72,6 @@ pub struct MikanBangumi {
     pub title: Option<String>,
     pub weekday: i32,
     pub image_url: Option<String>,
-    pub air_date: Option<NaiveDateTime>,
 }
 
 #[derive(Debug, Clone)]
@@ -264,21 +261,12 @@ impl Client {
                         .next()
                         .map(|el| el.text().collect::<String>());
 
-                    let air_date = bangumi_item
-                        .select(&WEEK_BANGUMI_AIR_DATE_SELECTOR)
-                        .next()
-                        .map(|el| el.text().collect::<String>())
-                        .and_then(|date_text| {
-                            smart_parse_date(&date_text.replace(" 更新", "")).ok()
-                        });
-
                     if id > 0 {
                         bangumis.push(MikanBangumi {
                             id,
                             title,
                             weekday,
                             image_url,
-                            air_date,
                         });
                     }
                 }
@@ -488,7 +476,7 @@ mod test {
     #[ignore]
     async fn test_get_calendar_by_season() -> Result<()> {
         let mikan = create_clinet()?;
-        let result = mikan.get_calendar_by_season("2024 夏季番组").await?;
+        let result = mikan.get_calendar_by_season("2024 冬季番组").await?;
         println!("result: {:?}", result);
         Ok(())
     }

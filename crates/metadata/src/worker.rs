@@ -254,7 +254,7 @@ impl Worker {
                 self.handle_refresh_metadata(id, force, mdbs).await?;
             }
             Inner::Calendar(season, force) => {
-                self.handle_refresh_calendar(season, force).await?;
+                self.handle_refresh_calendar(season, force, mdbs).await?;
             }
         }
         Ok(())
@@ -336,7 +336,12 @@ impl Worker {
     }
 
     /// 处理放送列表刷新请求
-    async fn handle_refresh_calendar(&self, season: Option<String>, force: bool) -> Result<()> {
+    async fn handle_refresh_calendar(
+        &self,
+        season: Option<String>,
+        force: bool,
+        mdbs: &Arc<Metadatabases>,
+    ) -> Result<()> {
         info!("正在刷新放送列表: {:?}", season);
 
         let calendar = if let Some(season) = season.as_ref() {
@@ -375,7 +380,12 @@ impl Worker {
                 }
             };
 
-            self.request_refresh_metadata(bgm_id, force)?;
+            match self.handle_refresh_metadata(bgm_id, force, mdbs).await {
+                Ok(_) => {}
+                Err(e) => {
+                    error!("刷新番剧元数据失败: {}", e);
+                }
+            }
         }
         info!("放送列表刷新完成");
         Ok(())
@@ -383,10 +393,11 @@ impl Worker {
 
     async fn try_match_bangumi(&self, bgm: model::bangumi::Model) -> Result<()> {
         let mut bgm = bgm;
-        if bgm.bangumi_tv_id.is_none() {
-            self.matcher.match_bgm_tv(&mut bgm, false).await?;
+        if bgm.bangumi_tv_id.is_none() || bgm.air_date.is_none() {
+            self.matcher.match_bgm_tv(&mut bgm).await?;
             self.db.update_bangumi(bgm.clone()).await?;
-        } else if bgm.tmdb_id.is_none() || bgm.bgm_kind.is_none() || bgm.season_number.is_none() {
+        }
+        if bgm.tmdb_id.is_none() || bgm.bgm_kind.is_none() || bgm.season_number.is_none() {
             self.matcher.match_tmdb(&mut bgm).await?;
             self.db.update_bangumi(bgm.clone()).await?;
         }

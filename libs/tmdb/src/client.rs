@@ -82,11 +82,20 @@ impl Client {
     async fn try_match_tv_show(
         &self,
         air_date: NaiveDate,
+        name: &str,
         tv_shows: &Vec<TVShowShort>,
     ) -> Result<Vec<TVShowShort>> {
         let mut tv_candidates = Vec::new();
         for result in tv_shows {
             debug!(tv_name = %result.inner.name, air_date = %air_date);
+            if result.inner.name.eq_ignore_ascii_case(name) {
+                tv_candidates.push(result.clone());
+                debug!(
+                    tv_name = %result.inner.name,
+                    "找到名称完全匹配的TV"
+                );
+                break;
+            }
             if let Some(first_air_date) = result.inner.first_air_date {
                 // 检查年月是否完全匹配
                 if first_air_date.year() == air_date.year()
@@ -234,7 +243,7 @@ impl Client {
         // 1. 匹配TV
         debug!("尝试匹配TV: {}", air_date);
         let mut tv_shows = self
-            .try_match_tv_show(air_date, &search_results.results)
+            .try_match_tv_show(air_date, name, &search_results.results)
             .await?;
         if tv_shows.is_empty() {
             debug!("未找到匹配的TV，使用所有搜索结果");
