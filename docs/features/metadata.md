@@ -43,17 +43,23 @@ Bangumi-rs 支持从多个数据源获取元数据，确保信息的全面性和
 
 如下图所示, 你可以在番剧封面中点击刷新按钮即可手动刷新番剧元数据:
 
-![home](/screenshot/refresh-bangumi-metadata.png){width=200px}
+![refresh-bangumi-metadata](/screenshot/refresh-bangumi-metadata.png){width=200px}
 
 
 ## 手动匹配元数据
 
 在某些情况下，番剧可能会识别错误，导致刮削的元数据有问题，此时用户可以手动搜索TMDB选择正确的番剧, 如下图所示.
-![home](/screenshot/search-bangumi-tmdb.png){width=200px}
+![search-bangumi-tmdb](/screenshot/search-bangumi-tmdb.png){width=200px}
 
 ---
 
 **此时用户就可以选择正确的番剧**
 
-![home](/screenshot/search-tmdb.png){width=400px}
+![search-tmdb](/screenshot/search-tmdb.png){width=400px}
 
+
+## 添加自己喜欢的番剧
+
+如果放送列表没有自己喜欢的番剧，也可以在主页的搜索框搜索自己喜欢的番剧
+
+![search-bangumi](/screenshot/search-bangumi.png){width=400px}
