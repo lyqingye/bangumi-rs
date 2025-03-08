@@ -34,14 +34,6 @@ export default defineConfig({
         collapsed: false,
         items: [
           { text: '环境准备', link: '/quickstart/' },
-          { text: '基本使用', link: '/quickstart/basic-usage' },
-          { text: '界面预览', link: '/quickstart/ui-preview' },
-        ]
-      },
-      {
-        text: '部署',
-        collapsed: false,
-        items: [
           { text: 'Docker 部署', link: '/deploy/docker' },
         ]
       },
@@ -64,7 +56,6 @@ export default defineConfig({
         items: [
           { text: '功能概览', link: '/features/' },
           { text: '番剧订阅', link: '/features/subscription' },
-          { text: '智能解析', link: '/features/parser' },
           { text: '智能下载', link: '/features/download' },
           { text: '在线播放', link: '/features/play' },
           { text: '元数据管理', link: '/features/metadata' },
@@ -76,9 +67,6 @@ export default defineConfig({
         collapsed: false,
         items: [
           { text: '常见问题', link: '/faq/' },
-          { text: '安装问题', link: '/faq/installation' },
-          { text: '配置问题', link: '/faq/configuration' },
-          { text: '使用问题', link: '/faq/usage' },
         ]
       },
       {
