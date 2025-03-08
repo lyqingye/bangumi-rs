@@ -42,10 +42,7 @@ export default defineConfig({
         text: '部署',
         collapsed: false,
         items: [
-          { text: '部署概述', link: '/deploy/' },
-          { text: '本地部署', link: '/deploy/binary' },
           { text: 'Docker 部署', link: '/deploy/docker' },
-          { text: '源码部署', link: '/deploy/source' },
         ]
       },
       {

@@ -45,344 +45,206 @@ sudo chmod +x /usr/local/bin/docker-compose
 docker-compose --version
 ```
 
-## 使用 Docker 运行 Bangumi-rs
-
-### 方法一：使用 Docker 命令
-
-1. **创建配置文件目录和下载目录**
+## **创建配置文件以及缓存目录**
 
 ```bash
-mkdir -p ~/bangumi/config
-mkdir -p ~/bangumi/downloads
+# 配置文件
+touch config.toml
+# 缓存目录
+mkdir assets
+# 数据库目录
+mkdir data
 ```
 
-2. **创建配置文件**
-
-```bash
-nano ~/bangumi/config/config.toml
-```
-
-添加以下基本配置（根据需要修改）：
+添加以下配置:
 
 ```toml
-[log]
-level = "info"
-
+# 服务器配置
 [server]
-assets_path = "/app/assets"
 listen_addr = "0.0.0.0:3001"
-database_url = "sqlite:/app/data/bangumi.db"
+database_url = "mysql://user:pass@mysql:3306/bangumi"
+# 该目录用来存放下载的番剧封面
+assets_path = "/app/assets"
 
+# 日志配置
+[log]
+level = "info" # debug, info, warn, error
+
+# 代理配置 (如果你有梯子的话，可以填写该选项)
+[proxy]
+enabled = false
+http = "http://127.0.0.1:7890"
+https = "http://127.0.0.1:7890"
+
+# TMDB API 配置
+[tmdb]
+# 这里需要填写你的TMDB APIkey
+api_key = "your_tmdb_api_key"
+base_url = "https://api.themoviedb.org/3"
+image_base_url = "https://image.tmdb.org/t/p"
+language = "zh-CN"
+
+# Bangumi.tv API 配置
+[bangumi_tv]
+endpoint = "https://api.bgm.tv"
+image_base_url = "https://lain.bgm.tv"
+
+# Mikan 配置
+[mikan]
+endpoint = "https://mikanani.me"
+
+# 下载器配置
 [downloader]
-download_dir = "/downloads"
+# 这里的路径相当于你115网盘根目录下的animes文件夹
+download_dir = "/animes"
+# 下载最大重试次数
+max_retry_count = 5
+# 下载超时，避免由于死种导致一直在下载
+download_timeout = "30m"
+# 重试的最小时间间隔，将逐级递增
+retry_min_interval = "30s"
+retry_max_interval = "10m"
+
+# 115网盘下载器配置
+[downloader.pan115]
+# 获取文档可以参考: https://alist.nn.ci/zh/guide/drivers/115.html#cookie%E8%8E%B7%E5%8F%96%E6%96%B9%E5%BC%8F
+cookies = "Your 115 cookies"
+# 限流，写1也足够了，请求速率过快的话，会被封禁1小时
+max_requests_per_second = 1
+
+# Telegram 通知配置 (可选)
+[notify.telegram]
+enabled = false
+token = "your_bot_token"
+chat_id = "your_chat_id"
+
+# 文件名解析器配置
+# 原生解析器
+[parser.raw]
+enabled = true
+
 ```
 
-3. **拉取并运行 Docker 镜像**
-
-```bash
-docker run -d \
-  --name bangumi \
-  -p 3001:3001 \
-  -v ~/bangumi/config:/app/config \
-  -v ~/bangumi/downloads:/downloads \
-  ghcr.io/bangumi-rs/bangumi:latest
-```
-
-### 方法二：使用 Docker Compose（推荐）
-
-1. **创建项目目录**
-
-```bash
-mkdir -p ~/bangumi
-cd ~/bangumi
-```
-
-2. **创建 Docker Compose 配置文件**
-
-```bash
-nano docker-compose.yml
-```
-
-添加以下内容：
+## 创建 Docker Compose 配置文件
 
 ```yaml
-version: "3"
+version: "3.8"
 
 services:
-  bangumi:
-    image: ghcr.io/bangumi-rs/bangumi:latest
-    container_name: bangumi
+  mysql:
     restart: unless-stopped
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: 123456
+      MYSQL_DATABASE: bangumi
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./data:/var/lib/mysql
+      - ./develop/schema.sql:/docker-entrypoint-initdb.d/schema.sql
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "mysqladmin",
+          "ping",
+          "-h",
+          "localhost",
+          "-u",
+          "root",
+          "-p123456",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - bangumi-network
+
+  backend:
+    restart: unless-stopped
+    image: ghcr.io/lyqingye/bangumi-rs/backend:latest
     ports:
       - "3001:3001"
     volumes:
-      - ./config:/app/config
-      - ./data:/app/data
-      - ./downloads:/downloads
-    environment:
-      - TZ=Asia/Shanghai
-```
-
-3. **创建配置文件目录和下载目录**
-
-```bash
-mkdir -p config data downloads
-```
-
-4. **创建配置文件**
-
-```bash
-nano config/config.toml
-```
-
-添加以下基本配置（根据需要修改）：
-
-```toml
-[log]
-level = "info"
-
-[server]
-assets_path = "/app/assets"
-listen_addr = "0.0.0.0:3001"
-database_url = "sqlite:/app/data/bangumi.db"
-
-[downloader]
-download_dir = "/downloads"
-```
-
-5. **启动服务**
-
-```bash
-docker-compose up -d
-```
-
-## 高级配置
-
-### 使用外部数据库
-
-如果你想使用外部数据库（如 MySQL 或 PostgreSQL）而不是默认的 SQLite，可以修改配置文件：
-
-```toml
-[server]
-database_url = "mysql://username:password@mysql:3306/bangumi"
-```
-
-然后在 Docker Compose 文件中添加数据库服务：
-
-```yaml
-version: "3"
-
-services:
-  bangumi:
-    # ... 其他配置 ...
+      - ./assets:/app/assets
+      - ./config.toml:/app/config.toml
+      - ./animes:/animes
+    command: ["/app/bangumi", "start"]
     depends_on:
-      - mysql
-
-  mysql:
-    image: mysql:8.0
-    container_name: bangumi-mysql
-    restart: unless-stopped
-    environment:
-      - MYSQL_ROOT_PASSWORD=your_root_password
-      - MYSQL_DATABASE=bangumi
-      - MYSQL_USER=username
-      - MYSQL_PASSWORD=password
-    volumes:
-      - ./mysql:/var/lib/mysql
-```
-
-### 配置代理
-
-如果你需要通过代理访问某些资源，可以在配置文件中设置：
-
-```toml
-[proxy]
-enabled = true
-http = "http://proxy:7890"
-https = "http://proxy:7890"
-```
-
-然后在 Docker Compose 文件中添加代理服务（如使用 Clash）：
-
-```yaml
-version: "3"
-
-services:
-  bangumi:
-    # ... 其他配置 ...
-    depends_on:
-      - proxy
-
-  proxy:
-    image: dreamacro/clash
-    container_name: clash
-    restart: unless-stopped
-    volumes:
-      - ./clash:/root/.config/clash
-    ports:
-      - "7890:7890"
-      - "7891:7891"
-```
-
-### 使用 Traefik 反向代理
-
-如果你想通过域名访问 Bangumi-rs，可以使用 Traefik 作为反向代理：
-
-```yaml
-version: "3"
-
-services:
-  bangumi:
-    # ... 其他配置 ...
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.bangumi.rule=Host(`bangumi.example.com`)"
-      - "traefik.http.routers.bangumi.entrypoints=websecure"
-      - "traefik.http.routers.bangumi.tls.certresolver=myresolver"
+      mysql:
+        condition: service_healthy
     networks:
-      - traefik_network
-      - default
+      - bangumi-network
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
+  frontend:
+    restart: unless-stopped
+    image: ghcr.io/lyqingye/bangumi-rs/frontend:latest
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - bangumi-network
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
 
 networks:
-  traefik_network:
-    external: true
+  bangumi-network:
+    driver: bridge
 ```
 
-## 更新 Bangumi-rs
-
-### 使用 Docker 命令更新
+**启动服务**
 
 ```bash
-docker pull ghcr.io/bangumi-rs/bangumi:latest
-docker stop bangumi
-docker rm bangumi
-# 然后重新运行上面的 docker run 命令
-```
-
-### 使用 Docker Compose 更新
-
-```bash
-cd ~/bangumi
-docker-compose pull
-docker-compose down
 docker-compose up -d
 ```
-
-## 查看日志
-
-### 使用 Docker 命令查看日志
-
+**查看服务日志**
 ```bash
-docker logs -f bangumi
+docker-compose logs -f --tail 100 backend
+```
+当你看到类似的启动日志时，说明程序配置完全正确:
+```bash
+2025-03-08T15:31:41.921860Z  INFO sea_orm_migration::migrator: Applying all pending migrations
+2025-03-08T15:31:41.944244Z  INFO model::migrator: loading migration file: "V1.0.0__init.sql"
+2025-03-08T15:31:41.944790Z  INFO model::migrator: loading migration file: "V1.0.1__bgm_kind.sql"
+2025-03-08T15:31:41.944846Z  INFO model::migrator: loading migration file: "V1.0.2__task_interval.sql"
+2025-03-08T15:31:41.944927Z  INFO model::migrator: loading migration file: "V1.0.3__sub_option.sql"
+2025-03-08T15:31:41.944970Z  INFO model::migrator: loading migration file: "V1.0.4__remove_tmdb_uk.sql"
+2025-03-08T15:31:41.954735Z  INFO sea_orm_migration::migrator: No pending migrations
+2025-03-08T15:31:42.315786Z  INFO downloader::syncer: 启动远程任务同步器
+2025-03-08T15:31:42.315889Z  INFO downloader::worker: 开始恢复未处理的下载任务
+2025-03-08T15:31:42.320265Z  INFO downloader::worker: 找到 0 个未处理的任务
+2025-03-08T15:31:42.320299Z  INFO downloader::worker: 完成恢复未处理的下载任务
+2025-03-08T15:31:42.320330Z  INFO downloader::worker: Downloader 已启动，配置: Config { sync_interval: 10s, event_queue_size: 128, max_retry_count: 5, retry_processor_interval: 5s, retry_min_interval: TimeDelta { secs: 30, nanos: 0 }, retry_max_interval: TimeDelta { secs: 600, nanos: 0 }, download_dir: "/animes", download_timeout: TimeDelta { secs: 1800, nanos: 0 } }
+2025-03-08T15:31:42.324020Z  INFO scheduler::scheduler: 启动下载调度器
+2025-03-08T15:31:42.339482Z  INFO server::server: server listen at: http://127.0.0.1:3001
+2025-03-08T15:31:42.340099Z  INFO actix_server::builder: starting 14 workers
+2025-03-08T15:31:42.340283Z  INFO actix_server::server: Tokio runtime found; starting in existing Tokio runtime
+2025-03-08T15:31:42.340520Z  INFO actix_server::server: starting service: "actix-web-service-127.0.0.1:3001", workers: 14, listening on: 127.0.0.1:3001
 ```
 
-### 使用 Docker Compose 查看日志
+## 自动更新
 
-```bash
-cd ~/bangumi
-docker-compose logs -f
-```
-
-## 常见问题
-
-### 容器无法启动
-
-检查配置文件是否正确，可以查看容器日志：
-
-```bash
-docker logs bangumi
-```
-
-### 无法访问 Web 界面
-
-确保端口映射正确，并检查防火墙设置：
-
-```bash
-docker ps
-# 检查端口映射是否为 3001:3001
-```
-
-### 数据持久化问题
-
-确保正确挂载了卷，特别是配置目录和数据目录：
-
-```bash
-docker inspect bangumi
-# 检查 Mounts 部分
-```
-
-## 性能优化
-
-### 资源限制
-
-可以在 Docker Compose 文件中添加资源限制：
-
+推荐直接使用 [watchtower](https://github.com/containrrr/watchtower) 来实现镜像自动更新, 在你的 `docker-compose.yaml` 配置文件中增加一个服务:
 ```yaml
-services:
-  bangumi:
-    # ... 其他配置 ...
-    deploy:
-      resources:
-        limits:
-          cpus: "2"
-          memory: 2G
-        reservations:
-          cpus: "0.5"
-          memory: 512M
-```
-
-### 存储优化
-
-对于大量下载，建议使用高性能存储：
-
-```yaml
-services:
-  bangumi:
-    # ... 其他配置 ...
-    volumes:
-      - ./config:/app/config
-      - ./data:/app/data
-      - /mnt/fast-storage:/downloads
-```
-
-## 安全建议
-
-1. **不要暴露服务到公网**：除非你已配置了适当的身份验证和加密
-2. **使用非 root 用户**：在 Docker Compose 文件中添加 `user: "1000:1000"`
-3. **定期更新镜像**：保持软件为最新版本
-4. **使用 HTTPS**：通过反向代理启用 HTTPS
-
-## 完整示例
-
-以下是一个完整的 Docker Compose 配置示例，包含了常用的设置：
-
-```yaml
-version: "3"
-
-services:
-  bangumi:
-    image: ghcr.io/bangumi-rs/bangumi:latest
-    container_name: bangumi
+  watchtower:
     restart: unless-stopped
-    user: "1000:1000" # 使用非 root 用户
-    ports:
-      - "127.0.0.1:3001:3001" # 只监听本地接口
+    image: containrrr/watchtower:latest
     volumes:
-      - ./config:/app/config
-      - ./data:/app/data
-      - ./downloads:/downloads
-    environment:
-      - TZ=Asia/Shanghai
-      - BANGUMI_LOG_LEVEL=info
-    deploy:
-      resources:
-        limits:
-          cpus: "2"
-          memory: 2G
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3001/api/health"]
-      interval: 1m
-      timeout: 10s
-      retries: 3
-      start_period: 30s
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: --interval 60 --cleanup --label-enable
+    networks:
+      - bangumi-network
 ```
+完整的配置文件可以参考:
+https://github.com/lyqingye/bangumi-rs/blob/master/docker-compose.yml
