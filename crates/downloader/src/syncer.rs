@@ -1,11 +1,8 @@
-use crate::{
-    worker::{Tx, Worker},
-    RemoteTaskStatus,
-};
+use crate::worker::{Tx, Worker};
 use anyhow::Result;
 use chrono::Local;
 use model::sea_orm_active_enums::DownloadStatus;
-use tracing::{debug, info, warn};
+use tracing::{debug, error, info, warn};
 
 impl Worker {
     pub(crate) fn spawn_syncer(&self) -> Result<()> {
@@ -15,7 +12,9 @@ impl Worker {
             let mut ticker = tokio::time::interval(worker.config.sync_interval);
             loop {
                 ticker.tick().await;
-                worker.sync_remote_task_status().await;
+                if let Err(e) = worker.sync_remote_task_status().await {
+                    error!("同步远程任务状态失败: {}", e);
+                }
             }
         });
         Ok(())
@@ -71,17 +70,15 @@ impl Worker {
 
                 match status {
                     DownloadStatus::Completed => {
-                        self.send_event(Tx::TaskCompleted(info_hash, result))
-                            .await?;
+                        self.send_event(Tx::TaskCompleted(info_hash, result))?;
                     }
 
                     DownloadStatus::Cancelled => {
-                        self.send_event(Tx::CancelTask(info_hash)).await?;
+                        self.send_event(Tx::CancelTask(info_hash))?;
                     }
 
                     DownloadStatus::Failed => {
-                        self.send_event(Tx::TaskFailed(info_hash, err_msg.unwrap_or_default()))
-                            .await?;
+                        self.send_event(Tx::TaskFailed(info_hash, err_msg.unwrap_or_default()))?;
                     }
 
                     _ => {
@@ -93,8 +90,7 @@ impl Worker {
                 let elapsed = now - local_task.updated_at;
                 if elapsed > self.config.download_timeout {
                     warn!("下载超时: info_hash={}", info_hash);
-                    self.send_event(Tx::TaskFailed(info_hash, "下载超时".to_string()))
-                        .await?;
+                    self.send_event(Tx::TaskFailed(info_hash, "下载超时".to_string()))?;
                 }
             }
         }

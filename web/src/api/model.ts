@@ -213,10 +213,26 @@ export interface ProcessMetrics {
   run_time_sec: number
 }
 
+export interface ServiceStatus {
+  success: boolean
+  error: string | null
+}
+
+export interface ServiceMetrics {
+  name: string
+  status: ServiceStatus
+}
+
+export interface MetadataMetrics {
+  services: ServiceMetrics[]
+  last_refresh_time: number
+}
+
 export interface Metrics {
   downloader: DownloaderMetrics
   scheduler: SchedulerMetrics
   process: ProcessMetrics
+  metadata: MetadataMetrics
 }
 
 // 配置相关类型定义

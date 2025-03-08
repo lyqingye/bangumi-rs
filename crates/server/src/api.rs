@@ -404,15 +404,15 @@ pub async fn refresh_bangumi(
 ) -> Result<Json<Resp<()>>, ServerError> {
     let (id, force) = params.into_inner();
     state.scheduler.trigger_collection(id).await?;
-    state.metadata.request_refresh_metadata(id, force).await?;
+    state.metadata.request_refresh_metadata(id, force)?;
     Ok(Json(Resp::ok(())))
 }
 
-#[get("/api/bangumi/{id}/{episode_number}/online_watch")]
+#[get("/api/bangumi/{id}/{episode_number}/online_watch/{file_name}")]
 pub async fn online_watch(
     req: HttpRequest,
     state: web::Data<Arc<AppState>>,
-    path: web::Path<(i32, i32)>,
+    path: web::Path<(i32, i32, String)>,
 ) -> Result<HttpResponse, ServerError> {
     use model::episode_download_tasks::Column as TaskColumn;
     use model::episode_download_tasks::Entity as EpisodeDownloadTasks;
@@ -420,7 +420,7 @@ pub async fn online_watch(
     use sea_orm::EntityTrait;
     use sea_orm::QueryFilter;
 
-    let (id, episode_number) = path.into_inner();
+    let (id, episode_number, _) = path.into_inner();
 
     // 获取 User-Agent，如果没有则使用默认值
     let user_agent = req
@@ -514,10 +514,7 @@ pub async fn refresh_calendar(
 ) -> Result<Json<Resp<()>>, ServerError> {
     let force = force.into_inner();
     let season = query.season.as_ref().filter(|s| !s.is_empty()).cloned();
-    state
-        .metadata
-        .request_refresh_calendar(season, force)
-        .await?;
+    state.metadata.request_refresh_calendar(season, force)?;
     Ok(Json(Resp::ok(())))
 }
 
@@ -588,10 +585,7 @@ pub async fn add_bangumi(
         .get_bangumi_by_mikan_id(params.mikan_id)
         .await?
         .context("番剧添加失败，找不到")?;
-    state
-        .metadata
-        .request_refresh_metadata(bangumi.id, true)
-        .await?;
+    state.metadata.request_refresh_metadata(bangumi.id, true)?;
     Ok(Json(Resp::ok(bangumi.id)))
 }
 
@@ -693,11 +687,13 @@ pub async fn metrics(state: web::Data<Arc<AppState>>) -> Result<Json<Resp<Metric
             run_time_sec: 0,
         }
     };
+    let metadata_metrics = state.metadata.metrics().await;
 
     Ok(Json(Resp::ok(Metrics {
         scheduler: scheduler_metrics,
         downloader: downloader_metrics,
         process,
+        metadata: metadata_metrics,
     })))
 }
 

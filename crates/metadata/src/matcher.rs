@@ -1,11 +1,11 @@
 use anyhow::{Context, Result};
-use bangumi_tv::model::Subject;
+use tracing::{info, warn};
+
 use model::{bangumi, sea_orm_active_enums::BgmKind};
 use tmdb::api::{
     movie::MovieShort,
     tvshow::{SeasonShort, TVShow},
 };
-use tracing::{info, warn};
 
 #[derive(Clone)]
 pub struct Matcher {
@@ -30,7 +30,6 @@ impl Matcher {
         &self,
         bgm: &mut bangumi::Model,
     ) -> Result<Option<(TVShow, SeasonShort)>> {
-        info!("尝试匹配 TMDB: {}", bgm.name);
         let result = match (bgm.tmdb_id, bgm.season_number) {
             (Some(tmdb_id), Some(season_number)) => {
                 self.tmdb
@@ -39,25 +38,32 @@ impl Matcher {
             }
             _ => {
                 let air_date = bgm.air_date.map(|dt| dt.and_utc().date_naive());
+                info!("尝试匹配 TMDB: {} {:?}", bgm.name, air_date);
                 self.tmdb.match_bangumi(&bgm.name, air_date).await?
             }
         };
 
         if let Some((tv, season)) = result {
+            info!(
+                "匹配到TMDB番剧: {} {:?}",
+                tv.inner.name, season.inner.season_number
+            );
             bgm.tmdb_id = Some(tv.inner.id);
             bgm.season_number = Some(season.inner.season_number);
             bgm.bgm_kind = Some(BgmKind::Anime);
             Ok(Some((tv, season)))
         } else {
+            warn!("找不到对应的TMDB番剧: {}", bgm.name);
             Ok(None)
         }
     }
 
     pub async fn match_tmdb_movie(&self, bgm: &mut bangumi::Model) -> Result<Option<MovieShort>> {
-        info!("尝试匹配 TMDB 电影: {}", bgm.name);
         let air_date = bgm.air_date.map(|dt| dt.and_utc().date_naive());
+        info!("尝试匹配 TMDB 电影: {} {:?}", bgm.name, air_date);
         let movies = self.tmdb.seach_movie(&bgm.name, air_date).await?;
         if movies.is_empty() {
+            warn!("找不到对应的TMDB电影: {}", bgm.name);
             return Ok(None);
         }
         let movie = movies.first();
@@ -65,30 +71,24 @@ impl Matcher {
             return Ok(None);
         }
         let movie = movie.unwrap();
+        info!("匹配到TMDB电影: {} {:?}", movie.inner.title, air_date);
         bgm.tmdb_id = Some(movie.inner.id);
         bgm.bgm_kind = Some(BgmKind::Movie);
         Ok(Some(movie.clone()))
     }
 
-    pub async fn match_bgm_tv(
-        &self,
-        bgm: &mut bangumi::Model,
-        loaded: bool,
-    ) -> Result<Option<Subject>> {
+    pub async fn match_bgm_tv(&self, bgm: &mut bangumi::Model) -> Result<()> {
         info!("尝试匹配 bgm.tv: {}", bgm.name);
         if bgm.mikan_id.is_none() {
             warn!("[MIKAN] 没有 mikan_id ，跳过匹配");
-            return Ok(None);
+            return Ok(());
         }
 
         let info = self.mikan.get_bangumi_info(bgm.mikan_id.unwrap()).await?;
         bgm.bangumi_tv_id = info.bangumi_tv_id;
 
-        if !loaded {
-            return Ok(None);
-        }
         if bgm.bangumi_tv_id.is_none() {
-            // 尝试搜索
+            // 尝试搜索, 这里可能用的是mikan的air_date（并不准确）
             let air_date = bgm.air_date.map(|dt| dt.and_utc().date_naive());
             let subject = self
                 .bgm_tv
@@ -103,24 +103,31 @@ impl Matcher {
                 })?;
             if let Some(subject) = subject {
                 bgm.bangumi_tv_id = Some(subject.id);
+                bgm.air_date = subject.get_air_date();
                 info!(
-                    "[bgm.tv] 在BangumiTV 搜索到相关番剧，name: {}, mikan_id: {}, bangumi_tv_id: {}",
+                    "[bgm.tv] 在BangumiTV 搜索到相关番剧，name: {}, mikan_id: {}, bangumi_tv_id: {} air_date: {:?}",
                     subject.name_cn.clone().unwrap_or(subject.name.clone()),
                     bgm.mikan_id.unwrap(),
-                    subject.id
+                    subject.id,
+                    bgm.air_date
                 );
-                return Ok(Some(subject));
+                return Ok(());
             } else {
                 warn!(
                     "[bgm.tv] 无法根据 MikanId 关联到 bangumi_tv_id，跳过匹配, name: {}, mikan_id: {}, 在BangumiTV 无法搜索到相关番剧",
                     bgm.name,
                     bgm.mikan_id.unwrap(),
                 );
-                return Ok(None);
+                return Ok(());
             }
         }
 
-        let subject = self.bgm_tv.get_subject(bgm.bangumi_tv_id.unwrap()).await?;
-        Ok(subject)
+        if bgm.air_date.is_none() {
+            let subject = self.bgm_tv.get_subject(bgm.bangumi_tv_id.unwrap()).await?;
+            if let Some(subject) = subject.as_ref() {
+                bgm.air_date = subject.get_air_date();
+            }
+        }
+        Ok(())
     }
 }

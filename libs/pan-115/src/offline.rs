@@ -174,13 +174,10 @@ impl Client {
 mod tests {
     use super::*;
     use anyhow::Result;
-    use reqwest::{header, Url};
-    use std::{env, sync::Arc};
-    use tokio_stream::{self as stream, StreamExt};
 
     async fn create_client() -> Result<Client> {
         dotenv::dotenv().ok();
-        let mut client = Client::new_from_env()?;
+        let client = Client::new_from_env()?;
         Ok(client)
     }
 

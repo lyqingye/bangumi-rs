@@ -9,8 +9,6 @@ use tracing::{error, info};
 
 use crate::{db::Db, ParseResult, Parser};
 
-const CHANNEL_BUFFER_SIZE: usize = 100;
-
 lazy_static! {
     // 匹配以下格式：
     // - 01-12
@@ -33,7 +31,7 @@ enum WorkerMessage {
 #[derive(Clone)]
 pub struct Worker {
     db: Db,
-    sender: Option<mpsc::Sender<WorkerMessage>>,
+    sender: Option<mpsc::UnboundedSender<WorkerMessage>>,
     is_spawned: Arc<std::sync::atomic::AtomicBool>,
 }
 
@@ -84,7 +82,7 @@ impl Worker {
             return Err(anyhow::anyhow!("Worker already spawned"));
         }
 
-        let (sender, mut receiver) = mpsc::channel(CHANNEL_BUFFER_SIZE);
+        let (sender, mut receiver) = mpsc::unbounded_channel();
         self.sender = Some(sender);
         let db = self.db.clone();
 
@@ -204,7 +202,6 @@ impl Worker {
         let (response_sender, response_receiver) = oneshot::channel();
         sender
             .send(WorkerMessage::Parse(file_names.to_vec(), response_sender))
-            .await
             .context("发送解析请求失败")?;
 
         response_receiver.await.context("接收解析结果失败")?
@@ -216,7 +213,6 @@ impl Worker {
             let (done_tx, done_rx) = oneshot::channel();
             sender
                 .send(WorkerMessage::Shutdown(done_tx))
-                .await
                 .context("发送停机信号失败")?;
 
             // 等待 worker 确认停止

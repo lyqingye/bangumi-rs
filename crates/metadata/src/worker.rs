@@ -1,30 +1,20 @@
-use dict::DictCode;
-use model::{
-    bangumi::{self, Entity},
-    sea_orm_active_enums::{BgmKind, SubscribeStatus},
-};
+use std::{collections::HashMap, sync::Arc, time::Duration};
+
+use anyhow::{Context, Result};
+use chrono::NaiveDateTime;
 use sea_orm::DatabaseConnection;
-use std::{
-    collections::HashMap,
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc,
-    },
-    time::Duration,
-};
-use tokio::sync::{mpsc, oneshot, Mutex};
+use tokio::sync::{mpsc, oneshot, Mutex, RwLock};
+use tracing::{error, info};
+
+use dict::DictCode;
+use model::sea_orm_active_enums::BgmKind;
 
 use crate::{
     db::Db, fetcher::Fetcher, matcher::Matcher, mdb_bgmtv::MdbBgmTV, mdb_mikan::MdbMikan,
-    mdb_tmdb::MdbTmdb, MetadataAttr, MetadataAttrSet, MetadataDb,
+    mdb_tmdb::MdbTmdb, metrics, MetadataAttr, MetadataAttrSet, MetadataDb,
 };
-use anyhow::{Context, Result};
-use chrono::NaiveDateTime;
-use tracing::{error, info, warn};
 
 const REFRESH_COOLDOWN: i64 = 1; // minutes
-const CHANNEL_CAPACITY: usize = 100;
-const POLL_TIMEOUT: Duration = Duration::from_secs(1);
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub enum Inner {
@@ -53,10 +43,11 @@ pub struct Worker {
     mikan: mikan::client::Client,
     client: reqwest::Client,
     fetcher: Fetcher,
-    sender: Option<mpsc::Sender<(Cmd, Option<oneshot::Sender<()>>)>>,
+    sender: Option<mpsc::UnboundedSender<(Cmd, Option<oneshot::Sender<()>>)>>,
     dict: dict::Dict,
     matcher: Matcher,
     assets_path: String,
+    metrics: Arc<RwLock<metrics::Metrics>>,
 }
 
 impl Worker {
@@ -78,6 +69,7 @@ impl Worker {
             dict,
             matcher,
             assets_path,
+            metrics: Arc::new(RwLock::new(metrics::Metrics::default())),
         }
     }
 
@@ -124,12 +116,12 @@ impl Worker {
         })
     }
 
-    pub async fn spawn(&mut self) -> Result<()> {
+    pub fn spawn(&mut self) -> Result<()> {
         if self.sender.is_some() {
             return Err(anyhow::anyhow!("Worker 已经启动"));
         }
 
-        let (sender, mut receiver) = mpsc::channel(CHANNEL_CAPACITY);
+        let (sender, mut receiver) = mpsc::unbounded_channel();
         self.sender = Some(sender);
 
         let worker = self.clone();
@@ -196,33 +188,25 @@ impl Worker {
     }
 
     /// 快捷命令, 外部使用
-    pub async fn request_refresh_metadata(&self, bangumi_id: i32, force: bool) -> Result<()> {
+    pub fn request_refresh_metadata(&self, bangumi_id: i32, force: bool) -> Result<()> {
         self.send_cmd(Cmd::Refresh(Inner::Metadata(bangumi_id, force)), None)
-            .await
     }
 
-    pub async fn request_refresh_torrents(&self, bangumi_id: i32) -> Result<()> {
+    pub fn request_refresh_torrents(&self, bangumi_id: i32) -> Result<()> {
         self.send_cmd(Cmd::Refresh(Inner::Torrents(bangumi_id)), None)
-            .await
     }
 
     pub async fn request_refresh_torrents_and_wait(&self, bangumi_id: i32) -> Result<()> {
         let (done_tx, done_rx) = oneshot::channel();
-        self.send_cmd(Cmd::Refresh(Inner::Torrents(bangumi_id)), Some(done_tx))
-            .await?;
+        self.send_cmd(Cmd::Refresh(Inner::Torrents(bangumi_id)), Some(done_tx))?;
         tokio::time::timeout(Duration::from_secs(60), done_rx)
             .await
             .context("等待种子刷新超时")??;
         Ok(())
     }
 
-    pub async fn request_refresh_calendar(
-        &self,
-        season: Option<String>,
-        force: bool,
-    ) -> Result<()> {
+    pub fn request_refresh_calendar(&self, season: Option<String>, force: bool) -> Result<()> {
         self.send_cmd(Cmd::Refresh(Inner::Calendar(season, force)), None)
-            .await
     }
 
     pub async fn request_add_bangumi(
@@ -236,21 +220,17 @@ impl Worker {
         self.send_cmd(
             Cmd::AddBangumi(title, mikan_id, bgm_tv_id, tmdb_id),
             Some(done_tx),
-        )
-        .await?;
+        )?;
         tokio::time::timeout(Duration::from_secs(60), done_rx)
             .await
             .context("等待添加番剧超时")??;
         Ok(())
     }
 
-    async fn send_cmd(&self, cmd: Cmd, done_tx: Option<oneshot::Sender<()>>) -> Result<()> {
+    fn send_cmd(&self, cmd: Cmd, done_tx: Option<oneshot::Sender<()>>) -> Result<()> {
         let sender = self.sender.as_ref().context("Worker 未启动")?;
 
-        sender
-            .send((cmd, done_tx))
-            .await
-            .context("发送刷新请求失败")?;
+        sender.send((cmd, done_tx)).context("发送刷新请求失败")?;
 
         Ok(())
     }
@@ -260,7 +240,7 @@ impl Worker {
 
         if let Some(sender) = &self.sender {
             let (done_tx, done_rx) = oneshot::channel();
-            sender.send((Cmd::Shutdown(), Some(done_tx))).await?;
+            sender.send((Cmd::Shutdown(), Some(done_tx)))?;
             done_rx.await?;
         }
         info!("元数据 Worker 已停止");
@@ -276,9 +256,8 @@ impl Worker {
                 self.handle_refresh_metadata(id, force, mdbs).await?;
             }
             Inner::Calendar(season, force) => {
-                self.handle_refresh_calendar(season, force).await?;
+                self.handle_refresh_calendar(season, force, mdbs).await?;
             }
-            _ => warn!("无效的刷新请求: {:?}", request),
         }
         Ok(())
     }
@@ -322,7 +301,7 @@ impl Worker {
         }
         match mdbs
             .bgmtv
-            .update_bangumi_metadata(&mut bgm, attrs, false)
+            .update_bangumi_metadata(&mut bgm, attrs, force)
             .await
         {
             Ok(_) => {}
@@ -359,7 +338,12 @@ impl Worker {
     }
 
     /// 处理放送列表刷新请求
-    async fn handle_refresh_calendar(&self, season: Option<String>, force: bool) -> Result<()> {
+    async fn handle_refresh_calendar(
+        &self,
+        season: Option<String>,
+        force: bool,
+        mdbs: &Arc<Metadatabases>,
+    ) -> Result<()> {
         info!("正在刷新放送列表: {:?}", season);
 
         let calendar = if let Some(season) = season.as_ref() {
@@ -388,7 +372,7 @@ impl Worker {
 
         info!("正在匹配番剧: {}", mikan_ids.len());
         let bangumis = self.db.list_bangumi_by_mikan_ids(mikan_ids).await?;
-        for mut bgm in bangumis {
+        for bgm in bangumis {
             let bgm_id = bgm.id;
 
             match self.try_match_bangumi(bgm).await {
@@ -398,7 +382,12 @@ impl Worker {
                 }
             };
 
-            self.request_refresh_metadata(bgm_id, force).await?;
+            match self.handle_refresh_metadata(bgm_id, force, mdbs).await {
+                Ok(_) => {}
+                Err(e) => {
+                    error!("刷新番剧元数据失败: {}", e);
+                }
+            }
         }
         info!("放送列表刷新完成");
         Ok(())
@@ -406,10 +395,11 @@ impl Worker {
 
     async fn try_match_bangumi(&self, bgm: model::bangumi::Model) -> Result<()> {
         let mut bgm = bgm;
-        if bgm.bangumi_tv_id.is_none() {
-            self.matcher.match_bgm_tv(&mut bgm, false).await?;
+        if bgm.bangumi_tv_id.is_none() || bgm.air_date.is_none() {
+            self.matcher.match_bgm_tv(&mut bgm).await?;
             self.db.update_bangumi(bgm.clone()).await?;
-        } else if bgm.tmdb_id.is_none() || bgm.bgm_kind.is_none() || bgm.season_number.is_none() {
+        }
+        if bgm.tmdb_id.is_none() || bgm.bgm_kind.is_none() || bgm.season_number.is_none() {
             self.matcher.match_tmdb(&mut bgm).await?;
             self.db.update_bangumi(bgm.clone()).await?;
         }
@@ -504,12 +494,91 @@ impl Worker {
         bgm.bgm_kind = Some(kind);
         self.db.update_bangumi(bgm).await?;
 
-        self.request_refresh_metadata(bgm_id, true).await?;
+        self.request_refresh_metadata(bgm_id, true)?;
         Ok(())
     }
 
     pub fn fetcher(&self) -> &Fetcher {
         &self.fetcher
+    }
+
+    pub async fn metrics(&self) -> metrics::Metrics {
+        let now = chrono::Local::now().timestamp();
+
+        // 使用读锁检查是否需要刷新
+        {
+            let guard = self.metrics.read().await;
+            if now <= guard.last_refresh_time {
+                return guard.clone();
+            }
+        }
+
+        // 需要刷新时才获取写锁
+        let mut guard = self.metrics.write().await;
+
+        // 双重检查，避免多个线程同时刷新
+        if now <= guard.last_refresh_time {
+            return guard.clone();
+        }
+
+        // 清空旧的服务状态
+        guard.services.clear();
+
+        // 并行检查所有服务
+        let bgm_tv_fut = self.fetcher.bgm_tv.get_subject(1);
+        let mikan_fut = self.mikan.get_bangumi_info(3333);
+        let tmdb_fut = self.fetcher.tmdb.get_movie(822119);
+
+        let (bgm_tv_result, mikan_result, tmdb_result) =
+            tokio::join!(bgm_tv_fut, mikan_fut, tmdb_fut);
+
+        // 添加服务状态
+        guard.services.push(metrics::Service {
+            name: "bgm.tv".to_string(),
+            status: match bgm_tv_result {
+                Ok(_) => metrics::ServiceStatus {
+                    success: true,
+                    error: None,
+                },
+                Err(e) => metrics::ServiceStatus {
+                    success: false,
+                    error: Some(e.to_string()),
+                },
+            },
+        });
+
+        guard.services.push(metrics::Service {
+            name: "mikan".to_string(),
+            status: match mikan_result {
+                Ok(_) => metrics::ServiceStatus {
+                    success: true,
+                    error: None,
+                },
+                Err(e) => metrics::ServiceStatus {
+                    success: false,
+                    error: Some(e.to_string()),
+                },
+            },
+        });
+
+        guard.services.push(metrics::Service {
+            name: "tmdb".to_string(),
+            status: match tmdb_result {
+                Ok(_) => metrics::ServiceStatus {
+                    success: true,
+                    error: None,
+                },
+                Err(e) => metrics::ServiceStatus {
+                    success: false,
+                    error: Some(e.to_string()),
+                },
+            },
+        });
+
+        // 更新刷新时间
+        guard.last_refresh_time = now + Duration::from_secs(60).as_secs() as i64;
+
+        guard.clone()
     }
 }
 
@@ -527,7 +596,7 @@ mod test {
             .init();
 
         let mut worker = Worker::new_from_env().await?;
-        worker.spawn().await?;
+        worker.spawn()?;
         worker.request_refresh_torrents_and_wait(20).await?;
         // tokio::time::sleep(Duration::from_secs(120)).await;
         worker.shutdown().await?;

@@ -41,6 +41,13 @@ const workerStats = computed(() => {
   ]
 })
 
+// 格式化时间戳为可读时间
+const formatTimestamp = (timestamp: number): string => {
+  if (!timestamp) return '未知'
+  const date = new Date(timestamp * 1000)
+  return date.toLocaleString('zh-CN')
+}
+
 // 重置定时器
 const resetInterval = () => {
   if (refreshInterval) {
@@ -96,7 +103,7 @@ onUnmounted(() => {
     <!-- 状态卡片行 -->
     <v-row class="mb-6">
       <!-- 系统资源卡片 -->
-      <v-col cols="12" md="4">
+      <v-col cols="12" md="3">
         <v-card elevation="2" class="h-100">
           <v-card-item>
             <template v-slot:prepend>
@@ -131,7 +138,7 @@ onUnmounted(() => {
       </v-col>
 
       <!-- 下载器状态卡片 -->
-      <v-col cols="12" md="4">
+      <v-col cols="12" md="3">
         <v-card elevation="2" class="h-100">
           <v-card-item>
             <template v-slot:prepend>
@@ -153,7 +160,7 @@ onUnmounted(() => {
       </v-col>
 
       <!-- Worker 状态卡片 -->
-      <v-col cols="12" md="4">
+      <v-col cols="12" md="3">
         <v-card elevation="2" class="h-100">
           <v-card-item>
             <template v-slot:prepend>
@@ -179,6 +186,39 @@ onUnmounted(() => {
                 </v-card>
               </v-col>
             </v-row>
+          </v-card-text>
+          <v-card-text v-else class="text-center pa-4">
+            暂无数据
+          </v-card-text>
+        </v-card>
+      </v-col>
+
+      <!-- 元数据服务卡片 -->
+      <v-col cols="12" md="3">
+        <v-card elevation="2" class="h-100">
+          <v-card-item>
+            <template v-slot:prepend>
+              <v-icon icon="mdi-database-search" size="28" color="primary" class="mr-2" />
+            </template>
+            <v-card-title class="text-h6 font-weight-medium">元数据服务</v-card-title>
+          </v-card-item>
+          <v-divider />
+          <v-card-text class="pt-4" v-if="metrics?.metadata">
+            <div v-for="service in metrics.metadata.services" :key="service.name" class="mb-2">
+              <div class="d-flex align-center justify-space-between">
+                <span class="text-subtitle-2">{{ service.name }}</span>
+                <v-chip
+                  size="small"
+                  :color="service.status.success ? 'success' : 'error'"
+                  class="font-weight-medium"
+                >
+                  {{ service.status.success ? '正常' : '异常' }}
+                </v-chip>
+              </div>
+              <div v-if="service.status.error" class="text-caption text-error mt-1">
+                {{ service.status.error }}
+              </div>
+            </div>
           </v-card-text>
           <v-card-text v-else class="text-center pa-4">
             暂无数据
@@ -263,5 +303,9 @@ onUnmounted(() => {
 .text-caption {
   text-transform: capitalize;
   opacity: 0.9;
+}
+
+.text-error {
+  color: rgb(var(--v-theme-error));
 }
 </style> 

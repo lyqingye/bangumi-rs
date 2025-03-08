@@ -1,6 +1,5 @@
 use std::{
     collections::HashMap,
-    ops::Deref,
     time::{SystemTime, UNIX_EPOCH},
 };
 
@@ -115,8 +114,6 @@ impl Client {
 
 #[cfg(test)]
 mod test {
-    use std::env;
-
     use reqwest::Url;
     use tokio::{fs::File, io::AsyncWriteExt};
     use tokio_stream::StreamExt;

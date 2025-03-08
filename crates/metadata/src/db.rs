@@ -1,20 +1,16 @@
-use anyhow::Result;
-use bangumi_tv::model::EpisodeList;
-use chrono::NaiveDateTime;
-use mikan::client::{Calendar, EpisodeItem, MikanBangumi};
-use model::prelude::Bangumi;
-use model::{
-    bangumi::{self, Entity},
-    episodes,
-    sea_orm_active_enums::SubscribeStatus,
-    torrents,
-};
-use sea_orm::{
-    sea_query::OnConflict, ActiveModelTrait, ColumnTrait, ConnectOptions, ConnectionTrait,
-    Database, DatabaseConnection, EntityTrait, IntoActiveModel, QueryFilter, QuerySelect, Set,
-};
+use std::sync::Arc;
 use std::time::Duration;
-use std::{collections::HashSet, sync::Arc};
+
+use anyhow::Result;
+use chrono::NaiveDateTime;
+use sea_orm::{
+    sea_query::OnConflict, ColumnTrait, ConnectOptions, Database, DatabaseConnection, EntityTrait,
+    IntoActiveModel, QueryFilter, Set,
+};
+
+use bangumi_tv::model::EpisodeList;
+use mikan::client::{Calendar, EpisodeItem};
+use model::{bangumi, episodes, torrents};
 
 #[derive(Clone)]
 pub struct Db(Arc<DatabaseConnection>);
@@ -63,7 +59,6 @@ impl Db {
 
     pub async fn update_bangumi(&self, bgm: bangumi::Model) -> Result<()> {
         let db = self.conn();
-        let now = chrono::Local::now().naive_utc();
 
         bangumi::Entity::update_many()
             .filter(bangumi::Column::Id.eq(bgm.id))
@@ -134,7 +129,7 @@ impl Db {
         tmdb_id: Option<u64>,
     ) -> Result<()> {
         let now = chrono::Local::now().naive_utc();
-        let ids = self
+        let _ = self
             .batch_insert_bangumi(vec![bangumi::Model {
                 id: 0,
                 name: title,
@@ -181,7 +176,7 @@ impl Db {
                 bangumi_tv_id: None,
                 tmdb_id: None,
                 mikan_id: Some(bgm.id),
-                air_date: bgm.air_date,
+                air_date: None,
                 air_week: Some(bgm.weekday),
                 ep_count: 0,
                 rating: None,

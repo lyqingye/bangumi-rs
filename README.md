@@ -1,16 +1,25 @@
-[![Lint](https://github.com/lyqingye/bangumi-rs/actions/workflows/checks.yml/badge.svg)](https://github.com/lyqingye/bangumi-rs/actions/workflows/checks.yml) [![Release](https://github.com/lyqingye/bangumi-rs/actions/workflows/release.yml/badge.svg)](https://github.com/lyqingye/bangumi-rs/actions/workflows/release.yml) [![Docker](https://github.com/lyqingye/bangumi-rs/actions/workflows/docker.yml/badge.svg)](https://github.com/lyqingye/bangumi-rs/actions/workflows/docker.yml) ![Version](https://img.shields.io/github/v/release/lyqingye/bangumi-rs.svg?color=blue&logo=github)
-
 <div align="center">
 
 # Bangumi-rs
 
-<img src="docs/screenshot/home.png" width="80%" style="box-shadow: 0 12px 32px rgba(0, 0, 0, 0.7); border-radius: 8px; margin: 20px 0;" />
+</div>
+
+<div align="center">
+
+[![Lint](https://github.com/lyqingye/bangumi-rs/actions/workflows/checks.yml/badge.svg)](https://github.com/lyqingye/bangumi-rs/actions/workflows/checks.yml) [![Release](https://github.com/lyqingye/bangumi-rs/actions/workflows/release.yml/badge.svg)](https://github.com/lyqingye/bangumi-rs/actions/workflows/release.yml) [![Docker](https://github.com/lyqingye/bangumi-rs/actions/workflows/docker.yml/badge.svg)](https://github.com/lyqingye/bangumi-rs/actions/workflows/docker.yml) ![Version](https://img.shields.io/github/v/release/lyqingye/bangumi-rs.svg?color=blue&logo=github)
 
 </div>
 
 ## 简介
 
+<div align="center">
+<img src="docs/screenshot/home.png" width="80%" alt="home" style="box-shadow: 0 12px 32px rgba(0, 0, 0, 0.7); border-radius: 8px; margin: 40px 0;" />
+
+</div>
+
+<p>
 基于 Rust + Vue 3 开发的动漫追番工具，支持订阅番剧、智能下载、在线播放等功能。
+</p>
 
 ## 功能特性
 

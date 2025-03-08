@@ -1,13 +1,14 @@
+use anyhow::{Context, Result};
+use async_trait::async_trait;
+use tokio::fs;
+use tracing::{debug, info, warn};
+
+use model::{bangumi, sea_orm_active_enums::BgmKind};
+
 use crate::{
     format_backdrop_image_file_name, format_poster_image_file_name, MetadataAttr, MetadataAttrSet,
     MetadataDb,
 };
-use anyhow::{Context, Result};
-use async_trait::async_trait;
-use model::{bangumi, sea_orm_active_enums::BgmKind};
-use tmdb::api::tvshow::{SeasonShort, TVShow};
-use tokio::fs;
-use tracing::{debug, info, warn};
 
 #[derive(Clone)]
 pub struct MdbTmdb {

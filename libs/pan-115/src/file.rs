@@ -205,12 +205,11 @@ impl Client {
 #[cfg(test)]
 mod test {
     use super::*;
-    use std::env;
     use tokio_stream::StreamExt;
 
     async fn create_client() -> Result<Client> {
         dotenv::dotenv().ok();
-        let mut client = Client::new_from_env()?;
+        let client = Client::new_from_env()?;
         Ok(client)
     }
 

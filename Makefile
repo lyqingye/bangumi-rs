@@ -61,7 +61,7 @@ fmt:
 # 运行clippy检查
 .PHONY: clippy
 clippy:
-	@cargo clippy --all-targets --all-features -- -D warnings
+	@cargo clippy --all-targets --all-features -- -D warnings 
 
 # 检查代码（不编译）
 .PHONY: check

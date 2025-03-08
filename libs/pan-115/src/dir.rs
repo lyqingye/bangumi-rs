@@ -207,7 +207,10 @@ mod tests {
             Quota::per_second(NonZero::new(1).unwrap()).allow_burst(NonZero::new(1).unwrap());
         let limiter = Arc::new(RateLimiter::direct(quota));
         for _ in 0..10 {
-            limiter.until_n_ready(NonZero::new(1).unwrap()).await;
+            limiter
+                .until_n_ready(NonZero::new(1).unwrap())
+                .await
+                .unwrap();
             println!(
                 "{}",
                 time::SystemTime::now()
