@@ -36,3 +36,4 @@ node_modules
 docs/node_modules
 docs/.vitepress/cache/
 docs/.vitepress/temp/
+docs/.vitepress/dist/
