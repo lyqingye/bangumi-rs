@@ -13,7 +13,7 @@
 ## 简介
 
 <div align="center">
-<img src="docs2/screenshot/home.png" width="80%" alt="home" style="box-shadow: 0 12px 32px rgba(0, 0, 0, 0.7); border-radius: 8px; margin: 40px 0;" />
+<img src="docs/public/screenshot/home.png" width="80%" alt="home" style="box-shadow: 0 12px 32px rgba(0, 0, 0, 0.7); border-radius: 8px; margin: 40px 0;" />
 
 </div>
 
@@ -59,14 +59,6 @@
 
 - 🔔 通知提醒
   - 支持 Telegram 通知
-
-## 构建
-
-[构建说明](docs2/build.md)
-
-## 配置文件
-
-[配置说明](docs2/config.md)
 
 ## 快速开始
 

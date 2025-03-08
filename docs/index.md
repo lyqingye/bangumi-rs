@@ -4,11 +4,8 @@ layout: home
 
 hero:
   name: "Bangumi-rs"
-  text: "动漫追番工具"
-  tagline: 基于 Rust + Vue 3 开发的高效动漫管理与下载系统
-  image:
-    src: /screenshot/home.png
-    alt: Bangumi-rs
+  text: "追番神器，懒人必备"
+  tagline: 使用Rust开发，低资源，高性能
   actions:
     - theme: brand
       text: 快速开始

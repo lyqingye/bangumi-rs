@@ -7,11 +7,9 @@
 - **支持的操作系统**:
   - Linux (x86_64, ARM64)
   - macOS (x86_64, ARM64)
-  - Windows (x86_64)
 - **最低硬件要求**:
-  - CPU: 双核及以上
-  - 内存: 1GB 及以上
-  - 存储: 至少 1GB 可用空间（不包括下载内容存储）
+  - CPU: 单核及以上
+  - 内存: 50MB 及以上
 
 ## 下载二进制文件
 
@@ -21,7 +19,6 @@
 2. 下载适合你系统的最新版本:
    - Linux: `bangumi-linux-x86_64.tar.gz` 或 `bangumi-linux-aarch64.tar.gz`
    - macOS: `bangumi-macos-x86_64.tar.gz` 或 `bangumi-macos-aarch64.tar.gz`
-   - Windows: `bangumi-windows-x86_64.zip`
 
 ### 使用命令行下载
 
@@ -57,22 +54,6 @@ tar -xzf bangumi.tar.gz
 rm bangumi.tar.gz
 ```
 
-#### Windows (PowerShell)
-
-```powershell
-# 创建安装目录
-New-Item -ItemType Directory -Force -Path C:\bangumi
-cd C:\bangumi
-
-# 下载最新版本
-$LatestVersion = (Invoke-RestMethod -Uri "https://api.github.com/repos/bangumi-rs/bangumi/releases/latest").tag_name
-Invoke-WebRequest -Uri "https://github.com/bangumi-rs/bangumi/releases/download/$LatestVersion/bangumi-windows-x86_64.zip" -OutFile "bangumi.zip"
-
-# 解压文件
-Expand-Archive -Path bangumi.zip -DestinationPath .
-Remove-Item bangumi.zip
-```
-
 ## 配置 Bangumi-rs
 
 ### 创建配置文件
@@ -85,15 +66,6 @@ Remove-Item bangumi.zip
 cd ~/bangumi
 mkdir -p config downloads
 touch config/config.toml
-```
-
-#### Windows
-
-```powershell
-cd C:\bangumi
-New-Item -ItemType Directory -Force -Path config
-New-Item -ItemType Directory -Force -Path downloads
-New-Item -ItemType File -Force -Path config\config.toml
 ```
 
 ### 编辑配置文件
@@ -232,31 +204,6 @@ launchctl load ~/Library/LaunchAgents/com.bangumi.rs.plist
 launchctl list | grep com.bangumi.rs
 ```
 
-### Windows (服务)
-
-使用 NSSM (Non-Sucking Service Manager) 创建 Windows 服务:
-
-1. 下载 [NSSM](https://nssm.cc/download)
-2. 解压并运行:
-
-```powershell
-.\nssm.exe install Bangumi
-```
-
-3. 在弹出的配置窗口中设置:
-
-   - Path: `C:\bangumi\bangumi.exe`
-   - Startup directory: `C:\bangumi`
-   - Arguments: 留空
-   - 在 "Environment" 选项卡添加: `BANGUMI_CONFIG=C:\bangumi\config\config.toml`
-
-4. 点击 "Install service"
-5. 启动服务:
-
-```powershell
-Start-Service Bangumi
-```
-
 ## 更新 Bangumi-rs
 
 更新 Bangumi-rs 二进制文件的步骤:
@@ -282,26 +229,6 @@ rm bangumi.tar.gz
 # 启动服务
 sudo systemctl start bangumi  # Linux
 launchctl load ~/Library/LaunchAgents/com.bangumi.rs.plist  # macOS
-```
-
-### Windows
-
-```powershell
-# 停止服务
-Stop-Service Bangumi
-
-# 备份当前版本
-cd C:\bangumi
-Rename-Item -Path bangumi.exe -NewName bangumi.old.exe
-
-# 下载并安装新版本
-$LatestVersion = (Invoke-RestMethod -Uri "https://api.github.com/repos/bangumi-rs/bangumi/releases/latest").tag_name
-Invoke-WebRequest -Uri "https://github.com/bangumi-rs/bangumi/releases/download/$LatestVersion/bangumi-windows-x86_64.zip" -OutFile "bangumi.zip"
-Expand-Archive -Path bangumi.zip -DestinationPath .
-Remove-Item bangumi.zip
-
-# 启动服务
-Start-Service Bangumi
 ```
 
 ## 查看日志
@@ -352,26 +279,11 @@ cd ~/bangumi
 mv bangumi.db bangumi.db.bak
 ```
 
-```powershell
-# Windows
-cd C:\bangumi
-Rename-Item -Path bangumi.db -NewName bangumi.db.bak
-```
-
-### 内存不足
-
-对于低内存设备，可以调整配置以减少内存使用:
-
-```toml
-[downloader]
-max_concurrent_tasks = 1  # 减少并行下载任务数
-```
-
 ## 高级配置
 
 ### 使用外部数据库
 
-默认情况下，Bangumi-rs 使用 SQLite 数据库，但你也可以配置使用 MySQL 或 PostgreSQL:
+默认情况下，Bangumi-rs 使用 MySQL 数据库，但你也可以配置使用 PostgreSQL:
 
 ```toml
 [server]
@@ -402,36 +314,9 @@ token = "your-telegram-bot-token"
 chat_id = "your-chat-id"
 ```
 
-## 性能优化
-
-### 调整并发任务数
-
-根据系统性能调整并发下载任务数:
-
-```toml
-[downloader]
-max_concurrent_tasks = 3  # 默认值，可根据系统性能调整
-```
-
-### 使用 SSD 存储
-
-将数据库和下载目录放在 SSD 上可以提高性能:
-
-```toml
-[server]
-database_url = "sqlite:/path/to/ssd/bangumi.db"
-
-[downloader]
-download_dir = "/path/to/ssd/downloads"
-```
-
 ## 安全建议
 
 1. **不要暴露服务到公网**：默认配置只监听本地地址 (127.0.0.1)
 2. **使用非特权用户运行**：不要使用 root 或管理员账户运行服务
 3. **定期备份数据**：特别是数据库文件
 4. **保护配置文件**：配置文件可能包含敏感信息，确保适当的文件权限
-
-```
-
-```

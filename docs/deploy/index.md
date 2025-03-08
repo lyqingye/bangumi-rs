@@ -102,3 +102,4 @@ Docker 部署是最简单、最推荐的部署方式，它具有以下优势：
 - [Docker 部署指南](/deploy/docker): 使用 Docker 和 Docker Compose 部署
 - [本地二进制部署指南](/deploy/binary): 使用预编译的二进制文件部署
 - [源码编译部署指南](/deploy/source): 从源代码编译和部署
+
