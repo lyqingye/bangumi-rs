@@ -50,12 +50,12 @@ export default defineConfig({
         collapsed: false,
         items: [
           { text: '配置概览', link: '/configuration/' },
-          { text: '服务器配置', link: '/configuration/server' },
-          { text: '资源站点配置', link: '/configuration/sites' },
-          { text: '解析器配置', link: '/configuration/parser' },
-          { text: '下载器配置', link: '/configuration/downloader' },
+          { text: '服务配置', link: '/configuration/server' },
+          { text: '站点配置', link: '/configuration/sites' },
           { text: '通知配置', link: '/configuration/notification' },
           { text: '代理配置', link: '/configuration/proxy' },
+          { text: '解析器配置', link: '/configuration/parser' },
+          { text: '下载器配置', link: '/configuration/downloader' },
         ]
       },
       {

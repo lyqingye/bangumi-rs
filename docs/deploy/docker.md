@@ -50,13 +50,14 @@ docker-compose --version
 ```bash
 # 配置文件
 touch config.toml
+touch nginx.conf
 # 缓存目录
 mkdir assets
 # 数据库目录
 mkdir data
 ```
 
-添加以下配置:
+**添加以下配置 (config.toml):**
 
 ```toml
 # 服务器配置
@@ -123,6 +124,34 @@ chat_id = "your_chat_id"
 [parser.raw]
 enabled = true
 
+```
+**前端服务Nginx配置文件 (nginx.conf):**
+```conf
+server {
+    listen 80;
+    server_name localhost;
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    location /api {
+        proxy_pass http://backend:3001;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    location /ws {
+        proxy_pass http://backend:3001;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+    }
+}
 ```
 
 ## 创建 Docker Compose 配置文件
@@ -203,12 +232,12 @@ networks:
     driver: bridge
 ```
 
-**启动服务**
+## 启动服务
 
 ```bash
 docker-compose up -d
 ```
-**查看服务日志**
+## 查看服务日志
 ```bash
 docker-compose logs -f --tail 100 backend
 ```
