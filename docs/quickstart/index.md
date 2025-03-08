@@ -53,7 +53,7 @@ Bangumi-rs 需要访问以下网站，请确保你的网络环境能够正常连
 
 完成环境准备后，你可以选择：
 
-- [Docker 部署](/deployment/docker): 使用 Docker 快速部署
-- [本地部署](/deployment/local): 在本地系统直接安装运行
+- [Docker 部署](/deploy/docker): 使用 Docker 快速部署
+- [本地部署](/deploy/binary): 在本地系统直接安装运行
 - [基本使用](/quickstart/basic-usage): 了解基本使用方法
 
