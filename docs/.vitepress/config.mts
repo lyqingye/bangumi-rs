@@ -6,7 +6,7 @@ export default defineConfig({
   description: "基于 Rust + Vue 3 开发的动漫追番工具",
   lang: 'zh-CN',
   lastUpdated: true,
-  
+  base: '/bangumi-rs/',
   themeConfig: {
     // https://vitepress.dev/reference/default-theme-config
     logo: '/logo.png',
@@ -104,6 +104,6 @@ export default defineConfig({
     
     search: {
       provider: 'local'
-    }
+    },
   }
 })
