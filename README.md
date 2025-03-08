@@ -30,69 +30,85 @@
 <img src="docs/public/screenshot/home.png" width="90%" alt="home" style="box-shadow: 0 12px 32px rgba(0, 0, 0, 0.7); border-radius: 12px; margin: 20px 0;" />
 </div>
 
+<br>
 <p align="center">
-<b>Bangumi-rs</b> 是一款功能强大的动漫追番工具，支持订阅番剧、智能下载、在线播放等功能。<br>
+<b>Bangumi-rs</b> 是一款动漫追番工具，支持订阅番剧、智能下载、在线播放等功能。<br>
 采用 <b>Rust</b> 后端 + <b>Vue 3</b> 前端开发，高效稳定，界面美观。
 </p>
 <br>
 
-## ✨ 功能特性
+<h2 align="center">✨ 功能特性</h2>
 
 <table>
 <tr>
 <td width="50%">
 
-### 🎯 番剧订阅
+<div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 30px; margin: 30px 0;">
+  <div>
+    <h3>🎯 番剧订阅</h3>
+    <ul>
+      <li>✅ 支持订阅/取消订阅番剧</li>
+      <li>✅ 可配置分辨率、字幕组、字幕语言过滤条件</li>
+      <li>✅ 支持自定义订阅更新间隔</li>
+    </ul>
+  </div>
 
-- ✅ 支持订阅/取消订阅番剧
-- ✅ 可配置分辨率、字幕组、字幕语言过滤条件
-- ✅ 支持自定义订阅更新间隔
+  <div>
+    <h3>📥 智能下载</h3>
+    <ul>
+      <li>✅ 支持剧集偏移</li>
+      <li>✅ 自动选择最佳种子</li>
+      <li>✅ 支持用户手动选择要下载的剧集种子</li>
+      <li>✅ 支持 115 网盘离线下载</li>
+      <li>✅ 下载失败后会自动尝试其它种子</li>
+    </ul>
+  </div>
 
-### 🌐 资源站点
+  <div>
+    <h3>🌐 资源站点</h3>
+    <ul>
+      <li>✅ Mikan (<a href="https://mikanani.me/">https://mikanani.me/</a>)</li>
+      <li>🔜 更多站点支持中...</li>
+    </ul>
+  </div>
 
-- ✅ Mikan (https://mikanani.me/)
-- 🔜 更多站点支持中...
+  <div>
+    <h3>🎬 在线播放</h3>
+    <ul>
+      <li>✅ 支持 IINA, Infuse 播放器在线播放</li>
+    </ul>
+  </div>
 
-### 🔍 资源解析
+  <div>
+    <h3>🔍 资源解析</h3>
+    <ul>
+      <li>✅ 采用传统方式解析文件名</li>
+      <li>✅ 采用 ChatGPT 进行解析</li>
+      <li>✅ 支持多个 API 服务提供商: SiliconFlow、OpenAI、DeepSeek</li>
+    </ul>
+  </div>
 
-- ✅ 采用传统方式解析文件名
-- ✅ 采用 ChatGPT 进行解析
-- ✅ 支持多个 API 服务提供商:
-  - SiliconFlow
-  - OpenAI
-  - DeepSeek
+  <div>
+    <h3>📚 元数据管理</h3>
+    <ul>
+      <li>✅ 自动获取番剧信息</li>
+      <li>✅ 支持从多个数据源获取(TMDB、Bangumi.tv、Mikan)</li>
+      <li>✅ 支持手动刷新元数据</li>
+      <li>✅ 支持剧集、海报墙、封面等信息显示</li>
+    </ul>
+  </div>
+</div>
 
-</td>
-<td width="50%">
-
-### 📥 智能下载
-
-- ✅ 支持剧集偏移
-- ✅ 自动选择最佳种子
-- ✅ 支持用户手动选择要下载的剧集种子
-- ✅ 支持 115 网盘离线下载
-- ✅ 下载失败后会自动尝试其它种子
-
-### 🎬 在线播放
-
-- ✅ 支持 IINA, Infuse 播放器在线播放
-
-### 📚 元数据管理
-
-- ✅ 自动获取番剧信息
-- ✅ 支持从多个数据源获取(TMDB、Bangumi.tv、Mikan)
-- ✅ 支持手动刷新元数据
-- ✅ 支持剧集、海报墙、封面等信息显示
-
-### 🔔 通知提醒
-
-- ✅ 支持 Telegram 通知
-
-</td>
-</tr>
+<div style="margin: 30px 0;">
+  <h3 align="center">🔔 通知提醒</h3>
+  <p align="center">✅ 支持 Telegram 通知</p>
+</div>
 </table>
 
-## 🖼️ 更多截图
+<div align="center">
+  <h2>🖼️ 精彩截图</h2>
+  <p>优雅的界面设计，流畅的用户体验</p>
+</div>
 
 <div align="center">
 <table>
@@ -107,11 +123,31 @@
 </table>
 </div>
 
-## 🤝 贡献
+<br>
 
-欢迎提交 Pull Request 或创建 Issue！
+<div align="center">
+  <h2>🤝 贡献</h2>
+  <p>我们欢迎各种形式的贡献，一起让 Bangumi-rs 变得更好！</p>
+  
+  <a href="https://github.com/lyqingye/bangumi-rs/pulls">
+    <img src="https://img.shields.io/badge/提交PR-2ea44f?style=for-the-badge&logo=git&logoColor=white">
+  </a>
+  <a href="https://github.com/lyqingye/bangumi-rs/issues/new">
+    <img src="https://img.shields.io/badge/报告问题-1d76db?style=for-the-badge&logo=github&logoColor=white">
+  </a>
+  <a href="https://github.com/lyqingye/bangumi-rs/discussions">
+    <img src="https://img.shields.io/badge/参与讨论-8250df?style=for-the-badge&logo=github&logoColor=white">
+  </a>
+</div>
 
-## 📜 许可证
+<br>
 
-[MIT License](LICENSE)
+<div align="center">
+  <h2>📜 许可证</h2>
+  <p>本项目采用 MIT 许可证</p>
+  
+  <a href="LICENSE">
+    <img src="https://img.shields.io/badge/MIT License-yellow?style=for-the-badge&logo=license&logoColor=white">
+  </a>
+</div>
 
