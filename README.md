@@ -10,7 +10,16 @@
 
 </div>
 
-## 简介
+<div align="center">
+
+<a href="https://lyqingye.github.io/bangumi-rs/">
+  <img src="https://img.shields.io/badge/官方文档-4285F4?style=flat-square&logo=google-docs&logoColor=white&labelColor=4285F4&borderRadius=12">
+</a>
+<a href="https://lyqingye.github.io/bangumi-rs/quickstart/">
+  <img src="https://img.shields.io/badge/快速开始-34A853?style=flat-square&logo=clockify&logoColor=white&borderRadius=12">
+</a>
+
+</div>
 
 <div align="center">
 <img src="docs/public/screenshot/home.png" width="80%" alt="home" style="box-shadow: 0 12px 32px rgba(0, 0, 0, 0.7); border-radius: 8px; margin: 40px 0;" />
@@ -59,15 +68,6 @@
 
 - 🔔 通知提醒
   - 支持 Telegram 通知
-
-## 快速开始
-
-```shell
-mv config.example.toml config.toml
-docker-compose up -d
-```
-
-**Enjoy** 🌐: http://localhost:80
 
 ## 许可证
 
