@@ -10,6 +10,11 @@ on:
       - ".github/workflows/checks.yml"
   pull_request:
     branches: [main, master]
+    paths:
+      - "**.rs"
+      - "**/Cargo.toml"
+      - "**/Cargo.lock"
+      - ".github/workflows/checks.yml"
 
 env:
   CARGO_TERM_COLOR: always
