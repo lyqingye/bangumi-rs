@@ -34,6 +34,7 @@ pub struct Server {
 
 impl Server {
     pub async fn new(config: Config, config_writer: Box<dyn Writer>) -> Result<Self> {
+        config.validate()?;
         let state = Self::init_state(&config, config_writer).await?;
         Self::after_init(&state).await?;
         Ok(Self { config, state })

@@ -33,3 +33,14 @@ impl Writer for ConfigWriter {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_config_validate() {
+        let (config, _) = load_from_file("../../config.example.toml").unwrap();
+        config.validate().unwrap();
+    }
+}
