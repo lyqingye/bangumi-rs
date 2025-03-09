@@ -69,14 +69,6 @@ impl Db {
         self.batch_upsert(records).await
     }
 
-    /// 根据文件名查询所有记录（包括失败的记录）
-    pub async fn get_all_parse_records(
-        &self,
-        file_names: &[String],
-    ) -> Result<Vec<file_name_parse_record::Model>> {
-        self.list_by_file_names(file_names).await
-    }
-
     /// 根据状态查询解析结果
     pub async fn get_parse_results_by_status(
         &self,
@@ -99,7 +91,7 @@ impl Db {
         Ok(records)
     }
 
-    async fn list_by_file_names(
+    pub async fn list_by_file_names(
         &self,
         file_names: &[String],
     ) -> Result<Vec<file_name_parse_record::Model>> {
@@ -108,6 +100,13 @@ impl Db {
             .filter(Column::FileName.is_in(file_names))
             .all(db)
             .await?;
+        Ok(records)
+    }
+
+    #[cfg(test)]
+    pub async fn list_all(&self) -> Result<Vec<file_name_parse_record::Model>> {
+        let db = self.conn();
+        let records = FileNameParseRecord::find().all(db).await?;
         Ok(records)
     }
 

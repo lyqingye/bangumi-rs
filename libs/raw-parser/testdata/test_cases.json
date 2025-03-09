@@ -139,6 +139,20 @@
         "resolution": "1080P",
         "sub_type": ["CHS", "JPN"]
       }
+    },
+    {
+      "description": "Example2",
+      "input": "[Skymoon-Raws] 我独自升级 第二季 -起于暗影- / Ore dake Level Up na Ken Season 2 -10 [ViuTV][WEB-DL][1080p][AVC AAC]",
+      "expected": {
+        "name_en": "Ore dake Level Up na Ken",
+        "name_zh": "我独自升级",
+        "name_jp": null,
+        "episode": 10,
+        "season": 2,
+        "subtitle_group": "Skymoon-Raws",
+        "resolution": "1080P",
+        "sub_type": []
+      }
     }
   ]
 }

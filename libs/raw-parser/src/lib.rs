@@ -34,8 +34,8 @@ mod tests {
     #[test]
     fn test_example() {
         let parser = Parser::new();
-        let result = parser.parse("[Up to 21°C] 最弱技能《果实大师》 ～关于能无限食用技能果实（吃了就会死）这件事～ / Hazure Skill 'Kinomi Master' - 02 (CR 1920x1080 AVC AAC MKV)").unwrap();
-        println!("{:?}", result);
+        let result = parser.parse("[Lilith-Raws] 盾之勇者成名录 Season 3 / Tate no Yuusha no Nariagari S3 - 01 [Baha][WEB-DL][1080p][AVC AAC][CHT][MP4].mp4").unwrap();
+        println!("Result: {:?}", result);
     }
 
     #[test]

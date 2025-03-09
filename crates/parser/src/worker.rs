@@ -143,7 +143,7 @@ impl Worker {
             .collect();
 
         // 先查询所有记录（包括失败的记录）
-        let all_records = self.db.get_all_parse_records(&file_names).await?;
+        let all_records = self.db.list_by_file_names(&file_names).await?;
 
         // 创建已存在文件的快速查找集合（除了 Pending 和 Error 状态的记录）, 意味着会重试
         let mut completed_results = Vec::new();
@@ -306,6 +306,32 @@ mod tests {
 
         let results = worker.parse_file_names(file_names).await?;
         println!("解析结果: {:#?}", results);
+        Ok(())
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn test_raw_parser() -> Result<()> {
+        dotenv::dotenv()?;
+        tracing_subscriber::fmt()
+            .with_max_level(tracing::Level::DEBUG)
+            .with_target(true)
+            .init();
+
+        let db = Db::new_from_env().await?;
+        let parser = crate::impls::raw::Raw::new();
+        let records = db.list_all().await?;
+        let mut success_count = 0;
+        for record in records {
+            let file_name = record.file_name.clone();
+            let result = parser.parse_file_names(vec![file_name.clone()]).await?;
+            if result.is_empty() {
+                println!("解析失败: {}", file_name);
+            } else {
+                success_count += 1;
+            }
+        }
+        println!("成功解析: {}", success_count);
         Ok(())
     }
 }
