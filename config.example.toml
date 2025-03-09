@@ -72,4 +72,4 @@ model = "gpt-4"
 
 # 原生解析器
 [parser.raw]
-enabled = false
+enabled = true

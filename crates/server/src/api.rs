@@ -711,8 +711,14 @@ pub async fn update_config(
     body: Json<Config>,
 ) -> Result<Json<Resp<()>>, ServerError> {
     let mut config = state.config.write().unwrap();
-    *config = body.into_inner();
-    state.config_writer.write(&config)?;
+    let new_config = body.into_inner();
+    match new_config.validate() {
+        Ok(_) => {
+            *config = new_config;
+            state.config_writer.write(&config)?;
+        }
+        Err(e) => return Err(ServerError::Internal(e)),
+    }
     Ok(Json(Resp::ok(())))
 }
 
