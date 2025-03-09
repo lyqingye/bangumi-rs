@@ -34,7 +34,7 @@ mod tests {
     #[test]
     fn test_example() {
         let parser = Parser::new();
-        let result = parser.parse("[Lilith-Raws] 盾之勇者成名录 Season 3 / Tate no Yuusha no Nariagari S3 - 01 [Baha][WEB-DL][1080p][AVC AAC][CHT][MP4].mp4").unwrap();
+        let result = parser.parse("【幻樱字幕组】【7月新番】【异世界舅舅 Isekai Ojisan】【01_先行版】【BIG5_MP4】【1280X720】").unwrap();
         println!("Result: {:?}", result);
     }
 
