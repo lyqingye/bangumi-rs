@@ -458,8 +458,6 @@ impl Writer for NopWriter {
     }
 }
 
-/// Validate utils
-
 fn validate_url(url: &str, field_name: &str) -> Result<()> {
     let _ = Url::parse(url)
         .map_err(|e| anyhow::anyhow!("{}:{} 不是有效的 URL: {}", field_name, url, e))?;
