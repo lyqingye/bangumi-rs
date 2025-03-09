@@ -75,6 +75,7 @@ impl Db {
                 backdrop_image_url: Set(bgm.backdrop_image_url),
                 poster_image_url: Set(bgm.poster_image_url),
                 season_number: Set(bgm.season_number),
+                ep_start_number: Set(bgm.ep_start_number),
                 bgm_kind: Set(bgm.bgm_kind),
                 ..Default::default()
             })
