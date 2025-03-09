@@ -330,6 +330,16 @@ impl Worker {
 
         // 收集剧集列表
         let episodes = self.fetcher.collect_episodes(&bgm).await?;
+
+        // 剧集开始集数
+        bgm.ep_start_number = episodes
+            .data
+            .iter()
+            .filter(|e| e.get_ep().is_some())
+            .min_by_key(|e| e.get_ep().unwrap())
+            .map(|e| e.get_ep().unwrap())
+            .unwrap_or(1);
+
         self.db.save_bangumi_tv_episodes(&bgm, episodes).await?;
         self.db.update_bangumi(bgm).await?;
 
