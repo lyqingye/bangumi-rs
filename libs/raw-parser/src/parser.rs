@@ -10,7 +10,8 @@ lazy_static! {
 
     // 匹配标题格式的正则表达式，包含标题、集数和其他信息
     static ref TITLE_PATTERN: Regex = Regex::new(
-        r"(.*?)(-\s*\d+|\s+-\s*\d+|\[\d+]|\[\d+_先行版?]|\[\d+.?[vV]\d]|第\d+[话話集]|\[第?\d+[话話集]]|\[\d+.?END]|[Ee][Pp]?\d+|\s+\d+)(.*)"
+        r"(?:\[([^\]]+)\])?(?P<season>.*|\[.*])(?P<episode>\(\d{1,3}\)| -? \d+| -\d+|\[\d+]|\[\d+.?[vV]\d]|第\d+[话話集]|\[第?\d+[话話集]]|\[\d+.?END]|[Ee][Pp]?\d+|\[?特[別别]篇\]?|\[?[總总]集篇\]?| \d+ |\d{1,4}-\d{1,4}|合集)(?P<others>.*)"
+        // r"(.*|\[.*])(-\s*\d+|\s+-\s*\d+|\[\d+]|\[\d+_先行版?]|\[\d+.?[vV]\d]|第\d+[话話集]|\[第?\d+[话話集]]|\[\d+.?END]|[Ee][Pp]?\d+)(.*)"
     ).unwrap();
 
     // 匹配视频分辨率的正则表达式
@@ -68,7 +69,10 @@ impl Parser {
 
     /// 预处理文件名，将中文方括号转换为英文方括号
     fn pre_process(raw_name: &str) -> String {
-        raw_name.replace('【', "[").replace('】', "]")
+        raw_name
+            .replace('【', "[")
+            .replace('】', "]")
+            .replace("～", "~")
     }
 
     /// 处理文件名前缀，移除字幕组信息和无关标记
@@ -263,11 +267,11 @@ impl Parser {
             .captures(&content_title_without_season)
             .ok_or_else(|| anyhow!("无法解析标题格式"))?;
 
-        let title_info = captures.get(1).map(|m| m.as_str().trim()).unwrap_or("");
+        let title_info = captures.get(2).map(|m| m.as_str().trim()).unwrap_or("");
 
-        let episode_info = captures.get(2).map(|m| m.as_str().trim()).unwrap_or("");
+        let episode_info = captures.get(3).map(|m| m.as_str().trim()).unwrap_or("");
 
-        let other = captures.get(3).map(|m| m.as_str().trim()).unwrap_or("");
+        let other = captures.get(4).map(|m| m.as_str().trim()).unwrap_or("");
 
         // 处理前缀
         let process_raw = Self::prefix_process(title_info, &group);

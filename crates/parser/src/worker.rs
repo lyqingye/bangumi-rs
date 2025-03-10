@@ -329,6 +329,12 @@ mod tests {
                 println!("解析失败: {}", file_name);
             } else {
                 success_count += 1;
+                if record.episode_number != result[0].episode {
+                    println!(
+                        "解析失败: {} expected: {:?} actual: {:?}",
+                        file_name, record.episode_number, result[0].episode
+                    );
+                }
             }
         }
         println!("成功解析: {}", success_count);

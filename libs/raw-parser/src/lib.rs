@@ -34,7 +34,7 @@ mod tests {
     #[test]
     fn test_example() {
         let parser = Parser::new();
-        let result = parser.parse("【幻樱字幕组】【7月新番】【异世界舅舅 Isekai Ojisan】【01_先行版】【BIG5_MP4】【1280X720】").unwrap();
+        let result = parser.parse("[ANi]  超超超超超喜欢你的 100 个女朋友 - 21 [1080P][Baha][WEB-DL][AAC AVC][CHT][MP4]").unwrap();
         println!("Result: {:?}", result);
     }
 
