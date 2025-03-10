@@ -223,9 +223,81 @@
         "resolution": "1080P",
         "sub_type": ["CHT"]
       }
+    },
+    {
+      "description": "带有 - 10bit 的格式测试",
+      "input": "[动漫国字幕组&LoliHouse] THE MARGINAL SERVICE - 08 - 10bit [WebRip 1080p HEVC AAC][简繁内封字幕].mp4",
+      "expected": {
+        "name_en": "THE MARGINAL SERVICE",
+        "name_zh": null,
+        "name_jp": null,
+        "episode": 8,
+        "season": null,
+        "subtitle_group": "动漫国字幕组&LoliHouse",
+        "resolution": "1080P",
+        "sub_type": ["CHS", "CHT"]
+      }
+    },
+    {
+      "description": "带有 - fps 的格式测试",
+      "input": "[动漫国字幕组&LoliHouse] THE MARGINAL SERVICE - 08 - 60fps [WebRip 1080p HEVC AAC][简繁内封字幕].mp4",
+      "expected": {
+        "name_en": "THE MARGINAL SERVICE",
+        "name_zh": null,
+        "name_jp": null,
+        "episode": 8,
+        "season": null,
+        "subtitle_group": "动漫国字幕组&LoliHouse",
+        "resolution": "1080P",
+        "sub_type": ["CHS", "CHT"]
+      }
+    },
+    {
+      "description": "带有 - 10bit - 60fps 的格式测试",
+      "input": "[动漫国字幕组&LoliHouse] THE MARGINAL SERVICE - 08 - 10bit - 60fps [WebRip 1080p HEVC AAC][简繁内封字幕].mp4",
+      "expected": {
+        "name_en": "THE MARGINAL SERVICE",
+        "name_zh": null,
+        "name_jp": null,
+        "episode": 8,
+        "season": null,
+        "subtitle_group": "动漫国字幕组&LoliHouse",
+        "resolution": "1080P",
+        "sub_type": ["CHS", "CHT"]
+      }
+    },
+    {
+      "description": "带有 - 10-bit - 60-fps 的格式测试",
+      "input": "[动漫国字幕组&LoliHouse] THE MARGINAL SERVICE - 08 - 10-bit - 60-fps [WebRip 1080p HEVC AAC][简繁内封字幕].mp4",
+      "expected": {
+        "name_en": "THE MARGINAL SERVICE",
+        "name_zh": null,
+        "name_jp": null,
+        "episode": 8,
+        "season": null,
+        "subtitle_group": "动漫国字幕组&LoliHouse",
+        "resolution": "1080P",
+        "sub_type": ["CHS", "CHT"]
+      }
+    },
+    {
+      "description": "剧集后面跟[符号",
+      "input": "[动漫国字幕组&LoliHouse] THE MARGINAL SERVICE - 08[WebRip 1080p HEVC AAC][简繁内封字幕].mp4",
+      "expected": {
+        "name_en": "THE MARGINAL SERVICE",
+        "name_zh": null,
+        "name_jp": null,
+        "episode": 8,
+        "season": null,
+        "subtitle_group": "动漫国字幕组&LoliHouse",
+        "resolution": "1080P",
+        "sub_type": ["CHS", "CHT"]
+      }
     }
   ]
 }
+
+
 
 
 
