@@ -10,7 +10,8 @@ lazy_static! {
 
     // 匹配标题格式的正则表达式，包含标题、集数和其他信息
     static ref TITLE_PATTERN: Regex = Regex::new(
-        r"(?:\[([^\]]+)\])?(?P<season>.*|\[.*])(?P<episode>\(\d{1,3}\)| -? \d+| -\d+|\[\d+]|\[\d+.?[vV]\d]|第\d+[话話集]|\[第?\d+[话話集]]|\[\d+.?END]|[Ee][Pp]?\d+|\[?特[別别]篇\]?|\[?[總总]集篇\]?| \d+ |\d{1,4}-\d{1,4}|合集)(?P<others>.*)"
+        // r"(?:\[([^\]]+)\])?(?P<season>.*|\[.*])(?P<episode>\(\d{1,3}\)|\[\d+]|\[\d+.?[vV]\d]|第\d+[话話集]|\[第?\d+[话話集]]|\[\d+.?END]|[Ee][Pp]?\d+|\[?特[別别]篇\]?|\[?[總总]集篇\]?|\d{1,4}-\d{1,4}|合集| -? ?\d+(?:[Ee][Nn][Dd]|[vV]\d)?(?:[ \]\[-]|$))(?P<others>.*)"
+        r"(?:\[([^\]]+)\])?(?P<season>.*|\[.*])(?P<episode>\(\d{1,3}\)|\[\d+]|\[\d+.?[vV]\d]|第\d+[话話集]|\[第?\d+[话話集]]|\[\d+.?END]|[Ee][Pp]?\d+|\[?特[別别]篇\]?|\[?[總总]集篇\]?|\d{1,4}-\d{1,4}|合集| -? ?\d+(?:[Ee][Nn][Dd]|[vV]\d)?(?:[ \]\[-]|$))(?P<others>.*)"
         // r"(.*|\[.*])(-\s*\d+|\s+-\s*\d+|\[\d+]|\[\d+_先行版?]|\[\d+.?[vV]\d]|第\d+[话話集]|\[第?\d+[话話集]]|\[\d+.?END]|[Ee][Pp]?\d+)(.*)"
     ).unwrap();
 
@@ -50,6 +51,9 @@ lazy_static! {
 
     // 匹配英文字符的正则表达式
     static ref EN_PATTERN: Regex = Regex::new(r"[a-zA-Z]{3,}").unwrap();
+
+    // 匹配技术规格的正则表达式，需要去掉，免得影响匹配集数
+    static ref TECHNICAL_SPECS_PATTERN: Regex = Regex::new(r"\d+(?:-)?(?:fps|bit|kHz|Hz)").unwrap();
 }
 
 /// 动画文件名解析器
@@ -69,10 +73,15 @@ impl Parser {
 
     /// 预处理文件名，将中文方括号转换为英文方括号
     fn pre_process(raw_name: &str) -> String {
-        raw_name
+        let processed = raw_name
             .replace('【', "[")
             .replace('】', "]")
-            .replace("～", "~")
+            .replace("～", "~");
+
+        // 移除帧率、比特率等技术规格标记
+        TECHNICAL_SPECS_PATTERN
+            .replace_all(&processed, "")
+            .into_owned()
     }
 
     /// 处理文件名前缀，移除字幕组信息和无关标记
