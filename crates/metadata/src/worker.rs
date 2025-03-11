@@ -449,9 +449,13 @@ impl Worker {
         let mut torrents = Vec::new();
 
         for provider in self.providers.iter() {
-            let result = provider.search_torrents(&bgm).await?;
-            if !result.is_empty() {
-                torrents.extend(result);
+            match provider.search_torrents(&bgm).await {
+                Ok(result) => {
+                    torrents.extend(result);
+                }
+                Err(e) => {
+                    error!("[{}] 收集种子信息失败: {}", provider.name(), e);
+                }
             }
         }
 

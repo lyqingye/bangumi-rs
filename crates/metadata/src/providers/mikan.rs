@@ -38,6 +38,10 @@ impl TorrentProvider for MikanProvider {
             }
         }
     }
+
+    fn name(&self) -> &str {
+        "Mikan"
+    }
 }
 
 impl MikanProvider {
