@@ -11,7 +11,8 @@ use model::sea_orm_active_enums::BgmKind;
 
 use crate::{
     db::Db, fetcher::Fetcher, matcher::Matcher, mdb_bgmtv::MdbBgmTV, mdb_mikan::MdbMikan,
-    mdb_tmdb::MdbTmdb, metrics, MetadataAttr, MetadataAttrSet, MetadataDb,
+    mdb_tmdb::MdbTmdb, metrics, providers::mikan::MikanProvider, MetadataAttr, MetadataAttrSet,
+    MetadataDb, TorrentProvider,
 };
 
 const REFRESH_COOLDOWN: i64 = 1; // minutes
@@ -48,6 +49,7 @@ pub struct Worker {
     matcher: Matcher,
     assets_path: String,
     metrics: Arc<RwLock<metrics::Metrics>>,
+    providers: Arc<Vec<Box<dyn TorrentProvider>>>,
 }
 
 impl Worker {
@@ -58,6 +60,7 @@ impl Worker {
         fetcher: Fetcher,
         dict: dict::Dict,
         assets_path: String,
+        providers: Arc<Vec<Box<dyn TorrentProvider>>>,
     ) -> Self {
         let matcher = Matcher::new(fetcher.tmdb.clone(), fetcher.bgm_tv.clone(), mikan.clone());
         Self {
@@ -70,6 +73,7 @@ impl Worker {
             matcher,
             assets_path,
             metrics: Arc::new(RwLock::new(metrics::Metrics::default())),
+            providers,
         }
     }
 
@@ -80,21 +84,33 @@ impl Worker {
         fetcher: Fetcher,
         dict: dict::Dict,
         assets_path: String,
+        providers: Arc<Vec<Box<dyn TorrentProvider>>>,
     ) -> Result<Self> {
         let db = Db::new(conn);
-        Ok(Self::new(db, client, mikan, fetcher, dict, assets_path))
+        Ok(Self::new(
+            db,
+            client,
+            mikan,
+            fetcher,
+            dict,
+            assets_path,
+            providers,
+        ))
     }
 
     pub async fn new_from_env() -> Result<Self> {
         let db = Db::new_from_env().await?;
         let assets_path = std::env::var("ASSETS_PATH")?;
+        let mikan = mikan::client::Client::from_env()?;
+        let mikan_provider = MikanProvider::new(mikan.clone());
         Ok(Self::new(
             db,
             reqwest::Client::new(),
-            mikan::client::Client::from_env()?,
+            mikan,
             Fetcher::new_from_env()?,
             dict::Dict::new_from_env().await?,
             assets_path,
+            Arc::new(vec![Box::new(mikan_provider)]),
         ))
     }
 
@@ -430,7 +446,16 @@ impl Worker {
 
         info!("正在收集番剧 {} 的种子信息", bgm.name);
 
-        let torrents = self.fetcher.collect_torrents(&bgm).await?;
+        let mut torrents = Vec::new();
+
+        for provider in self.providers.iter() {
+            let result = provider.search_torrents(&bgm).await?;
+            if !result.is_empty() {
+                torrents.extend(result);
+            }
+        }
+
+        torrents.dedup_by_key(|t| t.info_hash.clone());
 
         if torrents.is_empty() {
             info!("未找到番剧 {} 的种子信息", bgm.name);
@@ -439,15 +464,16 @@ impl Worker {
 
         info!("已收集 {} 个番剧 {} 的种子信息", torrents.len(), bgm.name);
 
-        self.db.save_mikan_torrents(bgm.id, &torrents).await?;
-
         // 获取torrents中最新的种子对应的发布时间
-        let latest_torrent = torrents.into_iter().max_by_key(|t| t.pub_date);
+        let latest_torrent = torrents.iter().max_by_key(|t| t.pub_date);
         if let Some(torrent) = latest_torrent {
-            if let Some(pub_date) = torrent.pub_date {
-                self.db.update_bangumi_update_time(bgm.id, pub_date).await?;
-            }
+            self.db
+                .update_bangumi_update_time(bgm.id, torrent.pub_date)
+                .await?;
         }
+
+        self.db.batch_upsert_torrent(torrents).await?;
+
         Ok(())
     }
 

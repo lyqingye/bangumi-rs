@@ -9,7 +9,7 @@ use sea_orm::{
 };
 
 use bangumi_tv::model::EpisodeList;
-use mikan::client::{Calendar, EpisodeItem};
+use mikan::client::Calendar;
 use model::{bangumi, episodes, torrents};
 
 #[derive(Clone)]
@@ -280,38 +280,6 @@ impl Db {
         )
         .exec(db)
         .await?;
-        Ok(())
-    }
-
-    pub async fn save_mikan_torrents(
-        &self,
-        bangumi_id: i32,
-        torrents: &[EpisodeItem],
-    ) -> Result<()> {
-        if torrents.is_empty() {
-            return Ok(());
-        }
-
-        let models: Vec<torrents::Model> = torrents
-            .iter()
-            .filter_map(|t| {
-                t.pub_date.map(|pub_date| torrents::Model {
-                    bangumi_id,
-                    title: t.file_name.clone().unwrap_or_default(),
-                    size: t.file_size as i64,
-                    info_hash: t.info_hash.clone(),
-                    magnet: t.magnet_link.clone(),
-                    data: None,
-                    download_url: t.torrent_download_url.as_ref().map(|url| url.to_string()),
-                    pub_date,
-                })
-            })
-            .collect();
-
-        if !models.is_empty() {
-            self.batch_upsert_torrent(models).await?;
-        }
-
         Ok(())
     }
 }

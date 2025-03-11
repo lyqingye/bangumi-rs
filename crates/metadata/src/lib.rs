@@ -76,6 +76,6 @@ pub trait MetadataDb {
 }
 
 #[async_trait]
-pub trait TorrentProvider {
+pub trait TorrentProvider: Send + Sync {
     async fn search_torrents(&self, bgm: &bangumi::Model) -> Result<Vec<model::torrents::Model>>;
 }

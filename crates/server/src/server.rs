@@ -1,6 +1,7 @@
 use actix_cors::Cors;
 use actix_web::{App, HttpServer};
 use dict::DictCode;
+use metadata::providers::mikan::MikanProvider;
 use parser::Parser;
 use std::sync::{Arc, RwLock};
 use std::{net::SocketAddr, path::PathBuf, str::FromStr};
@@ -95,6 +96,9 @@ impl Server {
         }
         notify_worker.spawn().await?;
 
+        // Torrent Providers
+        let mikan_provider = MikanProvider::new(mikan.clone());
+
         // Metadata Worker
         let mut metadata_worker = metadata::worker::Worker::new_with_conn(
             db.conn_pool(),
@@ -103,6 +107,7 @@ impl Server {
             metadata::fetcher::Fetcher::new(tmdb, bgm_tv, mikan.clone(), client.clone()),
             dict.clone(),
             config.server.assets_path.clone(),
+            Arc::new(vec![Box::new(mikan_provider)]),
         )?;
         metadata_worker.spawn()?;
 

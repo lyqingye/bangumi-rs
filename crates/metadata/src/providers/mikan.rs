@@ -1,8 +1,8 @@
 use crate::TorrentProvider;
 use anyhow::Result;
 use async_trait::async_trait;
-use model::{bangumi, torrents};
-use tracing::warn;
+use model::{bangumi, sea_orm_active_enums::Source, torrents};
+use tracing::{info, warn};
 
 pub struct MikanProvider {
     pub mikan: mikan::client::Client,
@@ -11,6 +11,7 @@ pub struct MikanProvider {
 #[async_trait]
 impl TorrentProvider for MikanProvider {
     async fn search_torrents(&self, bgm: &bangumi::Model) -> Result<Vec<torrents::Model>> {
+        info!("[Mikan] 搜索番剧 {} 的种子", bgm.name);
         match bgm.mikan_id {
             Some(id) => Ok(self
                 .mikan
@@ -27,7 +28,7 @@ impl TorrentProvider for MikanProvider {
                         data: None,
                         download_url: t.torrent_download_url.as_ref().map(|url| url.to_string()),
                         pub_date,
-                        // TODO source
+                        source: Source::Mikan,
                     })
                 })
                 .collect()),
@@ -36,5 +37,16 @@ impl TorrentProvider for MikanProvider {
                 Ok(vec![])
             }
         }
+    }
+}
+
+impl MikanProvider {
+    pub fn new(mikan: mikan::client::Client) -> Self {
+        Self { mikan }
+    }
+
+    pub fn new_from_env() -> Result<Self> {
+        let mikan = mikan::client::Client::from_env()?;
+        Ok(Self { mikan })
     }
 }
