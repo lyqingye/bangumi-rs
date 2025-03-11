@@ -94,8 +94,6 @@ max_requests_per_second = 1
 
 ::: warning 注意
 获取文档可以参考: https://alist.nn.ci/zh/guide/drivers/115.html#cookie%E8%8E%B7%E5%8F%96%E6%96%B9%E5%BC%8F
-
-Cookies 包含敏感信息，不要将其提交到版本控制系统。建议使用环境变量注入。
 :::
 
 ### 最大请求频率 (max_requests_per_second)
@@ -106,6 +104,6 @@ Cookies 包含敏感信息，不要将其提交到版本控制系统。建议使
 - **示例**: `max_requests_per_second = 2`
 
 ::: tip 提示
-115 网盘 API 有请求频率限制，设置过高可能导致被临时封禁。
+115 网盘 API 有请求频率限制，设置过高可能导致被临时封禁 1 小时。
 :::
 
