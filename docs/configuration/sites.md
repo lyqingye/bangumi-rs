@@ -97,10 +97,6 @@ language = "zh-CN"
 你需要在 [TMDB 官网](https://www.themoviedb.org/settings/api) 注册并获取 API 密钥。
 :::
 
-::: warning 注意
-API 密钥是敏感信息，不要将其提交到版本控制系统。建议使用环境变量注入。
-:::
-
 ### 基础 URL (base_url)
 
 - **说明**: TMDB API 的基础 URL

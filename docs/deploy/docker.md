@@ -154,7 +154,7 @@ server {
 }
 ```
 
-## 创建 Docker Compose 配置文件
+## 创建 docker-compose.yml 配置文件
 
 ```yaml
 version: "3.8"
@@ -275,5 +275,5 @@ docker-compose logs -f --tail 100 backend
     networks:
       - bangumi-network
 ```
-完整的配置文件可以参考:
+完整的`docker-compose.yml`可以参考:
 https://github.com/lyqingye/bangumi-rs/blob/master/docker-compose.yml
