@@ -208,6 +208,7 @@ impl Db {
                 TorrentColumn::InfoHash,
                 TorrentColumn::Magnet,
                 TorrentColumn::PubDate,
+                TorrentColumn::Source,
             ])
             .filter(TorrentColumn::BangumiId.eq(bangumi_id))
             .join(
@@ -436,7 +437,7 @@ mod tests {
             .with_target(true)
             .init();
         let db = Db::new_from_env().await?;
-        let torrents = db.get_bangumi_torrents_with_parse_results(91).await?;
+        let torrents = db.get_bangumi_torrents_with_parse_results(478).await?;
         let info_hashes = torrents
             .iter()
             .map(|t| t.0.info_hash.clone())
