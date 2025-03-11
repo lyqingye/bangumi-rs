@@ -277,7 +277,8 @@ const searchQuery = ref('')
 const searchResults = ref<MikanSearchResultItem[]>([])
 const searching = ref(false)
 const searchError = ref('')
-const showSearchResults = computed(() => searchQuery.value.trim() !== '' && searchResults.value.length > 0)
+const hasSearched = ref(false)
+const showSearchResults = computed(() => searchQuery.value.trim() !== '' && hasSearched.value)
 
 const filteredCalendarItems = computed(() => {
   if (selectedWeekday.value === '-1') {
@@ -338,6 +339,7 @@ const handleSearch = async () => {
   
   searching.value = true
   searchError.value = ''
+  hasSearched.value = true
   
   try {
     searchResults.value = await searchBangumiAtMikan(searchQuery.value.trim())
@@ -354,6 +356,7 @@ const clearSearch = () => {
   searchQuery.value = ''
   searchResults.value = []
   searchError.value = ''
+  hasSearched.value = false
 }
 
 // 处理搜索结果点击
