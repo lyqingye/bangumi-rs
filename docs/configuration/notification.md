@@ -43,10 +43,6 @@ chat_id = "123456789"
 你需要通过 [@BotFather](https://t.me/BotFather) 创建一个 Telegram Bot 并获取 Token。
 :::
 
-::: warning 注意
-Bot Token 是敏感信息，不要将其提交到版本控制系统。建议使用环境变量注入。
-:::
-
 ### 聊天 ID (chat_id)
 
 - **说明**: 接收通知的聊天 ID

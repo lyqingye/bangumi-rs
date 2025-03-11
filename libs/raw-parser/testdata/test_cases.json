@@ -89,7 +89,7 @@
       "input": "[喵萌Production&LoliHouse] 无职转生 ～在异世界认真地活下去～ 第二季 / Mushoku Tensei S2 - 00 [WebRip 1080p HEVC-10bit AAC][简繁内封字幕].mp4",
       "expected": {
         "name_en": "Mushoku Tensei",
-        "name_zh": "无职转生 ～在异世界认真地活下去～",
+        "name_zh": "无职转生 ~在异世界认真地活下去~",
         "name_jp": null,
         "episode": 0,
         "season": 2,
@@ -153,7 +153,153 @@
         "resolution": "1080P",
         "sub_type": []
       }
+    },
+    {
+      "description": "Example3",
+      "input": "[Up to 21°C] 战队红战士在异世界当冒险者 / Sentai Red Isekai de Boukensha ni Naru - 09 (CR 1920x1080 AVC AAC MKV)",
+      "expected": {
+        "name_en": "Sentai Red Isekai de Boukensha ni Naru",
+        "name_zh": "战队红战士在异世界当冒险者",
+        "name_jp": null,
+        "episode": 9,
+        "season": null,
+        "subtitle_group": "Up to 21°C",
+        "resolution": "1080P",
+        "sub_type": []
+      }
+    },
+    {
+      "description": "Example4",
+      "input": "[ANi]  超超超超超喜欢你的 100 个女朋友 - 21 [1080P][Baha][WEB-DL][AAC AVC][CHT][MP4]",
+      "expected": {
+        "name_en": null,
+        "name_zh": "超超超超超喜欢你的",
+        "name_jp": null,
+        "episode": 21,
+        "season": null,
+        "subtitle_group": "ANi",
+        "resolution": "1080P",
+        "sub_type": ["CHT"]
+      }
+    },
+    {
+      "description": "Example5",
+      "input": "[AnimeRep] 一个人的异世界攻略 / Loner Life in Another World- 01 [1080p][简中内嵌]",
+      "expected": {
+        "name_en": "Loner Life in Another World",
+        "name_zh": "一个人的异世界攻略",
+        "name_jp": null,
+        "episode": 1,
+        "season": null,
+        "subtitle_group": "AnimeRep",
+        "resolution": "1080P",
+        "sub_type": ["CHS"]
+      }
+    },
+    {
+      "description": "Example7",
+      "input": "[Up to 21°C] 战队红战士在异世界当冒险者 / Sentai Red Isekai de Boukensha ni Naru - 09 (CR 1920x1080 AVC AAC MKV)",
+      "expected": {
+        "name_en": "Sentai Red Isekai de Boukensha ni Naru",
+        "name_zh": "战队红战士在异世界当冒险者",
+        "name_jp": null,
+        "episode": 9,
+        "season": null,
+        "subtitle_group": "Up to 21°C",
+        "resolution": "1080P",
+        "sub_type": []
+      }
+    },
+    {
+      "description": "Example8",
+      "input": "[TOC] 最弱技能《果实大师》 ～关于能无限食用技能果实（吃了就会死）这件事～ 01 [1080P][AVC AAC][CHT][MP4]",
+      "expected": {
+        "name_en": null,
+        "name_zh": "最弱技能《果实大师》",
+        "name_jp": null,
+        "episode": 1,
+        "season": null,
+        "subtitle_group": "TOC",
+        "resolution": "1080P",
+        "sub_type": ["CHT"]
+      }
+    },
+    {
+      "description": "带有 - 10bit 的格式测试",
+      "input": "[动漫国字幕组&LoliHouse] THE MARGINAL SERVICE - 08 - 10bit [WebRip 1080p HEVC AAC][简繁内封字幕].mp4",
+      "expected": {
+        "name_en": "THE MARGINAL SERVICE",
+        "name_zh": null,
+        "name_jp": null,
+        "episode": 8,
+        "season": null,
+        "subtitle_group": "动漫国字幕组&LoliHouse",
+        "resolution": "1080P",
+        "sub_type": ["CHS", "CHT"]
+      }
+    },
+    {
+      "description": "带有 - fps 的格式测试",
+      "input": "[动漫国字幕组&LoliHouse] THE MARGINAL SERVICE - 08 - 60fps [WebRip 1080p HEVC AAC][简繁内封字幕].mp4",
+      "expected": {
+        "name_en": "THE MARGINAL SERVICE",
+        "name_zh": null,
+        "name_jp": null,
+        "episode": 8,
+        "season": null,
+        "subtitle_group": "动漫国字幕组&LoliHouse",
+        "resolution": "1080P",
+        "sub_type": ["CHS", "CHT"]
+      }
+    },
+    {
+      "description": "带有 - 10bit - 60fps 的格式测试",
+      "input": "[动漫国字幕组&LoliHouse] THE MARGINAL SERVICE - 08 - 10bit - 60fps [WebRip 1080p HEVC AAC][简繁内封字幕].mp4",
+      "expected": {
+        "name_en": "THE MARGINAL SERVICE",
+        "name_zh": null,
+        "name_jp": null,
+        "episode": 8,
+        "season": null,
+        "subtitle_group": "动漫国字幕组&LoliHouse",
+        "resolution": "1080P",
+        "sub_type": ["CHS", "CHT"]
+      }
+    },
+    {
+      "description": "带有 - 10-bit - 60-fps 的格式测试",
+      "input": "[动漫国字幕组&LoliHouse] THE MARGINAL SERVICE - 08 - 10-bit - 60-fps [WebRip 1080p HEVC AAC][简繁内封字幕].mp4",
+      "expected": {
+        "name_en": "THE MARGINAL SERVICE",
+        "name_zh": null,
+        "name_jp": null,
+        "episode": 8,
+        "season": null,
+        "subtitle_group": "动漫国字幕组&LoliHouse",
+        "resolution": "1080P",
+        "sub_type": ["CHS", "CHT"]
+      }
+    },
+    {
+      "description": "剧集后面跟[符号",
+      "input": "[动漫国字幕组&LoliHouse] THE MARGINAL SERVICE - 08[WebRip 1080p HEVC AAC][简繁内封字幕].mp4",
+      "expected": {
+        "name_en": "THE MARGINAL SERVICE",
+        "name_zh": null,
+        "name_jp": null,
+        "episode": 8,
+        "season": null,
+        "subtitle_group": "动漫国字幕组&LoliHouse",
+        "resolution": "1080P",
+        "sub_type": ["CHS", "CHT"]
+      }
     }
   ]
 }
+
+
+
+
+
+
 
