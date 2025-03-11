@@ -11,6 +11,7 @@ mod mdb_bgmtv;
 mod mdb_mikan;
 mod mdb_tmdb;
 pub mod metrics;
+pub mod providers;
 pub mod worker;
 fn format_poster_image_file_name(bgm: &bangumi::Model) -> String {
     format!("bangumi_poster_{}", bgm.id)
@@ -72,4 +73,10 @@ pub trait MetadataDb {
 
     /// 支持的元数据属性
     fn supports(&self) -> MetadataAttrSet;
+}
+
+#[async_trait]
+pub trait TorrentProvider: Send + Sync {
+    async fn search_torrents(&self, bgm: &bangumi::Model) -> Result<Vec<model::torrents::Model>>;
+    fn name(&self) -> &str;
 }

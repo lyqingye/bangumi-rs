@@ -16,5 +16,6 @@ tracing = { workspace = true }
 lazy_static = { workspace = true }
 quick-xml = { workspace = true, features = ["serialize"] }
 utils = { path = "../utils" }
+regex = { workspace = true }
 [dev-dependencies]
 dotenv = { workspace = true }

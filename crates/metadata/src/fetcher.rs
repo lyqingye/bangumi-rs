@@ -5,7 +5,7 @@ use bangumi_tv::{
     self,
     model::{EpisodeList, EpisodeType},
 };
-use mikan::client::{EpisodeItem, SearchResultItem};
+use mikan::client::SearchResultItem;
 use model::bangumi;
 use tmdb::api::{movie::MovieShort, tvshow::TVShow};
 
@@ -54,19 +54,6 @@ impl Fetcher {
             None => {
                 warn!("番剧 {} 缺少 bangumi_tv_id", bgm.name);
                 Ok(EpisodeList::default())
-            }
-        }
-    }
-
-    pub async fn collect_torrents(&self, bgm: &bangumi::Model) -> Result<Vec<EpisodeItem>> {
-        match bgm.mikan_id {
-            Some(id) => {
-                let torrents = self.mikan.collect_by_bangumi_id(id).await?;
-                Ok(torrents)
-            }
-            None => {
-                warn!("番剧 {} 缺少 mikan_id", bgm.name);
-                Ok(vec![])
             }
         }
     }

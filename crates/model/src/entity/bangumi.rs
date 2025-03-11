@@ -14,7 +14,6 @@ pub struct Model {
     pub description: Option<String>,
     #[sea_orm(unique)]
     pub bangumi_tv_id: Option<i32>,
-    #[sea_orm(unique)]
     pub tmdb_id: Option<u64>,
     #[sea_orm(unique)]
     pub mikan_id: Option<i32>,

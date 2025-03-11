@@ -1,4 +1,5 @@
 use anyhow::{Context, Result};
+use regex::Regex;
 use reqwest::{Client as ReqwestClient, Url};
 use tracing::instrument;
 
@@ -65,6 +66,43 @@ impl Client {
         Ok(items)
     }
 
+    // TODO 如果文件名中有具体某一季，那么可以优先按这个关键字搜索，否则按照去掉季后的关键字搜索
+    pub async fn search_with_bangumi_tv_id(
+        &self,
+        term: &str,
+        bangumi_tv_id: i32,
+    ) -> Result<Vec<RssItem>> {
+        let result = self.search_all(term).await?;
+        for item in result {
+            // 该字幕组发布的资源，会带有bgm.tv的链接
+            if item.title.contains("Up to 21°C") {
+                let bgm_tv_id = self.search_bangumi_tv_id_in_link(&item.link).await?;
+                if bgm_tv_id == Some(bangumi_tv_id) {
+                    return Ok(vec![item]);
+                }
+            }
+        }
+        Ok(vec![])
+    }
+
+    async fn search_bangumi_tv_id_in_link(&self, link: &str) -> Result<Option<i32>> {
+        let url = Url::parse(link)?;
+        let html = self.cli.get(url).send().await?.text().await?;
+
+        // 匹配 bangumi_tv_id=数字 的模式
+        let re = Regex::new(r"bangumi_tv_id=(\d+)").unwrap();
+        let caps = re.captures(&html);
+
+        // 如果没有找到第一种模式，尝试匹配 bgm.tv/subject/数字 的模式
+        if caps.is_none() {
+            let bgm_re = Regex::new(r"bgm\.tv/subject/(\d+)").unwrap();
+            let bgm_caps = bgm_re.captures(&html);
+            return Ok(bgm_caps.and_then(|c| c[1].parse::<i32>().ok()));
+        }
+
+        Ok(caps.and_then(|c| c[1].parse::<i32>().ok()))
+    }
+
     /// 下载种子文件
     pub async fn download_torrent(&self, torrent_url: &str) -> Result<Vec<u8>> {
         let url = if torrent_url.starts_with("http") {
@@ -128,6 +166,16 @@ mod tests {
         let torrent_url = resp.first().unwrap().get_torrent_url();
         let bytes = cli.download_torrent(torrent_url).await?;
         println!("bytes: {:?}", bytes.len());
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_search_with_bangumi_tv_id() -> Result<()> {
+        let cli = create_client().await?;
+        let resp = cli
+            .search_bangumi_tv_id_in_link("https://acgrip.art/t/324676")
+            .await?;
+        assert_eq!(resp, Some(471793));
         Ok(())
     }
 }
