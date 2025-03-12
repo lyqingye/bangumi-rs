@@ -2,6 +2,7 @@ use std::str::FromStr;
 
 use crate::config::Config;
 use anyhow::Result;
+use sentry_tracing::EventFilter;
 use tokio::sync::broadcast;
 use tracing_subscriber::prelude::__tracing_subscriber_SubscriberExt;
 use tracing_subscriber::{EnvFilter, Layer};
@@ -50,10 +51,32 @@ pub fn init_logger(config: &Config) -> Result<broadcast::Sender<LogMessage>> {
     {
         use crate::tracing::BroadcastLayer;
         let broadcast_layer = BroadcastLayer::new(log_tx.clone(), log_filter);
-        let subscriber = tracing_subscriber::registry()
-            .with(fmt_layer)
-            .with(broadcast_layer);
-        tracing::subscriber::set_global_default(subscriber).expect("Failed to set subscriber");
+
+        if config.sentry.enabled {
+            let _guard = sentry::init((
+                config.sentry.dsn.as_str(),
+                sentry::ClientOptions {
+                    release: sentry::release_name!(),
+                    ..Default::default()
+                },
+            ));
+
+            let sentry_layer = sentry_tracing::layer().event_filter(|md| match md.level() {
+                &tracing::Level::ERROR => EventFilter::Event,
+                _ => EventFilter::Ignore,
+            });
+
+            let subscriber = tracing_subscriber::registry()
+                .with(fmt_layer)
+                .with(broadcast_layer)
+                .with(sentry_layer);
+            tracing::subscriber::set_global_default(subscriber).expect("Failed to set subscriber");
+        } else {
+            let subscriber = tracing_subscriber::registry()
+                .with(fmt_layer)
+                .with(broadcast_layer);
+            tracing::subscriber::set_global_default(subscriber).expect("Failed to set subscriber");
+        }
     }
 
     Ok(log_tx)

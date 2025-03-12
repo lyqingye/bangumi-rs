@@ -17,6 +17,7 @@ pub struct Config {
     pub downloader: DownloaderConfig,
     pub notify: NotifyConfig,
     pub proxy: ProxyConfig,
+    pub sentry: SentryConfig,
 }
 impl Config {
     pub fn validate(&self) -> Result<()> {
@@ -29,6 +30,7 @@ impl Config {
         self.downloader.validate()?;
         self.notify.validate()?;
         self.proxy.validate()?;
+        self.sentry.validate()?;
         Ok(())
     }
 }
@@ -415,6 +417,30 @@ impl BangumiTvConfig {
     }
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(default)]
+pub struct SentryConfig {
+    pub enabled: bool,
+    pub dsn: String,
+}
+
+impl Default for SentryConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            dsn: "".to_owned(),
+        }
+    }
+}
+
+impl SentryConfig {
+    fn validate(&self) -> Result<()> {
+        if self.enabled {
+            validate_url(&self.dsn, "sentry.dsn")?;
+        }
+        Ok(())
+    }
+}
 // 将 chrono::Duration 转换为 std::time::Duration 进行序列化
 fn serialize_chrono_duration<S>(duration: &ChronoDuration, serializer: S) -> Result<S::Ok, S::Error>
 where

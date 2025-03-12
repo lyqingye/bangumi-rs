@@ -1,5 +1,6 @@
 use actix_cors::Cors;
 use actix_web::{App, HttpServer};
+use core::panic;
 use dict::DictCode;
 use metadata::providers::mikan::MikanProvider;
 use parser::Parser;

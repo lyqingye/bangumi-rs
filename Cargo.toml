@@ -110,3 +110,5 @@ mockall = "0.13.1"
 
 # 静态哈希表
 phf = { version = "0.11", features = ["macros"] }
+sentry = "0.36.0"
+sentry-tracing = "0.36.0"
