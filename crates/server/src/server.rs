@@ -4,6 +4,7 @@ use core::panic;
 use dict::DictCode;
 use metadata::providers::mikan::MikanProvider;
 use parser::Parser;
+use std::borrow::Cow;
 use std::sync::{Arc, RwLock};
 use std::{net::SocketAddr, path::PathBuf, str::FromStr};
 use tokio::sync::broadcast;
@@ -27,6 +28,7 @@ pub struct AppState {
     pub dict: dict::Dict,
     pub config_writer: Arc<Box<dyn Writer>>,
     pub config: Arc<RwLock<Config>>,
+    pub sentry_guard: Arc<Option<sentry::ClientInitGuard>>,
 }
 
 pub struct Server {
@@ -43,6 +45,27 @@ impl Server {
     }
 
     async fn init_state(config: &Config, config_writer: Box<dyn Writer>) -> Result<Arc<AppState>> {
+        // sentry
+        let sentry_guard = if config.sentry.enabled {
+            let git_verison = crate::built_info::GIT_VERSION.unwrap_or("unknown");
+            let commit = crate::built_info::GIT_COMMIT_HASH_SHORT.unwrap_or("unknown");
+
+            let release = format!("{}-{}", git_verison, commit);
+
+            // 使用 Box::leak 来确保 guard 的生命周期为 'static
+            Some(sentry::init((
+                config.sentry.dsn.as_str(),
+                sentry::ClientOptions {
+                    release: Some(Cow::Owned(release)),
+                    environment: Some(Cow::Borrowed("development")),
+                    traces_sample_rate: 1.0,
+                    ..Default::default()
+                },
+            )))
+        } else {
+            None
+        };
+
         // Logger
         let log_tx = init_logger(config)?;
 
@@ -181,6 +204,7 @@ impl Server {
             dict,
             config_writer: Arc::new(config_writer),
             config: Arc::new(RwLock::new(config.clone())),
+            sentry_guard: Arc::new(sentry_guard),
         }))
     }
 
