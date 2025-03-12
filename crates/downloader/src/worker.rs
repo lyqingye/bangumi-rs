@@ -19,6 +19,7 @@ pub enum Tx {
     // 外部事件
     StartTask(String),
     CancelTask(String),
+    RemoveTask((String, bool)),
     RetryTask(String),
 
     // 内部事件
@@ -38,6 +39,7 @@ impl Tx {
             Self::AutoRetry(_) => "AutoRetry",
             Self::TaskFailed(_, _) => "TaskFailed",
             Self::TaskCompleted(_, _) => "TaskCompleted",
+            Self::RemoveTask((_, _)) => "RemoveTask",
             Self::Shutdown(_) => "Shutdown",
         }
     }
@@ -50,7 +52,7 @@ impl Tx {
             Self::AutoRetry(info_hash) => info_hash,
             Self::TaskFailed(info_hash, _) => info_hash,
             Self::TaskCompleted(info_hash, _) => info_hash,
-
+            Self::RemoveTask((info_hash, _)) => info_hash,
             _ => unreachable!(),
         };
         tasks
@@ -232,6 +234,15 @@ impl Worker {
         Ok(())
     }
 
+    pub fn remove_task(&self, info_hash: &str, remove_files: bool) -> Result<()> {
+        info!(
+            "移除下载任务: info_hash={}, remove_files={}",
+            info_hash, remove_files
+        );
+        self.send_event(Tx::RemoveTask((info_hash.to_string(), remove_files)))?;
+        Ok(())
+    }
+
     pub fn retry_task(&self, info_hash: &str) -> Result<()> {
         info!("重试下载任务: info_hash={}", info_hash);
         self.send_event(Tx::RetryTask(info_hash.to_string()))?;
@@ -306,6 +317,9 @@ impl Worker {
             (Tx::CancelTask(info_hash), State::Downloading | State::Pending | State::Retrying) => {
                 self.on_task_cancelled(info_hash, ctx).await
             }
+
+            // 移除任务
+            (Tx::RemoveTask((info_hash, _)), _) => self.on_task_removed(info_hash, ctx).await,
 
             // 重试任务
             (Tx::RetryTask(info_hash), State::Failed | State::Cancelled) => {
@@ -484,6 +498,23 @@ impl Worker {
         Ok((None, Some(State::Completed)))
     }
 
+    async fn on_task_removed(
+        &self,
+        info_hash: String,
+        ctx: &mut Context,
+    ) -> Result<(Option<Tx>, Option<State>)> {
+        info!(
+            "移除任务(TaskRemoved): info_hash={} state={:?}",
+            info_hash, ctx.ref_task.download_status
+        );
+        if let Err(e) = self.downloader.remove_task(&info_hash, true).await {
+            warn!("移除任务出错: info_hash={}, 错误: {}", info_hash, e);
+        }
+        self.update_task_status(&info_hash, DownloadStatus::Cancelled, None, None)
+            .await?;
+        Ok((None, Some(State::Cancelled)))
+    }
+
     async fn update_task_retry_status(
         &self,
         info_hash: &str,
@@ -557,7 +588,7 @@ impl Downloader for Worker {
     }
 
     async fn remove_task(&self, info_hash: &str, remove_files: bool) -> Result<()> {
-        self.downloader.remove_task(info_hash, remove_files).await
+        self.remove_task(info_hash, remove_files)
     }
 }
 

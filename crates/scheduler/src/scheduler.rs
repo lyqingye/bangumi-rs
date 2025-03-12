@@ -176,7 +176,7 @@ impl Scheduler {
         // 如果任务存在，则取消之前的任务
         if let Some(old_task) = task {
             if let Some(ref_info_hash) = old_task.ref_torrent_info_hash {
-                self.downloader.remove_task(&ref_info_hash, true).await?;
+                self.downloader.cancel_task(&ref_info_hash).await?;
             }
         } else {
             // 插入新的剧集下载任务
