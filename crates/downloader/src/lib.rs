@@ -56,7 +56,7 @@ pub trait ThirdPartyDownloader: Send + Sync {
         result: Option<String>,
     ) -> Result<DownloadInfo>;
     async fn cancel_task(&self, info_hash: &str) -> Result<()>;
-    async fn remove_task(&self, info_hash: &str) -> Result<()>;
+    async fn remove_task(&self, info_hash: &str, remove_files: bool) -> Result<()>;
 }
 
 #[async_trait]

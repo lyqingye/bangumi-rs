@@ -38,7 +38,9 @@ fn create_mock_downloader() -> MockThirdPartyDownloader {
         .returning(|| "mock_downloader");
     mock_downloader.expect_cancel_task().returning(|_| Ok(()));
 
-    mock_downloader.expect_remove_task().returning(|_| Ok(()));
+    mock_downloader
+        .expect_remove_task()
+        .returning(|_, _| Ok(()));
 
     mock_downloader
 }
