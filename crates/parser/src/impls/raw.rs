@@ -2,7 +2,7 @@ use crate::{ParseResult, Parser};
 use anyhow::Result;
 use async_trait::async_trait;
 use raw_parser::parser::Parser as RawParser;
-use tracing::warn;
+use tracing::error;
 
 #[derive(Default)]
 pub struct Raw {
@@ -45,7 +45,7 @@ impl Parser for Raw {
                     });
                 }
                 Err(e) => {
-                    warn!("解析文件名失败: {}", e);
+                    error!("解析文件名:{} 失败: {}", file_name, e);
                     continue;
                 }
             }
