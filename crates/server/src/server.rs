@@ -46,6 +46,17 @@ impl Server {
         // Logger
         let log_tx = init_logger(config)?;
 
+        info!("Rust 版本: {}", crate::built_info::RUSTC_VERSION);
+        info!(
+            "Git 版本: {}",
+            crate::built_info::GIT_VERSION.unwrap_or("unknown")
+        );
+        info!(
+            "Git 提交: {}",
+            crate::built_info::GIT_COMMIT_HASH.unwrap_or("unknown")
+        );
+        info!("构建时间: {}", crate::built_info::BUILT_TIME_UTC);
+
         // Database
         let db = crate::db::Db::new(&config.server.database_url).await?;
 
@@ -214,8 +225,6 @@ impl Server {
 
     pub async fn serve(&self) -> Result<()> {
         let addr = self.config.server.listen_addr.parse::<SocketAddr>()?;
-        info!("server listen at: http://{}", addr);
-
         let state = self.state.clone();
 
         // 创建 HTTP 服务器
@@ -235,6 +244,8 @@ impl Server {
 
         let server_handle = server.handle();
         let server_task = tokio::spawn(server);
+
+        info!("服务监听: http://{}", addr);
 
         // 等待中断信号
         match tokio::signal::ctrl_c().await {

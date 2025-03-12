@@ -17,7 +17,7 @@ use crate::{
     model::{
         AddBangumiParams, BangumiListResp, CalendarQuery, DownloadTask, Metrics,
         MikanSearchResultItem, ProcessMetrics, QueryBangumiParams, QueryDownloadTask, TMDBMetadata,
-        TMDBSeason, UpdateMDBParams,
+        TMDBSeason, UpdateMDBParams, VersionInfo,
     },
 };
 use crate::{
@@ -831,4 +831,15 @@ pub async fn list_bangumi(
         list: bangumis,
         total,
     })))
+}
+
+#[get("/api/version")]
+pub async fn get_version() -> Result<Json<Resp<VersionInfo>>, ServerError> {
+    let version = VersionInfo {
+        rustc_version: crate::built_info::RUSTC_VERSION,
+        git_version: crate::built_info::GIT_VERSION,
+        git_commit_hash: crate::built_info::GIT_COMMIT_HASH,
+        build_time: crate::built_info::BUILT_TIME_UTC,
+    };
+    Ok(Json(Resp::ok(version)))
 }

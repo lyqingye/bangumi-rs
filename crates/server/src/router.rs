@@ -35,5 +35,6 @@ pub fn configure_app(cfg: &mut web::ServiceConfig, state: Arc<AppState>) {
         .service(api::list_bangumi)
         .service(api::seach_bangumi_at_mikan)
         .service(api::add_bangumi)
+        .service(api::get_version)
         .route("/ws", web::get().to(ws_handler));
 }
