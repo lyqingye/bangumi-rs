@@ -223,3 +223,11 @@ pub struct AddBangumiParams {
     pub bgm_tv_id: Option<i32>,
     pub tmdb_id: Option<u64>,
 }
+
+#[derive(Serialize)]
+pub struct VersionInfo {
+    pub rustc_version: &'static str,
+    pub git_version: Option<&'static str>,
+    pub git_commit_hash: Option<&'static str>,
+    pub build_time: &'static str,
+}

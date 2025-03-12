@@ -2,6 +2,7 @@
 name = "server"
 version = "0.1.0"
 edition = "2021"
+build = "build.rs"
 
 [dependencies]
 tracing = { workspace = true }
@@ -51,6 +52,9 @@ sentry = { workspace = true }
 [dev-dependencies]
 dotenv = { workspace = true }
 tracing-subscriber = { workspace = true }
+
+[build-dependencies]
+built = { workspace = true, features = ["git2", "chrono"] }
 
 [features]
 tokio_console = ["console-subscriber"]

@@ -52,10 +52,14 @@ pub fn init_logger(config: &Config) -> Result<broadcast::Sender<LogMessage>> {
         let broadcast_layer = BroadcastLayer::new(log_tx.clone(), log_filter);
 
         if config.sentry.enabled {
+            let git_verison = crate::built_info::GIT_VERSION.unwrap_or("unknown");
+            let commit = crate::built_info::GIT_COMMIT_HASH_SHORT.unwrap_or("unknown");
+
+            let release = format!("{}-{}", git_verison, commit);
             let _guard = sentry::init((
                 config.sentry.dsn.as_str(),
                 sentry::ClientOptions {
-                    release: sentry::release_name!(),
+                    release: Some(Cow::Owned(release)),
                     ..Default::default()
                 },
             ));
