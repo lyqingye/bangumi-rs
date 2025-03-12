@@ -49,6 +49,7 @@ pub fn init_logger(config: &Config) -> Result<broadcast::Sender<LogMessage>> {
     #[cfg(not(feature = "tokio_console"))]
     {
         use crate::tracing::BroadcastLayer;
+        use std::borrow::Cow;
         let broadcast_layer = BroadcastLayer::new(log_tx.clone(), log_filter);
 
         if config.sentry.enabled {
