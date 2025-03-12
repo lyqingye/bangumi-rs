@@ -192,8 +192,10 @@ impl ThirdPartyDownloader for Pan115DownloaderImpl {
         Ok(())
     }
 
-    async fn remove_task(&self, info_hash: &str) -> Result<()> {
-        self.pan115.delete_offline_task(&[info_hash], true).await?;
+    async fn remove_task(&self, info_hash: &str, remove_files: bool) -> Result<()> {
+        self.pan115
+            .delete_offline_task(&[info_hash], remove_files)
+            .await?;
         Ok(())
     }
 }

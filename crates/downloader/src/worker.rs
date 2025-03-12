@@ -390,7 +390,7 @@ impl Worker {
         );
 
         debug!("从第三方下载器移除失败任务: info_hash={}", info_hash);
-        if let Err(e) = self.downloader.remove_task(&info_hash).await {
+        if let Err(e) = self.downloader.remove_task(&info_hash, true).await {
             warn!("移除失败任务出错: info_hash={}, 错误: {}", info_hash, e);
         }
 
@@ -441,7 +441,7 @@ impl Worker {
             self.config.max_retry_count
         );
         // 删除原有任务，然后重新下载
-        if let Err(e) = self.downloader.remove_task(&info_hash).await {
+        if let Err(e) = self.downloader.remove_task(&info_hash, true).await {
             warn!("移除任务准备重试出错: info_hash={}, 错误: {}", info_hash, e);
         }
 
