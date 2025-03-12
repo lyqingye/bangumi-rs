@@ -36,9 +36,13 @@ pub async fn main() -> Result<()> {
     setup_panic_hook();
 
     match cli.commands {
-        Commands::Start => {
-            server::Server::new(config, writer).await?.serve().await?;
-        }
+        Commands::Start => match server::Server::new(config, writer).await?.serve().await {
+            Ok(_) => {}
+            Err(e) => {
+                tracing::error!("服务启动失败，错误原因: {}", e);
+                std::process::exit(1);
+            }
+        },
     }
     Ok(())
 }
