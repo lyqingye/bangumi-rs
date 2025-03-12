@@ -24,6 +24,7 @@ pub trait Downloader: Send + Sync {
     async fn list_tasks(&self, info_hashes: &[String]) -> Result<Vec<Model>>;
     async fn download_file(&self, info_hash: &str, ua: &str) -> Result<DownloadInfo>;
     async fn cancel_task(&self, info_hash: &str) -> Result<()>;
+    async fn remove_task(&self, info_hash: &str, remove_files: bool) -> Result<()>;
     async fn metrics(&self) -> metrics::Metrics;
     async fn subscribe(&self) -> broadcast::Receiver<Event>;
     async fn retry(&self, info_hash: &str) -> Result<()>;

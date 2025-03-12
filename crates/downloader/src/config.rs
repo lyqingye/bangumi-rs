@@ -29,7 +29,7 @@ impl Default for Config {
             sync_interval: Duration::from_secs(10),
             event_queue_size: 128,
             max_retry_count: 5,
-            retry_processor_interval: Duration::from_secs(5),
+            retry_processor_interval: Duration::from_secs(30),
             retry_min_interval: chrono::Duration::seconds(30),
             retry_max_interval: chrono::Duration::minutes(10),
             download_dir: PathBuf::from("/"),
