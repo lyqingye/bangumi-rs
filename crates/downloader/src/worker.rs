@@ -557,6 +557,7 @@ impl Downloader for Worker {
     }
 
     async fn remove_task(&self, info_hash: &str, remove_files: bool) -> Result<()> {
+        self.cancel_task(info_hash)?;
         self.downloader.remove_task(info_hash, remove_files).await
     }
 }
