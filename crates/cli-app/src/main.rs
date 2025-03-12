@@ -40,7 +40,7 @@ pub async fn main() -> Result<()> {
             Ok(_) => {}
             Err(e) => {
                 tracing::error!("服务启动失败，错误原因: {}", e);
-                std::process::exit(-1);
+                std::process::exit(1);
             }
         },
     }
