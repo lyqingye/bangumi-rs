@@ -2,7 +2,6 @@ use std::str::FromStr;
 
 use crate::config::Config;
 use anyhow::Result;
-use sentry_tracing::EventFilter;
 use tokio::sync::broadcast;
 use tracing_subscriber::prelude::__tracing_subscriber_SubscriberExt;
 use tracing_subscriber::{EnvFilter, Layer};
@@ -62,8 +61,8 @@ pub fn init_logger(config: &Config) -> Result<broadcast::Sender<LogMessage>> {
             ));
 
             let sentry_layer = sentry_tracing::layer().event_filter(|md| match md.level() {
-                &tracing::Level::ERROR => EventFilter::Event,
-                _ => EventFilter::Ignore,
+                &tracing::Level::ERROR => sentry_tracing::EventFilter::Event,
+                _ => sentry_tracing::EventFilter::Ignore,
             });
 
             let subscriber = tracing_subscriber::registry()
