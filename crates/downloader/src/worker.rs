@@ -39,7 +39,7 @@ impl Tx {
             Self::AutoRetry(_) => "AutoRetry",
             Self::TaskFailed(_, _) => "TaskFailed",
             Self::TaskCompleted(_, _) => "TaskCompleted",
-            Self::RemoveTask(_, _) => "RemoveTask",
+            Self::RemoveTask((_, _)) => "RemoveTask",
             Self::Shutdown(_) => "Shutdown",
         }
     }
