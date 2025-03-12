@@ -555,6 +555,10 @@ impl Downloader for Worker {
     async fn retry(&self, info_hash: &str) -> Result<()> {
         self.retry_task(info_hash)
     }
+
+    async fn remove_task(&self, info_hash: &str, remove_files: bool) -> Result<()> {
+        self.downloader.remove_task(info_hash, remove_files).await
+    }
 }
 
 impl Worker {
