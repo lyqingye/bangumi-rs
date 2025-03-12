@@ -52,7 +52,6 @@ impl Server {
 
             let release = format!("{}-{}", git_verison, commit);
 
-            // 使用 Box::leak 来确保 guard 的生命周期为 'static
             Some(sentry::init((
                 config.sentry.dsn.as_str(),
                 sentry::ClientOptions {
