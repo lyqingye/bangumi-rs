@@ -296,6 +296,10 @@ impl Worker {
         let name = bgm.name.clone();
         info!("正在刷新番剧元数据: {}", name);
 
+        if force {
+            self.try_match_bangumi(&mut bgm).await?;
+        }
+
         // NOTE: 这里需要考虑外部服务被重复访问
 
         // 2. 使用Tmdb填充绝大部分信息
@@ -398,10 +402,10 @@ impl Worker {
 
         info!("正在匹配番剧: {}", mikan_ids.len());
         let bangumis = self.db.list_bangumi_by_mikan_ids(mikan_ids).await?;
-        for bgm in bangumis {
+        for mut bgm in bangumis {
             let bgm_id = bgm.id;
 
-            match self.try_match_bangumi(bgm).await {
+            match self.try_match_bangumi(&mut bgm).await {
                 Ok(_) => {}
                 Err(e) => {
                     error!("匹配番剧失败: {}", e);
@@ -419,19 +423,18 @@ impl Worker {
         Ok(())
     }
 
-    async fn try_match_bangumi(&self, bgm: model::bangumi::Model) -> Result<()> {
-        let mut bgm = bgm;
+    async fn try_match_bangumi(&self, bgm: &mut model::bangumi::Model) -> Result<()> {
         if bgm.bangumi_tv_id.is_none() || bgm.air_date.is_none() {
-            self.matcher.match_bgm_tv(&mut bgm).await?;
+            self.matcher.match_bgm_tv(bgm).await?;
             self.db.update_bangumi(bgm.clone()).await?;
         }
         if bgm.tmdb_id.is_none() || bgm.bgm_kind.is_none() || bgm.season_number.is_none() {
-            self.matcher.match_tmdb(&mut bgm).await?;
+            self.matcher.match_tmdb(bgm).await?;
             self.db.update_bangumi(bgm.clone()).await?;
         }
         if bgm.tmdb_id.is_none() || bgm.bgm_kind.is_none() {
-            self.matcher.match_tmdb_movie(&mut bgm).await?;
-            self.db.update_bangumi(bgm).await?;
+            self.matcher.match_tmdb_movie(bgm).await?;
+            self.db.update_bangumi(bgm.clone()).await?;
         }
         Ok(())
     }
