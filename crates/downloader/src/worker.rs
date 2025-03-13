@@ -495,6 +495,11 @@ impl Worker {
         );
         self.update_task_status(&info_hash, DownloadStatus::Completed, None, result)
             .await?;
+
+        if let Err(e) = self.downloader.remove_task(&info_hash, false).await {
+            warn!("清理下载记录出错: info_hash={}, 错误: {}", info_hash, e);
+        }
+
         Ok((None, Some(State::Completed)))
     }
 
