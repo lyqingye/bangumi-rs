@@ -293,9 +293,25 @@
         "resolution": "1080P",
         "sub_type": ["CHS", "CHT"]
       }
+    },
+    {
+      "description": "剧集后跟着 完字",
+      "input": "【DHR动研字幕组&KNA字幕组&动漫国字幕组】[魔物娘的同居日常_Everyday Life with Monster Girls] - 12完 [繁体][720P][MP4]",
+      "expected": {
+        "name_en": "Everyday Life with Monster Girls",
+        "name_zh": "魔物娘的同居日常",
+        "name_jp": null,
+        "episode": 12,
+        "season": null,
+        "subtitle_group": "DHR动研字幕组&KNA字幕组&动漫国字幕组",
+        "resolution": "720P",
+        "sub_type": ["CHT"]
+      }
     }
   ]
 }
+
+
 
 
 
