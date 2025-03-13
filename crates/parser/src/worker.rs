@@ -17,8 +17,10 @@ lazy_static! {
     // - EP01-EP12
     // - 01-12Fin
     // - E01-E12Fin
+    // - 01~12
+    // - E01~E12
     // 通过限制数字长度来避免匹配日期格式（如 2023-01）
-    static ref EPISODE_RANGE: Regex = Regex::new(r"(?i)(?:EP?\.?\s*)?([0-9]{1,2})-(?:EP?\.?\s*)?([0-9]{1,2})(?:\w+)?\b").unwrap();
+    static ref EPISODE_RANGE: Regex = Regex::new(r"(?i)(?:EP?\.?\s*)?([0-9]{1,2})[-~](?:EP?\.?\s*)?([0-9]{1,2})(?:\w+)?\b").unwrap();
 
     // 匹配年份-月份格式（如 2023-01）
     static ref DATE_PATTERN: Regex = Regex::new(r"\d{4}-(?:0[1-9]|1[0-2])").unwrap();
@@ -264,7 +266,8 @@ mod tests {
             "动漫国字幕组】★07月新番[异世界舅舅][01-13(全集)][720P][繁体][MP4]",
             "[喵萌奶茶屋&LoliHouse] 无职转生 01-11 合集 [WebRip 1080p HEVC-10bit AAC][简繁内封字幕]",
             "[桜都字幕组] 无职转生 01-23 [BDrip][1080P][HEVC_FLACx2]",
-            "[桜都字幕组] 想要成为影之实力者！ / Kage no Jitsuryokusha ni Naritakute! [01-20Fin][1080p][简体内嵌]"
+            "[桜都字幕组] 想要成为影之实力者！ / Kage no Jitsuryokusha ni Naritakute! [01-20Fin][1080p][简体内嵌]",
+            "[月语][末日时在做什麽？有没有空？可以来拯救吗？/Shuumatsu Nani Shitemasuka？ Isogashii Desuka？ Sukutte Moratte Ii Desuka？][01~03][繁体][1080P][MP4]"
         ];
 
         // 测试应该通过的文件名
