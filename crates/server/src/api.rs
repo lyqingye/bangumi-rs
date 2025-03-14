@@ -15,9 +15,9 @@ use tracing::{info, instrument};
 use crate::{
     config::Config,
     model::{
-        AddBangumiParams, BangumiListResp, CalendarQuery, DownloadTask, Metrics,
-        MikanSearchResultItem, ProcessMetrics, QueryBangumiParams, QueryDownloadTask, TMDBMetadata,
-        TMDBSeason, UpdateMDBParams, VersionInfo,
+        AddBangumiParams, BangumiListResp, CalendarQuery, DownloadTask, DownloadedFile, FileType,
+        Metrics, MikanSearchResultItem, ProcessMetrics, QueryBangumiParams, QueryDownloadTask,
+        TMDBMetadata, TMDBSeason, UpdateMDBParams, VersionInfo,
     },
 };
 use crate::{
@@ -408,28 +408,18 @@ pub async fn refresh_bangumi(
     Ok(Json(Resp::ok(())))
 }
 
-#[get("/api/bangumi/{id}/{episode_number}/online_watch/{file_name}")]
-pub async fn online_watch(
-    req: HttpRequest,
+#[get("/api/bangumi/{id}/{episode_number}/downloaded_files")]
+pub async fn list_download_files(
     state: web::Data<Arc<AppState>>,
-    path: web::Path<(i32, i32, String)>,
-) -> Result<HttpResponse, ServerError> {
+    path: web::Path<(i32, i32)>,
+) -> Result<Json<Resp<Vec<DownloadedFile>>>, ServerError> {
     use model::episode_download_tasks::Column as TaskColumn;
     use model::episode_download_tasks::Entity as EpisodeDownloadTasks;
     use sea_orm::ColumnTrait;
     use sea_orm::EntityTrait;
     use sea_orm::QueryFilter;
+    let (id, episode_number) = path.into_inner();
 
-    let (id, episode_number, _) = path.into_inner();
-
-    // 获取 User-Agent，如果没有则使用默认值
-    let user_agent = req
-        .headers()
-        .get("User-Agent")
-        .and_then(|h| h.to_str().ok())
-        .unwrap_or("Unknown Browser");
-
-    // 查找下载任务
     let task = EpisodeDownloadTasks::find()
         .filter(TaskColumn::BangumiId.eq(id))
         .filter(TaskColumn::EpisodeNumber.eq(episode_number))
@@ -443,11 +433,79 @@ pub async fn online_watch(
         .ref_torrent_info_hash
         .ok_or_else(|| ServerError::Internal(anyhow::anyhow!("种子未找到")))?;
 
+    let files = state
+        .scheduler
+        .get_downloader()
+        .list_files(&info_hash)
+        .await?;
+
+    let mut downloaded_files = Vec::new();
+    for file in files {
+        if file.is_dir() {
+            continue;
+        }
+
+        // 保存需要使用的值，避免部分移动问题
+        let file_name = file.name.clone();
+        let file_size = file.file_size();
+
+        // 根据文件扩展名判断文件类型
+        let file_type = determine_file_type(&file_name);
+        if file_type == FileType::Unknown {
+            continue;
+        }
+
+        downloaded_files.push(DownloadedFile {
+            file_id: file.file_id(),
+            file_name,
+            file_size,
+            file_type,
+        });
+    }
+
+    Ok(Json(Resp::ok(downloaded_files)))
+}
+
+// 根据文件扩展名判断文件类型
+fn determine_file_type(file_name: &str) -> FileType {
+    let extension = std::path::Path::new(file_name)
+        .extension()
+        .and_then(|ext| ext.to_str())
+        .map(|ext| ext.to_lowercase());
+
+    match extension {
+        Some(ext) if VIDEO_EXTENSIONS.contains(&ext.as_str()) => FileType::Video,
+        Some(ext) if SUBTITLE_EXTENSIONS.contains(&ext.as_str()) => FileType::Subtitle,
+        _ => FileType::Unknown,
+    }
+}
+
+// 常见的视频和字幕文件扩展名
+const VIDEO_EXTENSIONS: &[&str] = &[
+    "mp4", "mkv", "avi", "mov", "flv", "wmv", "webm", "ts", "m2ts",
+];
+const SUBTITLE_EXTENSIONS: &[&str] = &["srt", "ass", "ssa", "vtt", "sub"];
+
+#[get("/api/bangumi/{file_id}/online_watch/{file_name}")]
+pub async fn online_watch(
+    req: HttpRequest,
+    state: web::Data<Arc<AppState>>,
+    path: web::Path<(String, String)>,
+) -> Result<HttpResponse, ServerError> {
+    let (file_id, _file_name) = path.into_inner();
+
+    // 获取 User-Agent，如果没有则使用默认值
+    let user_agent = req
+        .headers()
+        .get("User-Agent")
+        .and_then(|h| h.to_str().ok())
+        .unwrap_or("Unknown Browser");
+
     // 获取下载信息
     let download_info = state
         .scheduler
         .get_downloader()
-        .download_file(&info_hash, user_agent)
+        .download_file(&file_id, user_agent)
         .await?;
 
     info!("在线播放成功: {}", download_info.file_name);

@@ -157,46 +157,25 @@ impl ThirdPartyDownloader for Pan115DownloaderImpl {
         }
     }
 
-    async fn download_file(
-        &self,
-        info_hash: &str,
-        ua: &str,
-        result: Option<String>,
-    ) -> Result<DownloadInfo> {
+    async fn download_file(&self, file_id: &str, ua: &str) -> Result<DownloadInfo> {
         let mut cache = self.download_cache.lock().await;
-        let cache_key = format!("{}-{}", info_hash, ua);
+        let cache_key = format!("{}-{}", file_id, ua);
 
         let now = std::time::Instant::now();
         if let Some((download_info, last_update)) = cache.get(&cache_key) {
             let ttl = now.duration_since(*last_update);
             if ttl < self.config.download_cache_ttl {
-                info!("命中缓存: info_hash={}", info_hash);
+                info!("命中缓存: file_id={}", file_id);
                 return Ok(download_info.clone());
             }
         }
-        match result {
-            Some(result) => {
-                let context: Pan115Context = serde_json::from_str(&result)?;
-                let client = self.pan115.clone();
-                let expect_file_name = context.file_name.clone();
-                let files = client
-                    .list_files_with_fn(&context.file_id, move |file| {
-                        !file.is_dir() && file.name == expect_file_name
-                    })
-                    .await?;
-                if files.is_empty() {
-                    return Err(anyhow::anyhow!("文件不存在"));
-                }
-                let file = files.first().unwrap();
-                let download_info = client
-                    .download_file(&file.file_id, Some(ua))
-                    .await?
-                    .context("下载文件失败")?;
-                cache.put(cache_key, (download_info.clone(), now));
-                Ok(download_info)
-            }
-            None => Err(anyhow::anyhow!("该下载器不支持下载文件")),
-        }
+        let download_info = self
+            .pan115
+            .download_file(&file_id, Some(ua))
+            .await?
+            .context("下载文件失败")?;
+        cache.put(cache_key, (download_info.clone(), now));
+        Ok(download_info)
     }
 
     async fn cancel_task(&self, info_hash: &str) -> Result<()> {

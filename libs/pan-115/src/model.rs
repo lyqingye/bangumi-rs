@@ -231,6 +231,13 @@ impl FileInfo {
             StringInt::String(s) => s.to_owned(),
         }
     }
+
+    pub fn file_size(&self) -> usize {
+        match &self.size {
+            StringInt64::Int(i) => *i as usize,
+            StringInt64::String(s) => s.parse::<usize>().unwrap_or(0),
+        }
+    }
 }
 
 #[derive(Debug, Deserialize, Default, Clone)]
