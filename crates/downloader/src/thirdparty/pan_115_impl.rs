@@ -10,7 +10,7 @@ use lru::LruCache;
 use model::sea_orm_active_enums::DownloadStatus;
 use pan_115::{
     errors::Pan115Error,
-    model::{DownloadInfo, OfflineTaskStatus},
+    model::{DownloadInfo, FileInfo, OfflineTaskStatus},
 };
 use tokio::sync::Mutex;
 use tracing::{debug, info, warn};
@@ -143,6 +143,18 @@ impl ThirdPartyDownloader for Pan115DownloaderImpl {
         }
 
         Ok(remote_tasks_status)
+    }
+
+    async fn list_files(&self, _info_hash: &str, result: Option<String>) -> Result<Vec<FileInfo>> {
+        match result {
+            Some(result) => {
+                let context: Pan115Context = serde_json::from_str(&result)?;
+                let client = self.pan115.clone();
+                let files = client.list_files_recursive(&context.file_id).await?;
+                Ok(files)
+            }
+            None => Err(anyhow::anyhow!("该下载器不支持下载文件")),
+        }
     }
 
     async fn download_file(

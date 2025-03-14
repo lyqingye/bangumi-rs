@@ -52,6 +52,42 @@ impl Client {
         Ok(resp.files)
     }
 
+    pub async fn list_files_recursive(&self, cid: &str) -> Result<Vec<FileInfo>, Pan115Error> {
+        let mut result = Vec::new();
+        let mut offset = 0;
+        let limit = 100;
+
+        loop {
+            let current_files = self.list_files(cid, Some(offset), Some(limit)).await?;
+            if current_files.is_empty() {
+                break;
+            }
+
+            let file_len = current_files.len();
+
+            for file in current_files {
+                // 将当前文件添加到结果中
+                result.push(file.clone());
+
+                // 如果是文件夹，递归获取其中的文件
+                if file.is_dir() {
+                    let sub_files =
+                        Box::pin(self.list_files_recursive(&file.category_id())).await?;
+                    result.extend(sub_files);
+                }
+            }
+
+            offset += limit;
+
+            // 如果获取的文件数量小于请求的限制，说明已经获取完所有文件
+            if file_len < limit as usize {
+                break;
+            }
+        }
+
+        Ok(result)
+    }
+
     pub fn list_files_stream<'a>(&'a self, cid: &'a str, page_size: i32) -> FileStream<'a> {
         FileStream::new(self, cid, page_size)
     }
@@ -280,6 +316,16 @@ mod test {
         client.login_check().await?;
         let file_info = client.get_file("3083713467929067080").await?;
         println!("{:?}", file_info);
+        Ok(())
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn test_list_files_recursive() -> Result<()> {
+        let mut client = create_client().await?;
+        client.login_check().await?;
+        let files = client.list_files_recursive("3119558916535483869").await?;
+        println!("{:?}", files);
         Ok(())
     }
 }

@@ -50,6 +50,12 @@ pub trait ThirdPartyDownloader: Send + Sync {
     async fn add_task(&self, info_hash: &str, dir: PathBuf) -> Result<Option<String>>;
     async fn list_tasks(&self, info_hashes: &[String])
         -> Result<HashMap<String, RemoteTaskStatus>>;
+
+    async fn list_files(
+        &self,
+        info_hash: &str,
+        result: Option<String>,
+    ) -> Result<Vec<pan_115::model::FileInfo>>;
     async fn download_file(
         &self,
         info_hash: &str,
