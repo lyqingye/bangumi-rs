@@ -74,6 +74,10 @@ impl TorrentSelector {
                     && self.match_language_filter(parse_result)
                     && self.match_release_group_filter(parse_result)
             })
+            .filter(|(torrent, _)| {
+                // 过滤掉小于100MB的种子
+                torrent.size >= 100 * 1024 * 1024
+            })
             .collect();
 
         if candidates.is_empty() {
