@@ -8,6 +8,7 @@ export {}
 declare module 'vue' {
   export interface GlobalComponents {
     DownloadTasksTable: typeof import('./src/components/DownloadTasksTable.vue')['default']
+    FileSelectionDialog: typeof import('./src/components/FileSelectionDialog.vue')['default']
     LogViewer: typeof import('./src/components/LogViewer.vue')['default']
     MediaCard: typeof import('./src/components/MediaCard.vue')['default']
     RefreshDialog: typeof import('./src/components/RefreshDialog.vue')['default']

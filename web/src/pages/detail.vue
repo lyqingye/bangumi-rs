@@ -457,6 +457,13 @@
       :initial-query="anime.name"
       @selected="handleTMDBSelected"
     />
+
+    <!-- 文件选择对话框 -->
+    <FileSelectionDialog
+      v-model="showFileSelectionDialog"
+      :files="downloadedFiles"
+      @select="handleFileSelected"
+    />
   </div>
 </template>
 
@@ -1466,7 +1473,8 @@ import {
   refreshBangumi,
   getOnlineWatchUrl,
   deleteBangumiDownloadTasks,
-  manualSelectTorrent
+  manualSelectTorrent,
+  listDownloadFiles
 } from '@/api/api'
 import {
   DownloadStatus,
@@ -1475,12 +1483,15 @@ import {
   type Bangumi,
   SubscribeStatus,
   type Torrent,
-  type SubscribeParams
+  type SubscribeParams,
+  type DownloadedFile,
+  FileType
 } from '@/api/model'
 import { useSnackbar } from '../composables/useSnackbar'
 import SubscribeDialog from '../components/SubscribeDialog.vue'
 import RefreshDialog from '../components/RefreshDialog.vue'
 import TMDBSearchDialog from '../components/TMDBSearchDialog.vue'
+import FileSelectionDialog from '../components/FileSelectionDialog.vue'
 
 const route = useRoute()
 const anime = ref<Bangumi>()
@@ -1540,6 +1551,14 @@ const showRefreshDialog = ref(false)
 
 // 添加 TMDB 搜索相关状态
 const showTMDBSearchDialog = ref(false)
+
+// 添加文件选择对话框相关状态
+const showFileSelectionDialog = ref(false)
+const downloadedFiles = ref<DownloadedFile[]>([])
+const currentPlaybackInfo = reactive({
+  episode: null as Episode | null,
+  player: '' as 'iina' | 'infuse'
+})
 
 // 处理刷新操作
 const handleRefresh = async () => {
@@ -1789,22 +1808,99 @@ async function handleSubscribe(params: SubscribeParams) {
   }
 }
 
-
 // 修改播放方法，分为IINA和Infuse两个
 const playWithIINA = async (episode: Episode) => {
   if (!anime.value) return
-
-  const apiUrl = await getOnlineWatchUrl(anime.value.id, episode.number, `${anime.value.name}-第${episode.number}集`)
-  const playUrl = `iina://weblink?url=${encodeURIComponent(apiUrl)}`
-  window.location.href = playUrl
+  await initiatePlayback(episode, 'iina')
 }
 
 const playWithInfuse = async (episode: Episode) => {
   if (!anime.value) return
+  await initiatePlayback(episode, 'infuse')
+}
 
-  const apiUrl = await getOnlineWatchUrl(anime.value.id, episode.number, `${anime.value.name}-第${episode.number}集`)
-  const playUrl = `infuse://x-callback-url/play?url=${encodeURIComponent(apiUrl)}`
-  window.location.href = playUrl
+// 通用播放逻辑
+const initiatePlayback = async (episode: Episode, player: 'iina' | 'infuse') => {
+  if (!anime.value) return
+  
+  // 保存当前播放信息
+  currentPlaybackInfo.episode = episode
+  currentPlaybackInfo.player = player
+  
+  // 获取下载文件列表
+  try {
+    downloadedFiles.value = await listDownloadFiles(anime.value.id, episode.number)
+    
+    const videoFiles = downloadedFiles.value.filter(file => file.file_type === FileType.Video)
+    const subtitleFiles = downloadedFiles.value.filter(file => file.file_type === FileType.Subtitle)
+    
+    // 自动播放的条件：只有一个视频文件，最多一个字幕文件
+    if (videoFiles.length === 1 && subtitleFiles.length <= 1) {
+      const videoFile = videoFiles[0]
+      const subtitleFile = subtitleFiles.length === 1 ? subtitleFiles[0] : undefined
+      
+      await playWithSelectedFiles(videoFile, subtitleFile, player)
+    } else {
+      // 显示选择对话框
+      showFileSelectionDialog.value = true
+    }
+  } catch (error) {
+    console.error('获取下载文件列表失败:', error)
+    showSnackbar({
+      text: '获取下载文件列表失败',
+      color: 'error',
+      location: 'top right',
+      timeout: 3000
+    })
+  }
+}
+
+// 处理文件选择完成
+const handleFileSelected = async (videoFile: DownloadedFile, subtitleFile?: DownloadedFile) => {
+  await playWithSelectedFiles(videoFile, subtitleFile, currentPlaybackInfo.player)
+}
+
+// 使用选定文件播放
+const playWithSelectedFiles = async (videoFile: DownloadedFile, subtitleFile: DownloadedFile | undefined, player: 'iina' | 'infuse') => {
+  if (!anime.value || !currentPlaybackInfo.episode) return
+  
+  try {
+    // 获取视频链接
+    const videoUrl = await getOnlineWatchUrl(videoFile.file_id, videoFile.file_name)
+    
+    // 构建播放链接
+    let playUrl = ''
+    if (player === 'iina') {
+      playUrl = `iina://weblink?url=${encodeURIComponent(videoUrl)}`
+      
+      // 如果有字幕文件，添加字幕参数
+      // if (subtitleFile) {
+      //   const subtitleUrl = await getOnlineWatchUrl(subtitleFile.file_id, subtitleFile.file_name)
+      //   playUrl += `&sub=${encodeURIComponent(subtitleUrl)}`
+      // }
+    } else {
+      // infuse播放器
+      playUrl = `infuse://x-callback-url/play?url=${encodeURIComponent(videoUrl)}`
+      
+      // 如果有字幕文件，添加字幕参数
+      // if (subtitleFile) {
+      //   const subtitleUrl = await getOnlineWatchUrl(subtitleFile.file_id, subtitleFile.file_name)
+      //   playUrl += `&subtitles=${encodeURIComponent(subtitleUrl)}`
+      // }
+    }
+    console.log(playUrl)
+    
+    // 打开播放器
+    window.location.href = playUrl
+  } catch (error) {
+    console.error('获取播放链接失败:', error)
+    showSnackbar({
+      text: '获取播放链接失败',
+      color: 'error',
+      location: 'top right',
+      timeout: 3000
+    })
+  }
 }
 
 // 添加删除状态

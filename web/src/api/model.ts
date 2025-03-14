@@ -368,9 +368,9 @@ export interface AddBangumiParams {
 }
 
 export enum FileType {
-  Video = 'video',
-  Subtitle = 'subtitle',
-  Unknown = 'unknown'
+  Video = 'Video',
+  Subtitle = 'Subtitle',
+  Unknown = 'Unknown'
 }
 
 export interface DownloadedFile {
