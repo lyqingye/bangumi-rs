@@ -59,7 +59,7 @@ impl Client {
                 .send()
                 .await?
                 .map_status(|code| match code as _ {
-                    StatusCode::FORBIDDEN => Some(Error::ApiError(ApiError::IpBanned)),
+                    StatusCode::FORBIDDEN => Some(Error::Api(ApiError::IpBanned)),
                     _ => None,
                 })?
                 .extract::<Cookie>()?
@@ -135,13 +135,13 @@ impl Client {
                         .send()
                         .await?
                         .map_status(|code| match code as _ {
-                            StatusCode::FORBIDDEN => Some(Error::ApiError(ApiError::NotLoggedIn)),
+                            StatusCode::FORBIDDEN => Some(Error::Api(ApiError::NotLoggedIn)),
                             _ => None,
                         })
                         .tap_ok(|response| trace!(?response));
 
                     match res {
-                        Err(Error::ApiError(ApiError::NotLoggedIn)) => {
+                        Err(Error::Api(ApiError::NotLoggedIn)) => {
                             // Retry
                             warn!("Cookie is not valid, retrying");
                         }
@@ -150,7 +150,7 @@ impl Client {
                     }
                 }
 
-                Err(Error::ApiError(ApiError::NotLoggedIn))
+                Err(Error::Api(ApiError::NotLoggedIn))
             }
         }
     }
@@ -254,13 +254,13 @@ impl Client {
                 .send()
                 .await?
                 .map_status(|code| match code as _ {
-                    StatusCode::FORBIDDEN => Some(Error::ApiError(ApiError::NotLoggedIn)),
+                    StatusCode::FORBIDDEN => Some(Error::Api(ApiError::NotLoggedIn)),
                     _ => None,
                 })
                 .tap_ok(|response| trace!(?response));
 
             match res {
-                Err(Error::ApiError(ApiError::NotLoggedIn)) => {
+                Err(Error::Api(ApiError::NotLoggedIn)) => {
                     // Retry
                     warn!("Cookie is not valid, retrying");
                 }
@@ -269,7 +269,7 @@ impl Client {
             }
         }
 
-        Err(Error::ApiError(ApiError::NotLoggedIn))
+        Err(Error::Api(ApiError::NotLoggedIn))
     }
 
     fn state(&self) -> MutexGuard<'_, LoginState> {

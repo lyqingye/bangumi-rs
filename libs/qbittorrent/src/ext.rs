@@ -52,9 +52,9 @@ impl ResponseExt for Response {
             Ok(self)
         } else {
             match f(status) {
-                Some(err) => Err(err.into()),
+                Some(err) => Err(err),
                 None => match status {
-                    StatusCode::FORBIDDEN => Err(Error::ApiError(ApiError::NotLoggedIn).into()),
+                    StatusCode::FORBIDDEN => Err(Error::Api(ApiError::NotLoggedIn)),
                     _ => Ok(self),
                 },
             }
@@ -63,14 +63,14 @@ impl ResponseExt for Response {
 
     fn end<T: FromResponse>(self) -> Result<T> {
         self.map_status(|c| Error::UnknownHttpCode(c).pipe(Some))
-            .and_then(|b| T::from_response(&b).map_err(Into::into))
+            .and_then(|b| T::from_response(&b))
     }
 }
 
 /// Handle 404 returned by APIs with torrent hash as a parameter
 pub const TORRENT_NOT_FOUND: fn(StatusCode) -> Option<Error> = |s| {
     if s == StatusCode::NOT_FOUND {
-        Some(Error::ApiError(ApiError::TorrentNotFound))
+        Some(Error::Api(ApiError::TorrentNotFound))
     } else {
         None
     }

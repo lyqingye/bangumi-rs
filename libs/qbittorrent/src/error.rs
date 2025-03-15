@@ -5,7 +5,7 @@ pub type Result<T, E = Error> = std::result::Result<T, E>;
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error("Http error: {0}")]
-    HttpError(#[from] reqwest::Error),
+    Http(#[from] reqwest::Error),
 
     #[error("API Returned bad response: {explain}")]
     BadResponse { explain: &'static str },
@@ -17,10 +17,10 @@ pub enum Error {
     NonAsciiHeader,
 
     #[error(transparent)]
-    ApiError(#[from] ApiError),
+    Api(#[from] ApiError),
 
     #[error("serde_json error: {0}")]
-    SerdeJsonError(#[from] serde_json::Error),
+    SerdeJson(#[from] serde_json::Error),
 }
 
 /// Errors defined and returned by the API
