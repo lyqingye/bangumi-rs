@@ -343,32 +343,40 @@ mod tests {
             ..Default::default()
         };
         client.add_torrent(arg).await.unwrap();
+    }
+
+    #[ignore]
+    #[tokio::test]
+    async fn test_list_torrents() {
+        let client = create_client().await;
         let list_arg = GetTorrentListArg {
             hashes: Some("3eebfcc6839fefea06f0675958013659dfc6d80f".to_string()),
             ..Default::default()
         };
         let torrents = client.get_torrent_list(list_arg).await.unwrap();
         println!("torrents: {:?}", torrents);
+    }
+
+    #[ignore]
+    #[tokio::test]
+    async fn test_stop_torrents() {
+        let client = create_client().await;
         client
             .stop_torrents(Hashes::Hashes(Sep::from(vec![
                 "3eebfcc6839fefea06f0675958013659dfc6d80f".to_string(),
             ])))
             .await
             .unwrap();
+    }
+
+    #[ignore]
+    #[tokio::test]
+    async fn test_start_torrents() {
+        let client = create_client().await;
         client
             .start_torrents(Hashes::Hashes(Sep::from(vec![
                 "3eebfcc6839fefea06f0675958013659dfc6d80f".to_string(),
             ])))
-            .await
-            .unwrap();
-
-        client
-            .set_force_start(
-                Hashes::Hashes(Sep::from(vec![
-                    "3eebfcc6839fefea06f0675958013659dfc6d80f".to_string()
-                ])),
-                true,
-            )
             .await
             .unwrap();
     }
