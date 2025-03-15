@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use downloader::{Downloader, Event};
+use downloader::{Downloader, Event, Resource};
 use model::sea_orm_active_enums::State;
 use model::{episode_download_tasks, sea_orm_active_enums::DownloadStatus};
 use sea_orm::Set;
@@ -241,7 +241,10 @@ impl TaskManager {
 
                     // 创建下载任务
                     self.downloader
-                        .add_task(&torrent.info_hash, PathBuf::from(bangumi.name))
+                        .add_task(
+                            Resource::from_info_hash(torrent.info_hash)?,
+                            PathBuf::from(bangumi.name),
+                        )
                         .await?;
 
                     // 更新状态为下载中

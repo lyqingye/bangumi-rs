@@ -135,6 +135,12 @@ impl Torrent {
         Ok(result)
     }
 
+    pub fn info_hash_str(&self) -> Result<String> {
+        let info_hash = self.info_hash()?;
+        let hex_hash = hex::encode(info_hash);
+        Ok(hex_hash)
+    }
+
     /// 获取 Magnet URI
     pub fn magnet_link(&self) -> Result<String> {
         let info_hash = self.info_hash()?;

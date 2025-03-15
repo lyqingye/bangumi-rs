@@ -15,7 +15,9 @@ use pan_115::{
 use tokio::sync::Mutex;
 use tracing::{debug, info, warn};
 
-use crate::{context::Pan115Context, RemoteTaskStatus, ThirdPartyDownloader};
+use crate::{
+    context::Pan115Context, RemoteTaskStatus, Resource, ResourceType, ThirdPartyDownloader,
+};
 use anyhow::Result;
 use anyhow::{anyhow, Context};
 use async_trait::async_trait;
@@ -69,19 +71,18 @@ impl Pan115DownloaderImpl {
     }
 }
 
-fn create_magnet_link(info_hash: &str) -> String {
-    format!("magnet:?xt=urn:btih:{}", info_hash)
-}
-
 #[async_trait]
 impl ThirdPartyDownloader for Pan115DownloaderImpl {
     fn name(&self) -> &'static str {
         "pan_115"
     }
 
-    async fn add_task(&self, info_hash: &str, dir: PathBuf) -> Result<Option<String>> {
+    async fn add_task(&self, resource: Resource, dir: PathBuf) -> Result<Option<String>> {
         let dir_cid = self.get_or_create_dir_cid(&dir).await?;
-        let magnet = create_magnet_link(info_hash);
+        let magnet = resource
+            .magnet()
+            .ok_or_else(|| anyhow::anyhow!("无法从资源中解析出磁力链接"))?;
+        let info_hash = resource.info_hash();
 
         match self.pan115.add_offline_task(&[&magnet], &dir_cid).await {
             Ok(_) => {
@@ -217,6 +218,17 @@ impl ThirdPartyDownloader for Pan115DownloaderImpl {
     async fn resume_task(&self, _info_hash: &str) -> Result<()> {
         info!("115网盘不支持恢复任务");
         Ok(())
+    }
+
+    fn supports_resource_type(&self, resource_type: ResourceType) -> bool {
+        match resource_type {
+            ResourceType::Magnet | ResourceType::InfoHash => true,
+            _ => false,
+        }
+    }
+
+    fn recommended_resource_type(&self) -> ResourceType {
+        ResourceType::Magnet
     }
 }
 

@@ -4,6 +4,7 @@ use chrono::NaiveDateTime;
 use downloader::Store;
 use model::sea_orm_active_enums::DownloadStatus;
 use model::torrent_download_tasks::Model;
+use model::torrents::Model as TorrentModel;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -11,6 +12,7 @@ use tokio::sync::RwLock;
 #[derive(Debug, Clone, Default)]
 pub struct MockStore {
     tasks: Arc<RwLock<HashMap<String, Model>>>,
+    torrents: Arc<RwLock<HashMap<String, TorrentModel>>>,
 }
 
 #[allow(unused)]
@@ -28,6 +30,12 @@ impl MockStore {
     pub async fn get_tasks(&self) -> Vec<Model> {
         let tasks = self.tasks.read().await;
         tasks.values().cloned().collect()
+    }
+
+    pub async fn insert_torrent(&self, torrent: TorrentModel) -> Result<()> {
+        let mut torrents = self.torrents.write().await;
+        torrents.insert(torrent.info_hash.clone(), torrent);
+        Ok(())
     }
 }
 
@@ -87,5 +95,10 @@ impl Store for MockStore {
             task.next_retry_at = next_retry_at;
         }
         Ok(())
+    }
+
+    async fn get_torrent_by_info_hash(&self, info_hash: &str) -> Result<Option<TorrentModel>> {
+        let torrents = self.torrents.read().await;
+        Ok(torrents.get(info_hash).cloned())
     }
 }

@@ -2,8 +2,8 @@ use std::{collections::HashMap, path::PathBuf, time::Duration};
 
 mod mock_store;
 use chrono::Local;
-use downloader::Store;
 use downloader::{config::Config, worker::Worker, MockThirdPartyDownloader, RemoteTaskStatus};
+use downloader::{Resource, Store};
 use mock_store::MockStore;
 use model::sea_orm_active_enums::DownloadStatus;
 use model::torrent_download_tasks;
@@ -27,6 +27,10 @@ fn create_test_config() -> Config {
         retry_max_interval: chrono::Duration::nanoseconds(1),
         ..Default::default()
     }
+}
+
+fn create_test_resource() -> Resource {
+    Resource::from_info_hash("f6ebf8a1f26d01f317c8e94ec40ebb3dd1a75d40").unwrap()
 }
 
 // 创建模拟下载器，可自定义任务状态
@@ -66,8 +70,9 @@ fn create_test_worker(
 // 创建失败状态的任务集合
 fn create_failed_tasks() -> HashMap<String, RemoteTaskStatus> {
     let mut tasks = HashMap::new();
+    let resource = create_test_resource();
     tasks.insert(
-        "123".to_string(),
+        resource.info_hash().to_string(),
         RemoteTaskStatus {
             status: DownloadStatus::Failed,
             err_msg: Some("error msg".to_string()),
@@ -96,9 +101,10 @@ async fn test_retry_exceed_max_count() {
     worker.spawn().await.unwrap();
     let worker_clone = worker.clone();
 
+    let resource = create_test_resource();
     // 添加任务
     worker_clone
-        .add_task("123", PathBuf::from("test"))
+        .add_task(resource.clone(), PathBuf::from("test"))
         .await
         .unwrap();
 
@@ -115,7 +121,7 @@ async fn test_retry_exceed_max_count() {
         .await
         .unwrap();
     assert_eq!(tasks.len(), 1);
-    assert_eq!(tasks[0].info_hash, "123");
+    assert_eq!(tasks[0].info_hash, resource.info_hash());
     assert_eq!(tasks[0].download_status, DownloadStatus::Failed);
     assert_eq!(
         tasks[0].err_msg,
@@ -131,9 +137,10 @@ async fn test_download_timeout_no_retry() {
 
     // 准备测试数据和依赖
     let mock_store = MockStore::new();
+    let resource = create_test_resource();
     let mut pending_tasks = create_failed_tasks();
     pending_tasks.insert(
-        "123".to_string(),
+        resource.info_hash().to_string(),
         RemoteTaskStatus {
             status: DownloadStatus::Downloading,
             err_msg: None,
@@ -155,7 +162,7 @@ async fn test_download_timeout_no_retry() {
 
     // 添加任务
     worker_clone
-        .add_task("123", PathBuf::from("test"))
+        .add_task(resource.clone(), PathBuf::from("test"))
         .await
         .unwrap();
 
@@ -172,7 +179,7 @@ async fn test_download_timeout_no_retry() {
         .await
         .unwrap();
     assert_eq!(tasks.len(), 1);
-    assert_eq!(tasks[0].info_hash, "123");
+    assert_eq!(tasks[0].info_hash, resource.info_hash());
     assert_eq!(tasks[0].download_status, DownloadStatus::Failed);
     assert_eq!(
         tasks[0].err_msg,
@@ -189,8 +196,9 @@ async fn test_worker_retry_success() {
 
     // 创建自定义状态的任务
     let mut failed_remote_tasks = HashMap::new();
+    let resource = create_test_resource();
     failed_remote_tasks.insert(
-        "456".to_string(),
+        resource.info_hash().to_string(),
         RemoteTaskStatus {
             status: DownloadStatus::Failed,
             err_msg: None,
@@ -200,7 +208,7 @@ async fn test_worker_retry_success() {
 
     let mut success_remote_tasks = HashMap::new();
     success_remote_tasks.insert(
-        "456".to_string(),
+        resource.info_hash().to_string(),
         RemoteTaskStatus {
             status: DownloadStatus::Completed,
             err_msg: None,
@@ -227,7 +235,7 @@ async fn test_worker_retry_success() {
 
     // 添加任务并同步
     worker_clone
-        .add_task("456", PathBuf::from("test2"))
+        .add_task(resource.clone(), PathBuf::from("test2"))
         .await
         .unwrap();
 
@@ -241,7 +249,7 @@ async fn test_worker_retry_success() {
         .await
         .unwrap();
     assert_eq!(tasks.len(), 1);
-    assert_eq!(tasks[0].info_hash, "456");
+    assert_eq!(tasks[0].info_hash, resource.info_hash());
     assert_eq!(tasks[0].context, Some("completed".to_string()));
 }
 
@@ -251,9 +259,10 @@ async fn test_worker_add_task_success() {
     init_test_env();
 
     // 创建自定义状态的任务
+    let resource = create_test_resource();
     let mut pending_remote_task = HashMap::new();
     pending_remote_task.insert(
-        "456".to_string(),
+        resource.info_hash().to_string(),
         RemoteTaskStatus {
             status: DownloadStatus::Downloading,
             err_msg: None,
@@ -276,7 +285,7 @@ async fn test_worker_add_task_success() {
 
     // 添加任务并同步
     worker_clone
-        .add_task("456", PathBuf::from("test2"))
+        .add_task(resource.clone(), PathBuf::from("test2"))
         .await
         .unwrap();
 
@@ -290,7 +299,7 @@ async fn test_worker_add_task_success() {
         .await
         .unwrap();
     assert_eq!(tasks.len(), 1);
-    assert_eq!(tasks[0].info_hash, "456");
+    assert_eq!(tasks[0].info_hash, resource.info_hash());
 }
 
 #[tokio::test]
@@ -300,8 +309,9 @@ async fn test_worker_add_cancel_downloading_task() {
 
     // 创建自定义状态的任务
     let mut pending_remote_task = HashMap::new();
+    let resource = create_test_resource();
     pending_remote_task.insert(
-        "456".to_string(),
+        resource.info_hash().to_string(),
         RemoteTaskStatus {
             status: DownloadStatus::Downloading,
             err_msg: None,
@@ -324,13 +334,13 @@ async fn test_worker_add_cancel_downloading_task() {
 
     // 添加任务并同步
     worker_clone
-        .add_task("456", PathBuf::from("test2"))
+        .add_task(resource.clone(), PathBuf::from("test2"))
         .await
         .unwrap();
 
     tokio::time::sleep(Duration::from_secs(1)).await;
     worker_clone.sync_remote_task_status().await.unwrap();
-    worker_clone.cancel_task("456").unwrap();
+    worker_clone.cancel_task(resource.info_hash()).unwrap();
     worker_clone.shutdown().await.unwrap();
 
     // 验证下载中的任务状态
@@ -339,7 +349,7 @@ async fn test_worker_add_cancel_downloading_task() {
         .await
         .unwrap();
     assert_eq!(tasks.len(), 1);
-    assert_eq!(tasks[0].info_hash, "456");
+    assert_eq!(tasks[0].info_hash, resource.info_hash());
 }
 
 #[tokio::test]
@@ -348,9 +358,10 @@ async fn test_worker_add_retry_failed_task() {
     init_test_env();
 
     // 创建自定义状态的任务
+    let resource = create_test_resource();
     let mut failed_remote_task = HashMap::new();
     failed_remote_task.insert(
-        "456".to_string(),
+        resource.info_hash().to_string(),
         RemoteTaskStatus {
             status: DownloadStatus::Failed,
             err_msg: None,
@@ -360,7 +371,7 @@ async fn test_worker_add_retry_failed_task() {
 
     let mut pending_remote_task = HashMap::new();
     pending_remote_task.insert(
-        "456".to_string(),
+        resource.info_hash().to_string(),
         RemoteTaskStatus {
             status: DownloadStatus::Downloading,
             err_msg: None,
@@ -388,13 +399,13 @@ async fn test_worker_add_retry_failed_task() {
 
     // 添加任务并同步
     worker_clone
-        .add_task("456", PathBuf::from("test2"))
+        .add_task(resource.clone(), PathBuf::from("test2"))
         .await
         .unwrap();
 
     tokio::time::sleep(Duration::from_secs(1)).await;
     worker_clone.sync_remote_task_status().await.unwrap();
-    worker_clone.retry_task("456").unwrap();
+    worker_clone.retry_task(resource.info_hash()).unwrap();
     worker_clone.sync_remote_task_status().await.unwrap();
     worker_clone.shutdown().await.unwrap();
 
@@ -404,7 +415,7 @@ async fn test_worker_add_retry_failed_task() {
         .await
         .unwrap();
     assert_eq!(tasks.len(), 1);
-    assert_eq!(tasks[0].info_hash, "456");
+    assert_eq!(tasks[0].info_hash, resource.info_hash());
 }
 
 #[tokio::test]
@@ -413,9 +424,10 @@ async fn test_worker_recover_pending_tasks() {
     init_test_env();
 
     // 创建自定义状态的任务
+    let resource = create_test_resource();
     let mut pending_remote_task = HashMap::new();
     pending_remote_task.insert(
-        "456".to_string(),
+        resource.info_hash().to_string(),
         RemoteTaskStatus {
             status: DownloadStatus::Downloading,
             err_msg: None,
@@ -427,7 +439,7 @@ async fn test_worker_recover_pending_tasks() {
     let mock_store = MockStore::new();
     mock_store
         .insert_task(torrent_download_tasks::Model {
-            info_hash: "456".to_string(),
+            info_hash: resource.info_hash().to_string(),
             download_status: DownloadStatus::Pending,
             downloader: Some("mock_downloader".to_string()),
             dir: "test2".to_string(),
@@ -437,6 +449,8 @@ async fn test_worker_recover_pending_tasks() {
             next_retry_at: Local::now().naive_utc(),
             created_at: Local::now().naive_utc(),
             updated_at: Local::now().naive_utc(),
+            magnet: None,
+            resource_type: resource.get_type(),
         })
         .await
         .unwrap();
@@ -461,7 +475,7 @@ async fn test_worker_recover_pending_tasks() {
         .await
         .unwrap();
     assert_eq!(tasks.len(), 1);
-    assert_eq!(tasks[0].info_hash, "456");
+    assert_eq!(tasks[0].info_hash, resource.info_hash());
 }
 
 #[tokio::test]
@@ -470,9 +484,10 @@ async fn test_worker_pause_task() {
     init_test_env();
 
     // 创建自定义状态的任务
+    let resource = create_test_resource();
     let mut pending_remote_task = HashMap::new();
     pending_remote_task.insert(
-        "456".to_string(),
+        resource.info_hash().to_string(),
         RemoteTaskStatus {
             status: DownloadStatus::Downloading,
             err_msg: None,
@@ -495,13 +510,13 @@ async fn test_worker_pause_task() {
 
     // 添加任务并同步
     worker_clone
-        .add_task("456", PathBuf::from("test2"))
+        .add_task(resource.clone(), PathBuf::from("test2"))
         .await
         .unwrap();
 
     tokio::time::sleep(Duration::from_secs(1)).await;
     worker_clone.sync_remote_task_status().await.unwrap();
-    worker_clone.pause_task("456").unwrap();
+    worker_clone.pause_task(resource.info_hash()).unwrap();
     worker_clone.shutdown().await.unwrap();
 
     // 验证下载中的任务状态
@@ -510,7 +525,7 @@ async fn test_worker_pause_task() {
         .await
         .unwrap();
     assert_eq!(tasks.len(), 1);
-    assert_eq!(tasks[0].info_hash, "456");
+    assert_eq!(tasks[0].info_hash, resource.info_hash());
 }
 
 #[tokio::test]
@@ -519,9 +534,10 @@ async fn test_worker_resume_task() {
     init_test_env();
 
     // 创建自定义状态的任务
+    let resource = create_test_resource();
     let mut pending_remote_task = HashMap::new();
     pending_remote_task.insert(
-        "456".to_string(),
+        resource.info_hash().to_string(),
         RemoteTaskStatus {
             status: DownloadStatus::Paused,
             err_msg: None,
@@ -543,13 +559,13 @@ async fn test_worker_resume_task() {
 
     // 添加任务并同步
     worker_clone
-        .add_task("456", PathBuf::from("test2"))
+        .add_task(resource.clone(), PathBuf::from("test2"))
         .await
         .unwrap();
 
     tokio::time::sleep(Duration::from_secs(1)).await;
     worker_clone.sync_remote_task_status().await.unwrap();
-    worker_clone.resume_task("456").unwrap();
+    worker_clone.resume_task(resource.info_hash()).unwrap();
     worker_clone.sync_remote_task_status().await.unwrap();
     worker_clone.shutdown().await.unwrap();
 
@@ -559,7 +575,7 @@ async fn test_worker_resume_task() {
         .await
         .unwrap();
     assert_eq!(tasks.len(), 1);
-    assert_eq!(tasks[0].info_hash, "456");
+    assert_eq!(tasks[0].info_hash, resource.info_hash());
 }
 
 #[tokio::test]
@@ -568,9 +584,10 @@ async fn test_worker_user_manual_pause_task() {
     init_test_env();
 
     // 创建自定义状态的任务
+    let resource = create_test_resource();
     let mut pending_remote_task = HashMap::new();
     pending_remote_task.insert(
-        "456".to_string(),
+        resource.info_hash().to_string(),
         RemoteTaskStatus {
             status: DownloadStatus::Paused,
             err_msg: None,
@@ -593,7 +610,7 @@ async fn test_worker_user_manual_pause_task() {
 
     // 添加任务并同步
     worker_clone
-        .add_task("456", PathBuf::from("test2"))
+        .add_task(resource.clone(), PathBuf::from("test2"))
         .await
         .unwrap();
 
@@ -607,5 +624,5 @@ async fn test_worker_user_manual_pause_task() {
         .await
         .unwrap();
     assert_eq!(tasks.len(), 1);
-    assert_eq!(tasks[0].info_hash, "456");
+    assert_eq!(tasks[0].info_hash, resource.info_hash());
 }

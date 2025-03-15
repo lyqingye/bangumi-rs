@@ -25,7 +25,7 @@ impl TorrentProvider for MikanProvider {
                         size: t.file_size as i64,
                         info_hash: t.info_hash.clone(),
                         magnet: t.magnet_link.clone(),
-                        data: None,
+                        data: vec![],
                         download_url: t.torrent_download_url.as_ref().map(|url| url.to_string()),
                         pub_date,
                         source: Source::Mikan,

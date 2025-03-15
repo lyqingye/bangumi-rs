@@ -14,8 +14,8 @@ pub struct Model {
     pub size: i64,
     #[sea_orm(column_type = "Text")]
     pub magnet: String,
-    #[sea_orm(column_type = "custom(\"mediumblob\")", nullable)]
-    pub data: Option<String>,
+    #[sea_orm(column_type = "custom(\"mediumblob\")")]
+    pub data: Vec<u8>,
     pub download_url: Option<String>,
     pub pub_date: DateTime,
     pub source: Source,
