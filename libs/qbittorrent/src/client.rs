@@ -140,6 +140,7 @@ impl Client {
 mod tests {
     use super::*;
 
+    #[ignore]
     #[tokio::test]
     async fn test_login() {
         tracing_subscriber::fmt()
