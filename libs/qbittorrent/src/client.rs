@@ -24,7 +24,7 @@ pub struct Client {
 
 impl Client {
     #[cfg(test)]
-    pub fn new_from_env() -> Result<Self> {
+    pub fn new_from_env() -> Self {
         use crate::model::Credential;
         dotenv::dotenv().ok();
         let endpoint = std::env::var("QBITTORRENT_ENDPOINT").unwrap();
@@ -36,11 +36,11 @@ impl Client {
                 std::env::var("QBITTORRENT_PASSWORD").unwrap(),
             ),
         });
-        Ok(Self {
+        Self {
             cli,
             endpoint,
             state,
-        })
+        }
     }
 
     pub async fn login(&self, force: bool) -> Result<()> {
@@ -288,7 +288,7 @@ mod tests {
             .with_max_level(tracing::Level::INFO)
             .with_target(true)
             .init();
-        let client = Client::new_from_env().unwrap();
+        let client = Client::new_from_env();
         client.login(false).await.unwrap();
         let arg = GetTorrentListArg::default();
         let torrents = client.get_torrent_list(arg).await.unwrap();
