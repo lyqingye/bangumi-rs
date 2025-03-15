@@ -24,6 +24,7 @@ use async_trait::async_trait;
 pub struct Config {
     pub download_cache_ttl: Duration,
     pub download_cache_size: usize,
+    pub file_list_cache_size: usize,
 }
 
 impl Default for Config {
@@ -31,16 +32,18 @@ impl Default for Config {
         Self {
             download_cache_ttl: Duration::from_secs(60 * 60),
             download_cache_size: 16,
+            file_list_cache_size: 16,
         }
     }
 }
 
 #[derive(Clone)]
+#[allow(clippy::type_complexity)]
 pub struct Pan115DownloaderImpl {
     pan115: pan_115::client::Client,
     path_cache: Arc<Mutex<HashMap<PathBuf, String>>>,
     download_cache: Arc<Mutex<LruCache<String, (DownloadInfo, std::time::Instant)>>>,
-    file_list_cache: Arc<Mutex<HashMap<String, (Vec<FileInfo>, std::time::Instant)>>>,
+    file_list_cache: Arc<Mutex<LruCache<String, (Vec<FileInfo>, std::time::Instant)>>>,
     config: Config,
 }
 
@@ -52,7 +55,9 @@ impl Pan115DownloaderImpl {
             download_cache: Arc::new(Mutex::new(LruCache::new(
                 NonZero::new(config.download_cache_size).unwrap(),
             ))),
-            file_list_cache: Arc::new(Mutex::new(HashMap::new())),
+            file_list_cache: Arc::new(Mutex::new(LruCache::new(
+                NonZero::new(config.file_list_cache_size).unwrap(),
+            ))),
             config,
         }
     }
@@ -164,7 +169,7 @@ impl ThirdPartyDownloader for Pan115DownloaderImpl {
 
                 let client = self.pan115.clone();
                 let files = client.list_files_recursive(&context.file_id).await?;
-                cache.insert(context.file_id, (files.clone(), now));
+                cache.put(context.file_id, (files.clone(), now));
                 Ok(files)
             }
             None => Err(anyhow::anyhow!("该下载器不支持下载文件")),
@@ -185,7 +190,7 @@ impl ThirdPartyDownloader for Pan115DownloaderImpl {
         }
         let download_info = self
             .pan115
-            .download_file(&file_id, Some(ua))
+            .download_file(file_id, Some(ua))
             .await?
             .context("下载文件失败")?;
         cache.put(cache_key, (download_info.clone(), now));
