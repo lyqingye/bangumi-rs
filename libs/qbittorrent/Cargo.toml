@@ -9,7 +9,7 @@ serde_json = { workspace = true }
 serde_with = { workspace = true }
 serde_repr = { workspace = true }
 thiserror = { workspace = true }
-reqwest = { workspace = true, features = ["json"] }
+reqwest = { workspace = true, features = ["json","multipart"] }
 tap = { workspace = true }
 tracing = { workspace = true }
 tokio = { workspace = true, features = ["full"] }

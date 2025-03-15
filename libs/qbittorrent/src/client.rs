@@ -155,16 +155,38 @@ impl Client {
         }
     }
 
-    pub async fn pause_torrents(&self, hashes: impl Into<Hashes> + Send + Sync) -> Result<()> {
-        self.post("torrents/pause", Some(&HashesArg::new(hashes)))
+    pub async fn stop_torrents(&self, hashes: impl Into<Hashes> + Send + Sync) -> Result<()> {
+        self.post("torrents/stop", Some(&HashesArg::new(hashes)))
             .await?
             .end()
     }
 
-    pub async fn resume_torrents(&self, hashes: impl Into<Hashes> + Send + Sync) -> Result<()> {
-        self.post("torrents/resume", Some(&HashesArg::new(hashes)))
+    pub async fn start_torrents(&self, hashes: impl Into<Hashes> + Send + Sync) -> Result<()> {
+        self.post("torrents/start", Some(&HashesArg::new(hashes)))
             .await?
             .end()
+    }
+
+    pub async fn set_force_start(
+        &self,
+        hashes: impl Into<Hashes> + Send + Sync,
+        value: bool,
+    ) -> Result<()> {
+        #[derive(Serialize)]
+        struct Arg {
+            hashes: String,
+            value: bool,
+        }
+
+        self.post(
+            "torrents/setForceStart",
+            Some(&Arg {
+                hashes: hashes.into().to_string(),
+                value,
+            }),
+        )
+        .await?
+        .end()
     }
 
     pub async fn delete_torrents(
@@ -279,7 +301,19 @@ impl Client {
 
 #[cfg(test)]
 mod tests {
+    use crate::model::Sep;
+
     use super::*;
+
+    async fn create_client() -> Client {
+        tracing_subscriber::fmt()
+            .with_max_level(tracing::Level::TRACE)
+            .with_target(true)
+            .init();
+        let client = Client::new_from_env();
+        client.login(false).await.unwrap();
+        client
+    }
 
     #[ignore]
     #[tokio::test]
@@ -295,5 +329,62 @@ mod tests {
         println!("torrents: {:?}", torrents);
         println!("login success: {:?}", client.state().as_cookie());
         client.logout().await.unwrap();
+    }
+
+    #[ignore]
+    #[tokio::test]
+    async fn test_add_torrent() {
+        let client = create_client().await;
+        let arg = AddTorrentArg {
+            source: TorrentSource::Urls {
+                urls: Sep::<Url, '\n'>::from(vec!["https://mikanani.me/Download/20250202/3eebfcc6839fefea06f0675958013659dfc6d80f.torrent".parse().unwrap()]),
+            },
+            savepath: Some("/downloads".to_string()),
+            ..Default::default()
+        };
+        client.add_torrent(arg).await.unwrap();
+        let list_arg = GetTorrentListArg {
+            hashes: Some("3eebfcc6839fefea06f0675958013659dfc6d80f".to_string()),
+            ..Default::default()
+        };
+        let torrents = client.get_torrent_list(list_arg).await.unwrap();
+        println!("torrents: {:?}", torrents);
+        client
+            .stop_torrents(Hashes::Hashes(Sep::from(vec![
+                "3eebfcc6839fefea06f0675958013659dfc6d80f".to_string(),
+            ])))
+            .await
+            .unwrap();
+        client
+            .start_torrents(Hashes::Hashes(Sep::from(vec![
+                "3eebfcc6839fefea06f0675958013659dfc6d80f".to_string(),
+            ])))
+            .await
+            .unwrap();
+
+        client
+            .set_force_start(
+                Hashes::Hashes(Sep::from(vec![
+                    "3eebfcc6839fefea06f0675958013659dfc6d80f".to_string()
+                ])),
+                true,
+            )
+            .await
+            .unwrap();
+    }
+
+    #[ignore]
+    #[tokio::test]
+    async fn test_delete_torrents() {
+        let client = create_client().await;
+        client
+            .delete_torrents(
+                Hashes::Hashes(Sep::from(vec![
+                    "3eebfcc6839fefea06f0675958013659dfc6d80f".to_string()
+                ])),
+                true,
+            )
+            .await
+            .unwrap();
     }
 }
