@@ -16,7 +16,7 @@ reqwest = {workspace = true}
 
 mikan = {path = "../../libs/mikan" }
 tmdb = { path = "../../libs/tmdb" }
-acgrip = {path = "../../libs/acgrip"}
+xml-rss = {path = "../../libs/xml-rss" }
 bangumi-tv = { path = "../../libs/bangumi-tv" }
 model = {path = "../../crates/model"}
 notify = {path = "../notify"}

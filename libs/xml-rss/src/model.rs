@@ -67,14 +67,14 @@ mod tests {
         <channel>
         <title>ACG.RIP</title>
         <description>ACG.RIP has super cow power</description>
-        <link>https://acgrip.art/page/2.xml?term=%E6%88%91%E7%8B%AC%E8%87%AA%E5%8D%87%E7%BA%A7</link>
+        <link>https://xml-rss.art/page/2.xml?term=%E6%88%91%E7%8B%AC%E8%87%AA%E5%8D%87%E7%BA%A7</link>
         <ttl>1800</ttl>
         <item>
         <title>[猎户压制部] 我独自升级 第二季 -起于暗影- / Ore dake Level Up na Ken S2 [14] [1080p] [繁日内嵌] [KoVer] [2025年1月番]</title>
         <description>简介：自世界各地出现连接异次元与现实世界的通路「传送门」，已过了十多年。觉醒了特殊能力，被称为「猎人」的人们，与存在于传送门里地下城内的魔兽不断厮杀。猎人的能力在觉醒后就不再有成长空间，其等级也不会再有变化。然而，被称作是人类最弱兵器的成振宇，在一次双重地下城的突击任务中得到了只有自己能够「升级」的能力，得以在战斗中不断变强。</description>
         <pubDate>Thu, 16 Jan 2025 23:46:22 -0800</pubDate>
-        <link>https://acgrip.art/t/321591</link>
-        <guid>https://acgrip.art/t/321591</guid>
+        <link>https://xml-rss.art/t/321591</link>
+        <guid>https://xml-rss.art/t/321591</guid>
         <enclosure url="https://acgrip.art/t/321591.torrent" type="application/x-bittorrent"/>
         </item>
         </channel>
