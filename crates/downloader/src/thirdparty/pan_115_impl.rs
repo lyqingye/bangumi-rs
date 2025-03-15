@@ -40,6 +40,7 @@ pub struct Pan115DownloaderImpl {
     pan115: pan_115::client::Client,
     path_cache: Arc<Mutex<HashMap<PathBuf, String>>>,
     download_cache: Arc<Mutex<LruCache<String, (DownloadInfo, std::time::Instant)>>>,
+    file_list_cache: Arc<Mutex<HashMap<String, (Vec<FileInfo>, std::time::Instant)>>>,
     config: Config,
 }
 
@@ -51,6 +52,7 @@ impl Pan115DownloaderImpl {
             download_cache: Arc::new(Mutex::new(LruCache::new(
                 NonZero::new(config.download_cache_size).unwrap(),
             ))),
+            file_list_cache: Arc::new(Mutex::new(HashMap::new())),
             config,
         }
     }
@@ -148,9 +150,21 @@ impl ThirdPartyDownloader for Pan115DownloaderImpl {
     async fn list_files(&self, _info_hash: &str, result: Option<String>) -> Result<Vec<FileInfo>> {
         match result {
             Some(result) => {
+                let mut cache = self.file_list_cache.lock().await;
                 let context: Pan115Context = serde_json::from_str(&result)?;
+                let now = std::time::Instant::now();
+
+                if let Some((files, last_update)) = cache.get(&context.file_id) {
+                    let ttl = now.duration_since(*last_update);
+                    if ttl < self.config.download_cache_ttl {
+                        info!("命中缓存: file_id={}", context.file_id);
+                        return Ok(files.clone());
+                    }
+                }
+
                 let client = self.pan115.clone();
                 let files = client.list_files_recursive(&context.file_id).await?;
+                cache.insert(context.file_id, (files.clone(), now));
                 Ok(files)
             }
             None => Err(anyhow::anyhow!("该下载器不支持下载文件")),
