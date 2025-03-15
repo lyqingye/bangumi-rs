@@ -28,6 +28,7 @@ pub enum Tx {
     AutoRetry(String),
     TaskFailed(String, String),
     TaskCompleted(String, Option<String>),
+    TaskStatusUpdated((String, DownloadStatus)),
 
     Shutdown(oneshot::Sender<()>),
 }
@@ -45,6 +46,7 @@ impl Tx {
             Self::PauseTask(_) => "PauseTask",
             Self::ResumeTask(_) => "ResumeTask",
             Self::Shutdown(_) => "Shutdown",
+            Self::TaskStatusUpdated(_) => "TaskStatusUpdated",
         }
     }
 
@@ -60,6 +62,7 @@ impl Tx {
             Self::PauseTask(info_hash) => info_hash,
             Self::ResumeTask(info_hash) => info_hash,
             Self::Shutdown(_) => unreachable!(),
+            Self::TaskStatusUpdated((info_hash, _)) => info_hash,
         };
         tasks
             .list_by_hashes(&[info_hash.to_string()])
@@ -368,6 +371,11 @@ impl Worker {
                 self.on_task_completed(info_hash, result, ctx).await
             }
 
+            // 任务状态更新
+            (Tx::TaskStatusUpdated((info_hash, status)), _) => {
+                self.on_task_status_updated(info_hash, status, ctx).await
+            }
+
             (event, state) => {
                 warn!(
                     "无效的状态转换: 事件={}, 状态={:?}",
@@ -587,6 +595,21 @@ impl Worker {
                 .await?;
             Ok((None, Some(State::Downloading)))
         }
+    }
+
+    async fn on_task_status_updated(
+        &self,
+        info_hash: String,
+        status: DownloadStatus,
+        _ctx: &mut Context,
+    ) -> Result<(Option<Tx>, Option<State>)> {
+        info!(
+            "远程任务状态被手动更新(TaskStatusUpdated): info_hash={} state={:?}",
+            info_hash, status
+        );
+        self.update_task_status(&info_hash, status.clone(), None, None)
+            .await?;
+        Ok((None, Some(status)))
     }
 
     async fn update_task_retry_status(
