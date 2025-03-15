@@ -249,8 +249,8 @@ impl Worker {
         Ok(())
     }
 
-    pub async fn download_file(&self, info_hash: &str, ua: &str) -> Result<DownloadInfo> {
-        info!("下载文件: info_hash={}, ua={}", info_hash, ua);
+    pub async fn list_files(&self, info_hash: &str) -> Result<Vec<pan_115::model::FileInfo>> {
+        info!("列出文件: info_hash={}", info_hash);
         let task = self
             .store
             .list_by_hashes(&[info_hash.to_string()])
@@ -258,16 +258,17 @@ impl Worker {
             .first()
             .cloned()
             .context("任务不存在")?;
+        self.downloader.list_files(info_hash, task.context).await
+    }
 
-        let result = self
-            .downloader
-            .download_file(info_hash, ua, task.context)
-            .await;
+    pub async fn download_file(&self, file_id: &str, ua: &str) -> Result<DownloadInfo> {
+        info!("下载文件: file_id={}, ua={}", file_id, ua);
+        let result = self.downloader.download_file(file_id, ua).await;
 
         if let Err(ref e) = result {
-            warn!("下载文件失败: info_hash={}, 错误: {}", info_hash, e);
+            warn!("下载文件失败: file_id={}, 错误: {}", file_id, e);
         } else {
-            debug!("下载文件成功: info_hash={}", info_hash);
+            debug!("下载文件成功: file_id={}", file_id);
         }
 
         result
@@ -572,8 +573,8 @@ impl Downloader for Worker {
         self.store.list_by_hashes(info_hashes).await
     }
 
-    async fn download_file(&self, info_hash: &str, ua: &str) -> Result<DownloadInfo> {
-        self.download_file(info_hash, ua).await
+    async fn download_file(&self, file_id: &str, ua: &str) -> Result<DownloadInfo> {
+        self.download_file(file_id, ua).await
     }
 
     async fn cancel_task(&self, info_hash: &str) -> Result<()> {
@@ -594,6 +595,10 @@ impl Downloader for Worker {
 
     async fn remove_task(&self, info_hash: &str, remove_files: bool) -> Result<()> {
         self.remove_task(info_hash, remove_files)
+    }
+
+    async fn list_files(&self, info_hash: &str) -> Result<Vec<pan_115::model::FileInfo>> {
+        self.list_files(info_hash).await
     }
 }
 

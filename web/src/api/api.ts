@@ -16,7 +16,8 @@ import type {
   Config,
   QueryBangumiParams,
   MikanSearchResultItem,
-  AddBangumiParams
+  AddBangumiParams,
+  DownloadedFile
 } from './model'
 import { ApiError } from './model'
 import { useSnackbar } from '../composables/useSnackbar'
@@ -155,8 +156,18 @@ export async function manualSelectTorrent(bangumiId: number, episodeNumber: numb
     handleError(error, '手动选择种子下载失败')
   }
 }
-export async function getOnlineWatchUrl(bangumiId: number, episodeId: number, fileName: string): Promise<string> {
-  return  `${window.location.origin}/api/bangumi/${bangumiId}/${episodeId}/online_watch/${fileName}`
+
+export async function getOnlineWatchUrl(fileId: string, fileName: string): Promise<string> {
+  return `${window.location.origin}/api/bangumi/${fileId}/online_watch/${fileName}`
+}
+
+export async function listDownloadFiles(bangumiId: number, episodeId: number, ): Promise<DownloadedFile[]> {
+  try {
+    const response = await api.get<ApiResponse<DownloadedFile[]>>(`/bangumi/${bangumiId}/${episodeId}/downloaded_files`)
+    return handleResponse(response, '获取下载文件列表失败')
+  } catch (error) {
+    return handleError(error, '获取下载文件列表失败')
+  }
 }
 
 // 下载任务相关 API

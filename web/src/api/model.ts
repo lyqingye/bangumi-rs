@@ -366,3 +366,16 @@ export interface AddBangumiParams {
   bgm_tv_id?: number | null
   tmdb_id?: number | null
 }
+
+export enum FileType {
+  Video = 'Video',
+  Subtitle = 'Subtitle',
+  Unknown = 'Unknown'
+}
+
+export interface DownloadedFile {
+  file_id: string
+  file_name: string
+  file_size: number
+  file_type: string
+}

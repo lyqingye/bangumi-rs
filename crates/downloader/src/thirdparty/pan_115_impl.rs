@@ -10,7 +10,7 @@ use lru::LruCache;
 use model::sea_orm_active_enums::DownloadStatus;
 use pan_115::{
     errors::Pan115Error,
-    model::{DownloadInfo, OfflineTaskStatus},
+    model::{DownloadInfo, FileInfo, OfflineTaskStatus},
 };
 use tokio::sync::Mutex;
 use tracing::{debug, info, warn};
@@ -24,6 +24,7 @@ use async_trait::async_trait;
 pub struct Config {
     pub download_cache_ttl: Duration,
     pub download_cache_size: usize,
+    pub file_list_cache_size: usize,
 }
 
 impl Default for Config {
@@ -31,15 +32,18 @@ impl Default for Config {
         Self {
             download_cache_ttl: Duration::from_secs(60 * 60),
             download_cache_size: 16,
+            file_list_cache_size: 16,
         }
     }
 }
 
 #[derive(Clone)]
+#[allow(clippy::type_complexity)]
 pub struct Pan115DownloaderImpl {
     pan115: pan_115::client::Client,
     path_cache: Arc<Mutex<HashMap<PathBuf, String>>>,
     download_cache: Arc<Mutex<LruCache<String, (DownloadInfo, std::time::Instant)>>>,
+    file_list_cache: Arc<Mutex<LruCache<String, (Vec<FileInfo>, std::time::Instant)>>>,
     config: Config,
 }
 
@@ -50,6 +54,9 @@ impl Pan115DownloaderImpl {
             path_cache: Arc::new(Mutex::new(HashMap::new())),
             download_cache: Arc::new(Mutex::new(LruCache::new(
                 NonZero::new(config.download_cache_size).unwrap(),
+            ))),
+            file_list_cache: Arc::new(Mutex::new(LruCache::new(
+                NonZero::new(config.file_list_cache_size).unwrap(),
             ))),
             config,
         }
@@ -145,46 +152,49 @@ impl ThirdPartyDownloader for Pan115DownloaderImpl {
         Ok(remote_tasks_status)
     }
 
-    async fn download_file(
-        &self,
-        info_hash: &str,
-        ua: &str,
-        result: Option<String>,
-    ) -> Result<DownloadInfo> {
+    async fn list_files(&self, _info_hash: &str, result: Option<String>) -> Result<Vec<FileInfo>> {
+        match result {
+            Some(result) => {
+                let mut cache = self.file_list_cache.lock().await;
+                let context: Pan115Context = serde_json::from_str(&result)?;
+                let now = std::time::Instant::now();
+
+                if let Some((files, last_update)) = cache.get(&context.file_id) {
+                    let ttl = now.duration_since(*last_update);
+                    if ttl < self.config.download_cache_ttl {
+                        info!("命中缓存: file_id={}", context.file_id);
+                        return Ok(files.clone());
+                    }
+                }
+
+                let client = self.pan115.clone();
+                let files = client.list_files_recursive(&context.file_id).await?;
+                cache.put(context.file_id, (files.clone(), now));
+                Ok(files)
+            }
+            None => Err(anyhow::anyhow!("该下载器不支持下载文件")),
+        }
+    }
+
+    async fn download_file(&self, file_id: &str, ua: &str) -> Result<DownloadInfo> {
         let mut cache = self.download_cache.lock().await;
-        let cache_key = format!("{}-{}", info_hash, ua);
+        let cache_key = format!("{}-{}", file_id, ua);
 
         let now = std::time::Instant::now();
         if let Some((download_info, last_update)) = cache.get(&cache_key) {
             let ttl = now.duration_since(*last_update);
             if ttl < self.config.download_cache_ttl {
-                info!("命中缓存: info_hash={}", info_hash);
+                info!("命中缓存: file_id={}", file_id);
                 return Ok(download_info.clone());
             }
         }
-        match result {
-            Some(result) => {
-                let context: Pan115Context = serde_json::from_str(&result)?;
-                let client = self.pan115.clone();
-                let expect_file_name = context.file_name.clone();
-                let files = client
-                    .list_files_with_fn(&context.file_id, move |file| {
-                        !file.is_dir() && file.name == expect_file_name
-                    })
-                    .await?;
-                if files.is_empty() {
-                    return Err(anyhow::anyhow!("文件不存在"));
-                }
-                let file = files.first().unwrap();
-                let download_info = client
-                    .download_file(&file.file_id, Some(ua))
-                    .await?
-                    .context("下载文件失败")?;
-                cache.put(cache_key, (download_info.clone(), now));
-                Ok(download_info)
-            }
-            None => Err(anyhow::anyhow!("该下载器不支持下载文件")),
-        }
+        let download_info = self
+            .pan115
+            .download_file(file_id, Some(ua))
+            .await?
+            .context("下载文件失败")?;
+        cache.put(cache_key, (download_info.clone(), now));
+        Ok(download_info)
     }
 
     async fn cancel_task(&self, info_hash: &str) -> Result<()> {

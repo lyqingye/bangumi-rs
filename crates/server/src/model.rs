@@ -231,3 +231,18 @@ pub struct VersionInfo {
     pub git_commit_hash: Option<&'static str>,
     pub build_time: &'static str,
 }
+
+#[derive(Debug, Serialize, Clone, PartialEq)]
+pub enum FileType {
+    Video,
+    Subtitle,
+    Unknown,
+}
+
+#[derive(Debug, Serialize)]
+pub struct DownloadedFile {
+    pub file_id: String,
+    pub file_name: String,
+    pub file_size: usize,
+    pub file_type: FileType,
+}

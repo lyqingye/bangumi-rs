@@ -22,7 +22,8 @@ pub trait Downloader: Send + Sync {
     fn name(&self) -> &'static str;
     async fn add_task(&self, info_hash: &str, dir: PathBuf) -> Result<()>;
     async fn list_tasks(&self, info_hashes: &[String]) -> Result<Vec<Model>>;
-    async fn download_file(&self, info_hash: &str, ua: &str) -> Result<DownloadInfo>;
+    async fn list_files(&self, info_hash: &str) -> Result<Vec<pan_115::model::FileInfo>>;
+    async fn download_file(&self, file_id: &str, ua: &str) -> Result<DownloadInfo>;
     async fn cancel_task(&self, info_hash: &str) -> Result<()>;
     async fn remove_task(&self, info_hash: &str, remove_files: bool) -> Result<()>;
     async fn metrics(&self) -> metrics::Metrics;
@@ -50,12 +51,13 @@ pub trait ThirdPartyDownloader: Send + Sync {
     async fn add_task(&self, info_hash: &str, dir: PathBuf) -> Result<Option<String>>;
     async fn list_tasks(&self, info_hashes: &[String])
         -> Result<HashMap<String, RemoteTaskStatus>>;
-    async fn download_file(
+
+    async fn list_files(
         &self,
         info_hash: &str,
-        ua: &str,
         result: Option<String>,
-    ) -> Result<DownloadInfo>;
+    ) -> Result<Vec<pan_115::model::FileInfo>>;
+    async fn download_file(&self, file_id: &str, ua: &str) -> Result<DownloadInfo>;
     async fn cancel_task(&self, info_hash: &str) -> Result<()>;
     async fn remove_task(&self, info_hash: &str, remove_files: bool) -> Result<()>;
 }
