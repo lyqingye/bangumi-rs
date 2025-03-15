@@ -208,6 +208,16 @@ impl ThirdPartyDownloader for Pan115DownloaderImpl {
             .await?;
         Ok(())
     }
+
+    async fn pause_task(&self, _info_hash: &str) -> Result<()> {
+        info!("115网盘不支持暂停任务");
+        Ok(())
+    }
+
+    async fn resume_task(&self, _info_hash: &str) -> Result<()> {
+        info!("115网盘不支持恢复任务");
+        Ok(())
+    }
 }
 
 impl Pan115DownloaderImpl {

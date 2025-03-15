@@ -4,16 +4,16 @@
 stateDiagram
   direction TB
 
-  
+
   [*] --> Pending
   Pending --> Downloading:StartTask
-  Pending --> Cancelled:CancelTask
   Pending --> Failed:TaskFailed
   Pending --> Failed:DownloadTimeout
   Downloading --> Completed:TaskComplete
   Downloading --> Failed:TaskFailed
   Downloading --> Cancelled:CancelTask
   Downloading --> Failed:DownloadTimeout
+  Downloading --> Paused:PauseTask
 
   Failed --> Retrying:RetryTask
   Failed --> [*]
@@ -27,5 +27,11 @@ stateDiagram
 
   Retrying --> Pending:AutoRetry
   Retrying --> Cancelled:CancelTask
+  Retrying --> Paused:PauseTask
+
+  Paused --> Downloading:ResumeTask
+  Paused --> [*]
+
   Completed --> [*]
 ```
+

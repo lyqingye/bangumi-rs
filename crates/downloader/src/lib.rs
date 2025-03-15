@@ -29,6 +29,8 @@ pub trait Downloader: Send + Sync {
     async fn metrics(&self) -> metrics::Metrics;
     async fn subscribe(&self) -> broadcast::Receiver<Event>;
     async fn retry(&self, info_hash: &str) -> Result<()>;
+    async fn pause_task(&self, info_hash: &str) -> Result<()>;
+    async fn resume_task(&self, info_hash: &str) -> Result<()>;
 }
 
 #[derive(Debug, Clone)]
@@ -60,6 +62,8 @@ pub trait ThirdPartyDownloader: Send + Sync {
     async fn download_file(&self, file_id: &str, ua: &str) -> Result<DownloadInfo>;
     async fn cancel_task(&self, info_hash: &str) -> Result<()>;
     async fn remove_task(&self, info_hash: &str, remove_files: bool) -> Result<()>;
+    async fn pause_task(&self, info_hash: &str) -> Result<()>;
+    async fn resume_task(&self, info_hash: &str) -> Result<()>;
 }
 
 #[async_trait]
