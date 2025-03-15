@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use serde_with::{DeserializeFromStr, SerializeDisplay};
 use tap::Pipe;
 
-mod torrent;
+pub mod torrent;
 
 /// Username and password used to authenticate with qBittorrent.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

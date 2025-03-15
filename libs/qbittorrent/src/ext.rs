@@ -1,4 +1,4 @@
-use reqwest::{Response, StatusCode, header::SET_COOKIE};
+use reqwest::{header::SET_COOKIE, Response, StatusCode};
 use tap::Pipe;
 
 use crate::error::{ApiError, Error, Result};

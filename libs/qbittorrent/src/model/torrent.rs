@@ -2,7 +2,7 @@ use std::fmt::{Debug, Display};
 
 use reqwest::Url;
 use serde::Serialize;
-use serde_with::{SerializeDisplay, skip_serializing_none};
+use serde_with::{skip_serializing_none, SerializeDisplay};
 
 use crate::model::Sep;
 
