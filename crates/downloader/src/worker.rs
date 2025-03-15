@@ -166,7 +166,7 @@ impl Worker {
         let task = tasks
             .first()
             .ok_or_else(|| anyhow::anyhow!("任务不存在: info_hash={}", info_hash))?;
-        self.get_task_resource(&task).await
+        self.get_task_resource(task).await
     }
 
     async fn recover_pending_tasks(&self) -> Result<()> {

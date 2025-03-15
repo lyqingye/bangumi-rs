@@ -221,10 +221,7 @@ impl ThirdPartyDownloader for Pan115DownloaderImpl {
     }
 
     fn supports_resource_type(&self, resource_type: ResourceType) -> bool {
-        match resource_type {
-            ResourceType::Magnet | ResourceType::InfoHash => true,
-            _ => false,
-        }
+        matches!(resource_type, ResourceType::Magnet | ResourceType::InfoHash)
     }
 
     fn recommended_resource_type(&self) -> ResourceType {
