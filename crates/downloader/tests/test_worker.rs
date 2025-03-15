@@ -42,6 +42,10 @@ fn create_mock_downloader() -> MockThirdPartyDownloader {
         .expect_remove_task()
         .returning(|_, _| Ok(()));
 
+    mock_downloader.expect_pause_task().returning(|_| Ok(()));
+
+    mock_downloader.expect_resume_task().returning(|_| Ok(()));
+
     mock_downloader
 }
 
@@ -454,6 +458,152 @@ async fn test_worker_recover_pending_tasks() {
     // 验证下载中的任务状态
     let tasks = mock_store
         .list_by_status(&[DownloadStatus::Downloading])
+        .await
+        .unwrap();
+    assert_eq!(tasks.len(), 1);
+    assert_eq!(tasks[0].info_hash, "456");
+}
+
+#[tokio::test]
+async fn test_worker_pause_task() {
+    // 初始化测试环境
+    init_test_env();
+
+    // 创建自定义状态的任务
+    let mut pending_remote_task = HashMap::new();
+    pending_remote_task.insert(
+        "456".to_string(),
+        RemoteTaskStatus {
+            status: DownloadStatus::Downloading,
+            err_msg: None,
+            result: None,
+        },
+    );
+
+    // 准备测试数据和依赖
+    let mock_store = MockStore::new();
+    let mut mock_downloader = create_mock_downloader();
+    mock_downloader
+        .expect_list_tasks()
+        .returning(move |_| Ok(pending_remote_task.clone()));
+    let config = create_test_config();
+
+    // 创建并启动worker
+    let mut worker = create_test_worker(mock_store.clone(), mock_downloader, config);
+    worker.spawn().await.unwrap();
+    let worker_clone = worker.clone();
+
+    // 添加任务并同步
+    worker_clone
+        .add_task("456", PathBuf::from("test2"))
+        .await
+        .unwrap();
+
+    tokio::time::sleep(Duration::from_secs(1)).await;
+    worker_clone.sync_remote_task_status().await.unwrap();
+    worker_clone.pause_task("456").unwrap();
+    worker_clone.shutdown().await.unwrap();
+
+    // 验证下载中的任务状态
+    let tasks = mock_store
+        .list_by_status(&[DownloadStatus::Paused])
+        .await
+        .unwrap();
+    assert_eq!(tasks.len(), 1);
+    assert_eq!(tasks[0].info_hash, "456");
+}
+
+#[tokio::test]
+async fn test_worker_resume_task() {
+    // 初始化测试环境
+    init_test_env();
+
+    // 创建自定义状态的任务
+    let mut pending_remote_task = HashMap::new();
+    pending_remote_task.insert(
+        "456".to_string(),
+        RemoteTaskStatus {
+            status: DownloadStatus::Paused,
+            err_msg: None,
+            result: None,
+        },
+    );
+
+    // 准备测试数据和依赖
+    let mock_store = MockStore::new();
+    let mut mock_downloader = create_mock_downloader();
+    mock_downloader
+        .expect_list_tasks()
+        .returning(move |_| Ok(pending_remote_task.clone()));
+    let config = create_test_config();
+    // 创建并启动worker
+    let mut worker = create_test_worker(mock_store.clone(), mock_downloader, config);
+    worker.spawn().await.unwrap();
+    let worker_clone = worker.clone();
+
+    // 添加任务并同步
+    worker_clone
+        .add_task("456", PathBuf::from("test2"))
+        .await
+        .unwrap();
+
+    tokio::time::sleep(Duration::from_secs(1)).await;
+    worker_clone.sync_remote_task_status().await.unwrap();
+    worker_clone.resume_task("456").unwrap();
+    worker_clone.sync_remote_task_status().await.unwrap();
+    worker_clone.shutdown().await.unwrap();
+
+    // 验证下载中的任务状态
+    let tasks = mock_store
+        .list_by_status(&[DownloadStatus::Downloading])
+        .await
+        .unwrap();
+    assert_eq!(tasks.len(), 1);
+    assert_eq!(tasks[0].info_hash, "456");
+}
+
+#[tokio::test]
+async fn test_worker_user_manual_pause_task() {
+    // 初始化测试环境
+    init_test_env();
+
+    // 创建自定义状态的任务
+    let mut pending_remote_task = HashMap::new();
+    pending_remote_task.insert(
+        "456".to_string(),
+        RemoteTaskStatus {
+            status: DownloadStatus::Paused,
+            err_msg: None,
+            result: None,
+        },
+    );
+
+    // 准备测试数据和依赖
+    let mock_store = MockStore::new();
+    let mut mock_downloader = create_mock_downloader();
+    mock_downloader
+        .expect_list_tasks()
+        .returning(move |_| Ok(pending_remote_task.clone()));
+    let config = create_test_config();
+
+    // 创建并启动worker
+    let mut worker = create_test_worker(mock_store.clone(), mock_downloader, config);
+    worker.spawn().await.unwrap();
+    let worker_clone = worker.clone();
+
+    // 添加任务并同步
+    worker_clone
+        .add_task("456", PathBuf::from("test2"))
+        .await
+        .unwrap();
+
+    tokio::time::sleep(Duration::from_secs(1)).await;
+    worker_clone.sync_remote_task_status().await.unwrap();
+    worker_clone.shutdown().await.unwrap();
+
+    // 验证下载中的任务状态
+    let tasks = mock_store
+        .list_by_status(&[DownloadStatus::Paused])
         .await
         .unwrap();
     assert_eq!(tasks.len(), 1);

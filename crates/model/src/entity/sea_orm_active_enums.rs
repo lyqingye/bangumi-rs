@@ -26,6 +26,8 @@ pub enum DownloadStatus {
     Retrying,
     #[sea_orm(string_value = "cancelled")]
     Cancelled,
+    #[sea_orm(string_value = "paused")]
+    Paused,
 }
 #[derive(Debug, Clone, PartialEq, Eq, EnumIter, DeriveActiveEnum, Serialize, Deserialize)]
 #[sea_orm(rs_type = "String", db_type = "Enum", enum_name = "kind")]

@@ -21,11 +21,14 @@ pub enum Tx {
     CancelTask(String),
     RemoveTask((String, bool)),
     RetryTask(String),
+    PauseTask(String),
+    ResumeTask(String),
 
     // 内部事件
     AutoRetry(String),
     TaskFailed(String, String),
     TaskCompleted(String, Option<String>),
+    TaskStatusUpdated((String, DownloadStatus)),
 
     Shutdown(oneshot::Sender<()>),
 }
@@ -40,7 +43,10 @@ impl Tx {
             Self::TaskFailed(_, _) => "TaskFailed",
             Self::TaskCompleted(_, _) => "TaskCompleted",
             Self::RemoveTask((_, _)) => "RemoveTask",
+            Self::PauseTask(_) => "PauseTask",
+            Self::ResumeTask(_) => "ResumeTask",
             Self::Shutdown(_) => "Shutdown",
+            Self::TaskStatusUpdated(_) => "TaskStatusUpdated",
         }
     }
 
@@ -53,7 +59,10 @@ impl Tx {
             Self::TaskFailed(info_hash, _) => info_hash,
             Self::TaskCompleted(info_hash, _) => info_hash,
             Self::RemoveTask((info_hash, _)) => info_hash,
-            _ => unreachable!(),
+            Self::PauseTask(info_hash) => info_hash,
+            Self::ResumeTask(info_hash) => info_hash,
+            Self::Shutdown(_) => unreachable!(),
+            Self::TaskStatusUpdated((info_hash, _)) => info_hash,
         };
         tasks
             .list_by_hashes(&[info_hash.to_string()])
@@ -274,6 +283,18 @@ impl Worker {
         result
     }
 
+    pub fn pause_task(&self, info_hash: &str) -> Result<()> {
+        info!("暂停下载任务: info_hash={}", info_hash);
+        self.send_event(Tx::PauseTask(info_hash.to_string()))?;
+        Ok(())
+    }
+
+    pub fn resume_task(&self, info_hash: &str) -> Result<()> {
+        info!("恢复下载任务: info_hash={}", info_hash);
+        self.send_event(Tx::ResumeTask(info_hash.to_string()))?;
+        Ok(())
+    }
+
     pub fn subscribe(&self) -> broadcast::Receiver<Event> {
         self.notify_tx.subscribe()
     }
@@ -315,8 +336,18 @@ impl Worker {
             (Tx::StartTask(info_hash), State::Pending) => self.on_start_task(info_hash, ctx).await,
 
             // 取消任务
-            (Tx::CancelTask(info_hash), State::Downloading | State::Pending | State::Retrying) => {
+            (Tx::CancelTask(info_hash), State::Downloading | State::Retrying) => {
                 self.on_task_cancelled(info_hash, ctx).await
+            }
+
+            // 暂停任务
+            (Tx::PauseTask(info_hash), State::Downloading | State::Retrying) => {
+                self.on_task_paused(info_hash, ctx).await
+            }
+
+            // 恢复任务
+            (Tx::ResumeTask(info_hash), State::Paused) => {
+                self.on_task_resumed(info_hash, ctx).await
             }
 
             // 移除任务
@@ -338,6 +369,11 @@ impl Worker {
             // 任务完成
             (Tx::TaskCompleted(info_hash, result), State::Downloading) => {
                 self.on_task_completed(info_hash, result, ctx).await
+            }
+
+            // 任务状态更新
+            (Tx::TaskStatusUpdated((info_hash, status)), _) => {
+                self.on_task_status_updated(info_hash, status, ctx).await
             }
 
             (event, state) => {
@@ -521,6 +557,61 @@ impl Worker {
         Ok((None, Some(State::Cancelled)))
     }
 
+    async fn on_task_paused(
+        &self,
+        info_hash: String,
+        ctx: &mut Context,
+    ) -> Result<(Option<Tx>, Option<State>)> {
+        info!(
+            "暂停任务(TaskPaused): info_hash={} state={:?}",
+            info_hash, ctx.ref_task.download_status
+        );
+
+        if let Err(e) = self.downloader.pause_task(&info_hash).await {
+            warn!("暂停任务出错: info_hash={}, 错误: {}", info_hash, e);
+            Ok((None, Some(State::Downloading)))
+        } else {
+            self.update_task_status(&info_hash, DownloadStatus::Paused, None, None)
+                .await?;
+            Ok((None, Some(State::Paused)))
+        }
+    }
+
+    async fn on_task_resumed(
+        &self,
+        info_hash: String,
+        ctx: &mut Context,
+    ) -> Result<(Option<Tx>, Option<State>)> {
+        info!(
+            "恢复任务(TaskResumed): info_hash={} state={:?}",
+            info_hash, ctx.ref_task.download_status
+        );
+
+        if let Err(e) = self.downloader.resume_task(&info_hash).await {
+            warn!("恢复任务出错: info_hash={}, 错误: {}", info_hash, e);
+            Ok((None, Some(State::Paused)))
+        } else {
+            self.update_task_status(&info_hash, DownloadStatus::Downloading, None, None)
+                .await?;
+            Ok((None, Some(State::Downloading)))
+        }
+    }
+
+    async fn on_task_status_updated(
+        &self,
+        info_hash: String,
+        status: DownloadStatus,
+        _ctx: &mut Context,
+    ) -> Result<(Option<Tx>, Option<State>)> {
+        info!(
+            "远程任务状态被手动更新(TaskStatusUpdated): info_hash={} state={:?}",
+            info_hash, status
+        );
+        self.update_task_status(&info_hash, status.clone(), None, None)
+            .await?;
+        Ok((None, Some(status)))
+    }
+
     async fn update_task_retry_status(
         &self,
         info_hash: &str,
@@ -599,6 +690,14 @@ impl Downloader for Worker {
 
     async fn list_files(&self, info_hash: &str) -> Result<Vec<pan_115::model::FileInfo>> {
         self.list_files(info_hash).await
+    }
+
+    async fn pause_task(&self, info_hash: &str) -> Result<()> {
+        self.pause_task(info_hash)
+    }
+
+    async fn resume_task(&self, info_hash: &str) -> Result<()> {
+        self.resume_task(info_hash)
     }
 }
 

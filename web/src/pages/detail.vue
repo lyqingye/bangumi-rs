@@ -392,7 +392,8 @@
                                     <v-btn
                                       :color="getActionButtonColor(torrent.download_status)"
                                       :loading="
-                                        torrent.download_status === DownloadStatus.Downloading
+                                        torrent.download_status === DownloadStatus.Downloading ||
+                                        torrent.download_status === DownloadStatus.Paused
                                       "
                                       :disabled="
                                         torrent.download_status === DownloadStatus.Completed ||
@@ -1713,6 +1714,7 @@ const getResolutionColor = (resolution: string) => {
 const getActionButtonColor = (status: DownloadStatus | null) => {
   switch (status) {
     case DownloadStatus.Downloading:
+    case DownloadStatus.Paused:
       return 'primary'
     case DownloadStatus.Completed:
       return 'success'
@@ -1728,6 +1730,8 @@ const getActionButtonIcon = (status: DownloadStatus | null) => {
   switch (status) {
     case DownloadStatus.Downloading:
       return 'mdi-progress-download'
+    case DownloadStatus.Paused:
+      return 'mdi-pause'
     case DownloadStatus.Completed:
       return 'mdi-check'
     case DownloadStatus.Failed:
@@ -1744,6 +1748,8 @@ const getActionButtonText = (status: DownloadStatus | null) => {
   switch (status) {
     case DownloadStatus.Downloading:
       return '下载中'
+    case DownloadStatus.Paused:
+      return '暂停'
     case DownloadStatus.Completed:
       return '已完成'
     case DownloadStatus.Failed:

@@ -81,6 +81,14 @@ impl Worker {
                         self.send_event(Tx::TaskFailed(info_hash, err_msg.unwrap_or_default()))?;
                     }
 
+                    // 本地状态和远程任务状态不一致，例如本地状态是Downloading, 然后远程任务被用户手动暂停了
+                    // 例如本地状态是Paused, 然后远程任务被用户手动恢复了
+                    // 所以此时需要更新本地任务状态
+                    DownloadStatus::Paused | DownloadStatus::Downloading => {
+                        info!("远程任务被手动暂停或恢复: info_hash={}", info_hash);
+                        self.send_event(Tx::TaskStatusUpdated((info_hash, status)))?;
+                    }
+
                     _ => {
                         warn!("未处理的任务状态: info_hash={}, local_status={:?}, remote_status={:?}, err_msg={:?}", info_hash, local_task.download_status  , status, err_msg);
                     }
