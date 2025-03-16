@@ -47,10 +47,10 @@ const formData = ref({
   start_episode_number: props.currentSubscribeSettings?.start_episode_number ?? 1,
   resolution_filter: props.currentSubscribeSettings?.resolution_filter
     ? props.currentSubscribeSettings.resolution_filter.split(',')
-    : [],
+    : ['2160P', '1440P', '1080P', '720P'],
   language_filter: props.currentSubscribeSettings?.language_filter
     ? props.currentSubscribeSettings.language_filter.split(',')
-    : [],
+    : ['CHS', 'CHT'],
   release_group_filter: props.currentSubscribeSettings?.release_group_filter
     ? props.currentSubscribeSettings.release_group_filter.split(',')
     : [],
