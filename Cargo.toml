@@ -21,6 +21,41 @@ members = [
 ]
 resolver = "2"
 
+# 极致性能优化的发布配置
+[profile.release]
+# 启用最高级别的优化
+opt-level = 3
+# 开启链接时间优化(LTO)以允许跨代码单元优化
+lto = "fat"
+# 并行编译单元之间进行优化
+codegen-units = 1
+# 启用紧急内联(告诉编译器优先考虑内联)
+panic = "abort"
+# 启用调试信息(不影响性能，有助于分析)
+debug = true
+# 禁用增量编译
+incremental = false
+# 启用优化过的调试信息
+strip = "none"
+# 消除溢出检查，提高性能
+overflow-checks = false
+
+# 开发时快速编译的配置
+[profile.dev]
+# 最小化优化级别，加快编译速度
+opt-level = 0
+# 禁用LTO
+lto = "off"
+# 最大化并行编译单元数量
+codegen-units = 256
+# 启用增量编译
+incremental = true
+# 保留调试信息
+strip = "none"
+# 禁用溢出检查以加快编译
+overflow-checks = false
+# 加快编译时间的其他优化
+split-debuginfo = "unpacked"
 
 [workspace.dependencies]
 
