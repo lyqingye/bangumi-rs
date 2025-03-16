@@ -23,7 +23,11 @@ impl Worker {
     pub async fn sync_remote_task_status(&self) -> Result<()> {
         let local_tasks = self
             .store
-            .list_by_status(&[DownloadStatus::Downloading, DownloadStatus::Pending])
+            .list_by_status(&[
+                DownloadStatus::Downloading,
+                DownloadStatus::Pending,
+                DownloadStatus::Paused,
+            ])
             .await?;
 
         if local_tasks.is_empty() {
@@ -95,6 +99,7 @@ impl Worker {
                 }
             } else if local_task.download_status == DownloadStatus::Pending
                 || local_task.download_status == DownloadStatus::Downloading
+                || local_task.download_status == DownloadStatus::Paused
             {
                 let now = Local::now().naive_utc();
                 let elapsed = now - local_task.updated_at;
