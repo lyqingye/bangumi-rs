@@ -141,7 +141,7 @@ impl TorrentSelector {
         });
 
         // 返回排序后的第一个种子
-        Some(candidates.into_iter().next().unwrap().0.clone())
+        Some(candidates[0].0.clone())
     }
 
     /// 检查是否匹配分辨率过滤器
