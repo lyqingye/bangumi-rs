@@ -8,6 +8,7 @@ use std::{
 use tap::{Pipe, TapFallible};
 use tracing::{debug, trace, warn};
 
+use crate::model::Credential;
 use crate::{
     error::{ApiError, Error, Result},
     ext::{Cookie, ResponseExt},
@@ -40,6 +41,21 @@ impl Client {
             cli,
             endpoint,
             state,
+        }
+    }
+
+    pub fn new<T: Into<String>>(
+        cli: reqwest::Client,
+        endpoint: Url,
+        username: T,
+        password: T,
+    ) -> Self {
+        Self {
+            cli,
+            endpoint,
+            state: Mutex::new(LoginState::NotLoggedIn {
+                credential: Credential::new(username.into(), password.into()),
+            }),
         }
     }
 
@@ -394,5 +410,23 @@ mod tests {
             )
             .await
             .unwrap();
+    }
+
+    #[ignore]
+    #[tokio::test]
+    async fn test_add_magnet() {
+        let client = create_client().await;
+        let arg = AddTorrentArg {
+            source: TorrentSource::Urls {
+                urls: Sep::<Url, '\n'>::from(vec![
+                    "magnet:?xt=urn:btih:3395bec505f46591094519d008f991f71734877d"
+                        .parse()
+                        .unwrap(),
+                ]),
+            },
+            savepath: Some("/downloads".to_string()),
+            ..Default::default()
+        };
+        client.add_torrent(arg).await.unwrap();
     }
 }

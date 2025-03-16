@@ -32,7 +32,6 @@ endpoint = "https://mikanani.me"
 
 # 下载器配置
 [downloader]
-download_dir = "/animes"
 max_retry_count = 5
 download_timeout = "30m"
 retry_min_interval = "30s"
@@ -40,8 +39,22 @@ retry_max_interval = "10m"
 
 # 115网盘下载器配置
 [downloader.pan115]
+enabled = false
 cookies = "Your 115 cookies"
 max_requests_per_second = 1
+download_dir = "/animes"
+# 下载完成后是否删除任务, 不会删除文件，只会删除任务
+delete_task_on_completion = true
+
+# qbittorrent 下载器配置
+[downloader.qbittorrent]
+enabled = false
+download_dir = "/animes"
+username = "admin"
+password = "adminadmin"
+url = "http://127.0.0.1:8080"
+# 下载完成后是否删除任务, 不会删除文件，只会删除任务
+delete_task_on_completion = false
 
 # Telegram 通知配置
 [notify.telegram]

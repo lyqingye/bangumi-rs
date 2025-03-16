@@ -23,7 +23,11 @@ impl Worker {
     pub async fn sync_remote_task_status(&self) -> Result<()> {
         let local_tasks = self
             .store
-            .list_by_status(&[DownloadStatus::Downloading, DownloadStatus::Pending])
+            .list_by_status(&[
+                DownloadStatus::Downloading,
+                DownloadStatus::Pending,
+                DownloadStatus::Paused,
+            ])
             .await?;
 
         if local_tasks.is_empty() {
@@ -93,7 +97,10 @@ impl Worker {
                         warn!("未处理的任务状态: info_hash={}, local_status={:?}, remote_status={:?}, err_msg={:?}", info_hash, local_task.download_status  , status, err_msg);
                     }
                 }
-            } else if status == DownloadStatus::Pending || status == DownloadStatus::Downloading {
+            } else if local_task.download_status == DownloadStatus::Pending
+                || local_task.download_status == DownloadStatus::Downloading
+                || local_task.download_status == DownloadStatus::Paused
+            {
                 let now = Local::now().naive_utc();
                 let elapsed = now - local_task.updated_at;
                 if elapsed > self.config.download_timeout {

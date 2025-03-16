@@ -106,6 +106,7 @@ impl TelegramConfig {
 #[serde(default)]
 pub struct DownloaderConfig {
     pub pan115: Pan115Config,
+    pub qbittorrent: QbittorrentConfig,
     pub max_retry_count: i32,
     #[serde(
         serialize_with = "serialize_chrono_duration",
@@ -122,26 +123,26 @@ pub struct DownloaderConfig {
         deserialize_with = "deserialize_chrono_duration"
     )]
     pub download_timeout: ChronoDuration,
-    pub download_dir: String,
 }
 
 impl Default for DownloaderConfig {
     fn default() -> Self {
         Self {
             pan115: Pan115Config::default(),
+            qbittorrent: QbittorrentConfig::default(),
             max_retry_count: 10,
             retry_min_interval: ChronoDuration::seconds(30),
             retry_max_interval: ChronoDuration::hours(1),
             download_timeout: ChronoDuration::minutes(30),
-            download_dir: "/".to_owned(),
         }
     }
 }
 
 impl DownloaderConfig {
     fn validate(&self) -> Result<()> {
-        validate_abs_path_format(&self.download_dir, "downloader.download_dir")?;
         validate_not_empty(&self.pan115.cookies, "downloader.pan115.cookies")?;
+        self.pan115.validate()?;
+        self.qbittorrent.validate()?;
         Ok(())
     }
 }
@@ -149,19 +150,70 @@ impl DownloaderConfig {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(default)]
 pub struct Pan115Config {
+    pub enabled: bool,
     pub cookies: String,
     pub max_requests_per_second: u32,
+    pub download_dir: String,
+    pub delete_task_on_completion: bool,
 }
 
 impl Default for Pan115Config {
     fn default() -> Self {
         Self {
+            enabled: false,
             cookies: "".to_owned(),
             max_requests_per_second: 1,
+            download_dir: "/".to_owned(),
+            delete_task_on_completion: true,
         }
     }
 }
 
+impl Pan115Config {
+    fn validate(&self) -> Result<()> {
+        if self.enabled {
+            validate_not_empty(&self.cookies, "downloader.pan115.cookies")?;
+            validate_abs_path_format(&self.download_dir, "downloader.pan115.download_dir")?;
+        }
+        Ok(())
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(default)]
+pub struct QbittorrentConfig {
+    pub enabled: bool,
+    pub url: String,
+    pub username: String,
+    pub password: String,
+    pub download_dir: String,
+    pub delete_task_on_completion: bool,
+}
+
+impl Default for QbittorrentConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            url: "http://127.0.0.1:8080".to_owned(),
+            username: "admin".to_owned(),
+            password: "adminadmin".to_owned(),
+            download_dir: "/downloads".to_owned(),
+            delete_task_on_completion: false,
+        }
+    }
+}
+
+impl QbittorrentConfig {
+    fn validate(&self) -> Result<()> {
+        if self.enabled {
+            validate_url(&self.url, "downloader.qbittorrent.url")?;
+            validate_not_empty(&self.username, "downloader.qbittorrent.username")?;
+            validate_not_empty(&self.password, "downloader.qbittorrent.password")?;
+            validate_abs_path_format(&self.download_dir, "downloader.qbittorrent.download_dir")?;
+        }
+        Ok(())
+    }
+}
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
 #[serde(default)]
 pub struct ParserConfig {

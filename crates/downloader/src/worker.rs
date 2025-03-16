@@ -248,13 +248,12 @@ impl Worker {
             info_hash,
             dir.display()
         );
-        self.create_task(&resource, &dir).await?;
+        self.create_task(&resource, dir).await?;
         self.send_event(Tx::StartTask(resource))?;
         Ok(())
     }
 
-    async fn create_task(&self, resource: &Resource, dir: &PathBuf) -> Result<()> {
-        let full_path = self.config.download_dir.join(dir);
+    async fn create_task(&self, resource: &Resource, dir: PathBuf) -> Result<()> {
         let now = Local::now().naive_utc();
         let task = Model {
             info_hash: resource.info_hash().to_string(),
@@ -264,7 +263,7 @@ impl Worker {
             err_msg: None,
             created_at: now,
             updated_at: now,
-            dir: full_path.to_string_lossy().into_owned(),
+            dir: dir.to_string_lossy().into_owned(),
             retry_count: 0,
             next_retry_at: now,
             resource_type: resource.get_type(),
@@ -573,8 +572,10 @@ impl Worker {
         self.update_task_status(&info_hash, DownloadStatus::Completed, None, result)
             .await?;
 
-        if let Err(e) = self.downloader.remove_task(&info_hash, false).await {
-            warn!("清理下载记录出错: info_hash={}, 错误: {}", info_hash, e);
+        if self.downloader.delete_task_on_completion() {
+            if let Err(e) = self.downloader.remove_task(&info_hash, false).await {
+                warn!("清理下载记录出错: info_hash={}, 错误: {}", info_hash, e);
+            }
         }
 
         Ok((None, Some(State::Completed)))

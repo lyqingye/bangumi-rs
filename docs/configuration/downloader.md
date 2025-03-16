@@ -9,8 +9,7 @@
 ```toml
 # 下载器配置
 [downloader]
-# 这里的路径相当于你115网盘根目录下的animes文件夹
-download_dir = "/animes"
+
 # 下载最大重试次数
 max_retry_count = 5
 # 下载超时，避免由于死种导致一直在下载
@@ -82,9 +81,19 @@ Bangumi-rs 使用指数退避算法计算重试间隔，从最小间隔开始，
 ```toml
 # 115网盘下载器配置
 [downloader.pan115]
+enabled = true
 cookies = "Your 115 cookies"
 max_requests_per_second = 1
+# 这里的路径相当于你115网盘根目录下的animes文件夹
+download_dir = "/animes"
 ```
+
+### 启用 (enabled)
+
+- **说明**: 是否启用 115 网盘下载器
+- **默认值**: `false`
+- **格式**: 布尔值
+- **示例**: `enabled = true`
 
 ### Cookies (cookies)
 
@@ -95,6 +104,20 @@ max_requests_per_second = 1
 ::: warning 注意
 获取文档可以参考: https://alist.nn.ci/zh/guide/drivers/115.html#cookie%E8%8E%B7%E5%8F%96%E6%96%B9%E5%BC%8F
 :::
+
+### 下载目录 (download_dir)
+
+- **说明**: 115 网盘下载目录,这里代表你 115 网盘根目录下的 animes 文件夹
+- **默认值**: `"/animes"`
+- **格式**: 字符串
+- **示例**: `download_dir = "/animes"`
+
+### 下载完成后是否删除任务 (delete_task_on_completion)
+
+- **说明**: 下载完成后是否删除任务, 不会删除文件，只会删除任务
+- **默认值**: `true`
+- **格式**: 布尔值
+- **示例**: `delete_task_on_completion = true`
 
 ### 最大请求频率 (max_requests_per_second)
 
@@ -107,3 +130,58 @@ max_requests_per_second = 1
 115 网盘 API 有请求频率限制，设置过高可能导致被临时封禁 1 小时。
 :::
 
+## qbittorrent 配置
+
+qbittorrent 配置位于 `[downloader.qbittorrent]` 部分，用于配置 qbittorrent 下载功能：
+
+```toml
+# qbittorrent 下载器配置
+[downloader.qbittorrent]
+enabled = true
+download_dir = "/downloads"
+username = "admin"
+password = "adminadmin"
+url = "http://127.0.0.1:8080"
+```
+
+### 启用 (enabled)
+
+- **说明**: 是否启用 qbittorrent 下载器
+- **默认值**: `false`
+- **格式**: 布尔值
+- **示例**: `enabled = true`
+
+### 下载目录 (download_dir)
+
+- **说明**: qbittorrent 下载目录
+- **默认值**: `"/downloads"`
+- **格式**: 字符串
+- **示例**: `download_dir = "/downloads"`
+
+### 用户名 (username)
+
+- **说明**: qbittorrent 用户名
+- **默认值**: `"admin"`
+- **格式**: 字符串
+- **示例**: `username = "admin"`
+
+### 密码 (password)
+
+- **说明**: qbittorrent 密码
+- **默认值**: `"adminadmin"`
+- **格式**: 字符串
+- **示例**: `password = "adminadmin"`
+
+### API 地址 (url)
+
+- **说明**: qbittorrent API 地址
+- **默认值**: `"http://127.0.0.1:8080"`
+- **格式**: 字符串
+- **示例**: `url = "http://127.0.0.1:8080"`
+
+### 下载完成后是否删除任务 (delete_task_on_completion)
+
+- **说明**: 下载完成后是否删除任务, 不会删除文件，只会删除任务
+- **默认值**: `false`
+- **格式**: 布尔值
+- **示例**: `delete_task_on_completion = true`

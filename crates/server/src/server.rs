@@ -4,6 +4,7 @@ use core::panic;
 use dict::DictCode;
 use metadata::providers::mikan::MikanProvider;
 use parser::Parser;
+use reqwest::Url;
 use std::borrow::Cow;
 use std::sync::{Arc, RwLock};
 use std::{net::SocketAddr, path::PathBuf, str::FromStr};
@@ -15,9 +16,9 @@ use crate::config::{Config, Writer};
 use crate::logger::{init_logger, LogMessage};
 use crate::router;
 use anyhow::Result;
+use downloader::ThirdPartyDownloader;
 use mikan::client::Client;
 use sea_orm_migration::MigratorTrait;
-
 #[derive(Clone)]
 pub struct AppState {
     pub scheduler: scheduler::Scheduler,
@@ -151,26 +152,56 @@ impl Server {
         parser_worker.spawn(parser_impl).await?;
 
         // Downloader worker
-        let mut pan115 = pan_115::client::Client::new(
-            config.downloader.pan115.cookies.as_str(),
-            Some(pan_115::client::RateLimitConfig {
-                max_requests_per_second: config.downloader.pan115.max_requests_per_second,
-            }),
-        )?;
-        pan115.login_check().await?;
-
-        let pan115_downloader_impl =
-            downloader::thirdparty::pan_115_impl::Pan115DownloaderImpl::new(
-                pan115,
-                downloader::thirdparty::pan_115_impl::Config::default(),
+        let downloader = if config.downloader.pan115.enabled {
+            let mut pan115 = pan_115::client::Client::new(
+                config.downloader.pan115.cookies.as_str(),
+                Some(pan_115::client::RateLimitConfig {
+                    max_requests_per_second: config.downloader.pan115.max_requests_per_second,
+                }),
+            )?;
+            pan115.login_check().await?;
+            Box::new(
+                downloader::thirdparty::pan_115_impl::Pan115DownloaderImpl::new(
+                    pan115,
+                    downloader::thirdparty::pan_115_impl::Config {
+                        download_dir: PathBuf::from_str(&config.downloader.pan115.download_dir)?,
+                        delete_task_on_completion: config
+                            .downloader
+                            .pan115
+                            .delete_task_on_completion,
+                        ..Default::default()
+                    },
+                ),
+            ) as Box<dyn ThirdPartyDownloader>
+        } else if config.downloader.qbittorrent.enabled {
+            let qbittorrent = qbittorrent::client::Client::new(
+                client.clone(),
+                Url::parse(&config.downloader.qbittorrent.url)?,
+                config.downloader.qbittorrent.username.as_str(),
+                config.downloader.qbittorrent.password.as_str(),
             );
+            qbittorrent.login(false).await?;
+            Box::new(
+                downloader::thirdparty::qbittorrent_impl::QbittorrentDownloaderImpl::new(
+                    qbittorrent,
+                    downloader::thirdparty::qbittorrent_impl::Config {
+                        save_path: PathBuf::from_str(&config.downloader.qbittorrent.download_dir)?,
+                        delete_task_on_completion: config
+                            .downloader
+                            .qbittorrent
+                            .delete_task_on_completion,
+                    },
+                ),
+            ) as Box<dyn ThirdPartyDownloader>
+        } else {
+            panic!("没有启用任何下载器");
+        };
 
         let dl_store = downloader::db::Db::new(db.conn_pool());
         let mut downloader_worker = downloader::worker::Worker::new_with_conn(
             Box::new(dl_store),
-            Box::new(pan115_downloader_impl),
+            downloader,
             downloader::config::Config {
-                download_dir: PathBuf::from_str(&config.downloader.download_dir)?,
                 max_retry_count: config.downloader.max_retry_count,
                 download_timeout: config.downloader.download_timeout,
                 retry_min_interval: config.downloader.retry_min_interval,

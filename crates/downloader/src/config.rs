@@ -1,4 +1,4 @@
-use std::{path::PathBuf, time::Duration};
+use std::time::Duration;
 
 use chrono::{Local, NaiveDateTime};
 
@@ -17,8 +17,6 @@ pub struct Config {
     pub retry_min_interval: chrono::Duration,
     /// 重试最大间隔
     pub retry_max_interval: chrono::Duration,
-    /// 下载目录
-    pub download_dir: PathBuf,
     /// 下载超时
     pub download_timeout: chrono::Duration,
 }
@@ -32,7 +30,6 @@ impl Default for Config {
             retry_processor_interval: Duration::from_secs(30),
             retry_min_interval: chrono::Duration::seconds(30),
             retry_max_interval: chrono::Duration::minutes(10),
-            download_dir: PathBuf::from("/"),
             download_timeout: chrono::Duration::minutes(30),
         }
     }

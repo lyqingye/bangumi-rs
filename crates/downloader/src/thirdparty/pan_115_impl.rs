@@ -27,6 +27,8 @@ pub struct Config {
     pub download_cache_ttl: Duration,
     pub download_cache_size: usize,
     pub file_list_cache_size: usize,
+    pub download_dir: PathBuf,
+    pub delete_task_on_completion: bool,
 }
 
 impl Default for Config {
@@ -35,6 +37,8 @@ impl Default for Config {
             download_cache_ttl: Duration::from_secs(60 * 60),
             download_cache_size: 16,
             file_list_cache_size: 16,
+            download_dir: PathBuf::from("/"),
+            delete_task_on_completion: true,
         }
     }
 }
@@ -78,6 +82,7 @@ impl ThirdPartyDownloader for Pan115DownloaderImpl {
     }
 
     async fn add_task(&self, resource: Resource, dir: PathBuf) -> Result<Option<String>> {
+        let dir = self.config.download_dir.join(dir);
         let dir_cid = self.get_or_create_dir_cid(&dir).await?;
         let magnet = resource
             .magnet()
@@ -226,6 +231,10 @@ impl ThirdPartyDownloader for Pan115DownloaderImpl {
 
     fn recommended_resource_type(&self) -> ResourceType {
         ResourceType::Magnet
+    }
+
+    fn delete_task_on_completion(&self) -> bool {
+        self.config.delete_task_on_completion
     }
 }
 

@@ -76,6 +76,9 @@ pub trait ThirdPartyDownloader: Send + Sync {
     fn supports_resource_type(&self, resource_type: ResourceType) -> bool;
     // 推荐的资源类型
     fn recommended_resource_type(&self) -> ResourceType;
+
+    // 下载完成后是否删除任务, 不会删除文件，只会删除任务
+    fn delete_task_on_completion(&self) -> bool;
 }
 
 #[async_trait]
