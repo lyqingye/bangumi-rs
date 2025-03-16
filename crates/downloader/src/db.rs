@@ -4,7 +4,7 @@ use chrono::{Local, NaiveDateTime};
 use model::{
     sea_orm_active_enums::DownloadStatus,
     torrent_download_tasks::{self, Column, Model},
-    torrents::{self, Model as TorrentModel},
+    torrents::{self, Model as TorrentModel, Column as TorrentColumn},
 };
 use sea_orm::{
     sea_query::{OnConflict, SimpleExpr},
@@ -150,7 +150,7 @@ impl Store for Db {
 
     async fn get_torrent_by_info_hash(&self, info_hash: &str) -> Result<Option<TorrentModel>> {
         Ok(torrents::Entity::find()
-            .filter(Column::InfoHash.eq(info_hash))
+            .filter(TorrentColumn::InfoHash.eq(info_hash))
             .one(&*self.conn)
             .await?)
     }
