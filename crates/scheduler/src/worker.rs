@@ -7,6 +7,7 @@ use tokio::sync::{broadcast, mpsc};
 use tracing::{error, info};
 
 use crate::db::Db;
+use crate::download_torrent;
 use crate::metrics::{WorkerMetrics, WorkerState};
 use crate::selector::TorrentSelector;
 use crate::tasks::TaskManager;
@@ -111,10 +112,14 @@ impl BangumiWorker {
             .cloned()
             .collect();
 
-        // 使用 TorrentSelector 选择最合适的种子
+        // 退而求其次，即使推荐的是种子文件，那么假设实在没有合适的种子，那么也可以尝试选择磁力链接，或者InfoHash
+        let mut first_best_torrent = None;
         loop {
             let best = self.selector.select(&episode_torrents);
             if let Some(ref best) = best {
+                if first_best_torrent.is_none() {
+                    first_best_torrent = Some(best.clone());
+                }
                 // 如果推荐资源类型为种子，则尝试获取种子数据
                 if self.recommended_resource_type == ResourceType::Torrent {
                     let torrent = self
@@ -125,7 +130,7 @@ impl BangumiWorker {
                     if torrent.data.is_none() || torrent.data.unwrap().is_empty() {
                         // 如果提供种子下载地址，则尝试
                         if let Some(download_url) = &torrent.download_url {
-                            match self.download_torrent(download_url).await {
+                            match download_torrent(&self.client, download_url).await {
                                 Ok(data) => {
                                     // 下载成功，那么则选择该种子
                                     self.db.update_torrent_data(&best.info_hash, data).await?;
@@ -138,7 +143,7 @@ impl BangumiWorker {
                         }
 
                         // 如果无法获取种子数据，那么则移除该种子
-                        episode_torrents.retain(|(torrent, _)| torrent.info_hash == best.info_hash);
+                        episode_torrents.retain(|(torrent, _)| torrent.info_hash != best.info_hash);
                         continue;
                     }
                     return Ok(Some(best.clone()));
@@ -147,16 +152,15 @@ impl BangumiWorker {
                     return Ok(Some(best.clone()));
                 }
             } else {
+                if self.recommended_resource_type == ResourceType::Torrent {
+                    // 下载器推荐的是种子，但无法获取到种子数据，那么可以选择磁力
+                    return Ok(first_best_torrent);
+                }
+
                 // 如果无法选择到种子，则返回 None
                 return Ok(None);
             }
         }
-    }
-
-    pub async fn download_torrent(&self, download_url: &str) -> Result<Vec<u8>> {
-        let response = self.client.get(download_url).send().await?;
-        let data = response.bytes().await?;
-        Ok(data.to_vec())
     }
 
     /// 获取当前 worker metrics

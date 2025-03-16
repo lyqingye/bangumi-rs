@@ -13,7 +13,13 @@ pub enum Resource {
 
 impl Resource {
     pub fn from_info_hash<T: Into<String>>(info_hash: T) -> Result<Self> {
-        Ok(Resource::MagnetInfoHash(info_hash.into()))
+        let info_hash = info_hash.into();
+        if info_hash.len() != 40 || !info_hash.chars().all(|c| c.is_ascii_hexdigit()) {
+            return Err(anyhow::anyhow!(
+                "无效的 info_hash 格式，应为40位十六进制字符"
+            ));
+        }
+        Ok(Resource::MagnetInfoHash(info_hash))
     }
 
     pub fn from_magnet_link<T: Into<String>>(magnet_link: T) -> Result<Self> {
@@ -21,12 +27,11 @@ impl Resource {
         if let Some(part) = magnet_link.split("btih:").nth(1) {
             // 提取 InfoHash，它可能后跟其他参数（以 & 分隔）
             let info_hash = part.split('&').next().unwrap_or_default();
-            if info_hash.len() == 40 {
-                return Ok(Resource::MagnetLink(
-                    magnet_link.clone(),
-                    info_hash.to_string(),
-                ));
-            }
+            let _ = Self::from_info_hash(info_hash)?;
+            return Ok(Resource::MagnetLink(
+                magnet_link.clone(),
+                info_hash.to_string(),
+            ));
         }
         Err(anyhow::anyhow!("非法磁力链接，无法获取info_hash"))
     }

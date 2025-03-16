@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use downloader::{resource::Resource, Downloader, Event};
-use model::sea_orm_active_enums::State;
+use model::sea_orm_active_enums::{ResourceType, State};
 use model::{episode_download_tasks, sea_orm_active_enums::DownloadStatus};
 use sea_orm::Set;
 use std::path::PathBuf;
@@ -235,17 +235,28 @@ impl TaskManager {
                     // 获取种子信息
                     let torrent = self
                         .db
-                        .get_torrent_without_data_by_info_hash(info_hash)
+                        .get_torrent_by_info_hash(info_hash)
                         .await?
                         .context("种子不存在")?;
 
-                    // 创建下载任务
-                    self.downloader
-                        .add_task(
-                            Resource::from_info_hash(torrent.info_hash)?,
-                            PathBuf::from(bangumi.name),
-                        )
-                        .await?;
+                    // 创建下载任务, 如果推荐资源类型为种子，则优先提供种子
+                    if self.downloader.recommended_resource_type() == ResourceType::Torrent
+                        && torrent.data.is_some()
+                    {
+                        self.downloader
+                            .add_task(
+                                Resource::from_torrent_file_bytes(torrent.data.unwrap())?,
+                                PathBuf::from(bangumi.name),
+                            )
+                            .await?;
+                    } else {
+                        self.downloader
+                            .add_task(
+                                Resource::from_info_hash(torrent.info_hash)?,
+                                PathBuf::from(bangumi.name),
+                            )
+                            .await?;
+                    }
 
                     // 更新状态为下载中
                     self.db

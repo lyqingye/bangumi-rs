@@ -4,20 +4,26 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-sea-orm = {workspace = true, features = [ "sqlx-mysql", "runtime-tokio-rustls", "macros", "debug-print"]}
+sea-orm = { workspace = true, features = [
+    "sqlx-mysql",
+    "runtime-tokio-rustls",
+    "macros",
+    "debug-print",
+] }
 tokio = { workspace = true, features = ["full"] }
-serde = {workspace = true, features = ["derive"]}
-serde_json = {workspace = true}
-chrono = {workspace = true}
-thiserror = {workspace = true}
-anyhow ={ workspace = true}
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+chrono = { workspace = true }
+thiserror = { workspace = true }
+anyhow = { workspace = true }
 tracing = { workspace = true }
-reqwest = {workspace = true}
-model = {path = "../../crates/model"}
-metadata = {path = "../../crates/metadata"}
-parser = {path = "../../crates/parser"}
-downloader = {path = "../../crates/downloader"}
-notify = {path = "../../crates/notify"}
+reqwest = { workspace = true }
+model = { path = "../../crates/model" }
+metadata = { path = "../../crates/metadata" }
+parser = { path = "../../crates/parser" }
+downloader = { path = "../../crates/downloader" }
+notify = { path = "../../crates/notify" }
+torrent = { path = "../../libs/torrent" }
 [dev-dependencies]
-dotenv = {workspace = true}
-tracing-subscriber = {workspace = true}
+dotenv = { workspace = true }
+tracing-subscriber = { workspace = true }
