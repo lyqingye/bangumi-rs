@@ -1,4 +1,5 @@
 use anyhow::Result;
+use lazy_static::lazy_static;
 use model::sea_orm_active_enums::ResourceType;
 
 #[derive(Debug, Clone)]
@@ -24,14 +25,20 @@ impl Resource {
 
     pub fn from_magnet_link<T: Into<String>>(magnet_link: T) -> Result<Self> {
         let magnet_link = magnet_link.into();
-        if let Some(part) = magnet_link.split("btih:").nth(1) {
-            // 提取 InfoHash，它可能后跟其他参数（以 & 分隔）
-            let info_hash = part.split('&').next().unwrap_or_default();
-            let _ = Self::from_info_hash(info_hash)?;
-            return Ok(Resource::MagnetLink(
-                magnet_link.clone(),
-                info_hash.to_string(),
-            ));
+        // 使用正则表达式提取 InfoHash
+        lazy_static! {
+            static ref RE: regex::Regex =
+                regex::Regex::new(r"magnet:\?xt=urn:btih:([0-9a-fA-F]{40})(&|$)").unwrap();
+        }
+
+        if let Some(caps) = RE.captures(&magnet_link) {
+            if let Some(info_hash) = caps.get(1) {
+                let info_hash = info_hash.as_str();
+                return Ok(Resource::MagnetLink(
+                    magnet_link.clone(),
+                    info_hash.to_string(),
+                ));
+            }
         }
         Err(anyhow::anyhow!("非法磁力链接，无法获取info_hash"))
     }
