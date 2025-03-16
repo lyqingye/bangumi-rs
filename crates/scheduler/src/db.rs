@@ -157,22 +157,25 @@ impl Db {
         Ok(())
     }
 
-    /// 获取番剧的所有种子
-    pub async fn get_bangumi_torrents(&self, bangumi_id: i32) -> Result<Vec<torrents::Model>> {
+    /// 获取番剧的所有种子文件名称
+    pub async fn get_bangumi_torrents_file_names(&self, bangumi_id: i32) -> Result<Vec<String>> {
         use model::torrents::Column as TorrentColumn;
         use model::torrents::Entity as Torrents;
 
         let torrents = Torrents::find()
+            .select_only()
+            .columns([TorrentColumn::Title])
             .filter(TorrentColumn::BangumiId.eq(bangumi_id))
             .order_by_desc(TorrentColumn::PubDate)
+            .into_tuple::<String>()
             .all(self.conn())
             .await?;
 
         Ok(torrents)
     }
 
-    /// 通过 info_hash 获取种子信息
-    pub async fn get_torrent_by_info_hash(
+    /// 通过 info_hash 获取种子信息, 不包含种子数据
+    pub async fn get_torrent_without_data_by_info_hash(
         &self,
         info_hash: &str,
     ) -> Result<Option<torrents::Model>> {
@@ -180,11 +183,48 @@ impl Db {
         use model::torrents::Entity as Torrents;
 
         let torrent = Torrents::find()
+            .select_only()
+            .columns([
+                TorrentColumn::BangumiId,
+                TorrentColumn::Title,
+                TorrentColumn::Size,
+                TorrentColumn::InfoHash,
+                TorrentColumn::Magnet,
+                TorrentColumn::PubDate,
+                TorrentColumn::Source,
+                TorrentColumn::DownloadUrl,
+            ])
             .filter(TorrentColumn::InfoHash.eq(info_hash))
             .one(self.conn())
             .await?;
 
         Ok(torrent)
+    }
+
+    /// 通过 info_hash 获取种子信息, 包含种子数据
+    pub async fn get_torrent_by_info_hash(
+        &self,
+        info_hash: &str,
+    ) -> Result<Option<torrents::Model>> {
+        use model::torrents::Column as TorrentColumn;
+        use model::torrents::Entity as Torrents;
+        let torrent = Torrents::find()
+            .filter(TorrentColumn::InfoHash.eq(info_hash))
+            .one(self.conn())
+            .await?;
+
+        Ok(torrent)
+    }
+
+    pub async fn update_torrent_data(&self, info_hash: &str, data: Vec<u8>) -> Result<()> {
+        use model::torrents::Column as TorrentColumn;
+        use model::torrents::Entity as Torrents;
+        Torrents::update_many()
+            .col_expr(TorrentColumn::Data, data.into())
+            .filter(TorrentColumn::InfoHash.eq(info_hash))
+            .exec(self.conn())
+            .await?;
+        Ok(())
     }
 
     /// 获取番剧的所有种子及其解析结果

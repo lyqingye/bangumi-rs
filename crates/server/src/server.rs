@@ -188,6 +188,7 @@ impl Server {
             metadata_worker.clone(),
             Arc::new(Box::new(downloader_worker)),
             notify_worker,
+            client.clone(),
         );
         scheduler.spawn().await?;
 

@@ -1,5 +1,5 @@
 use anyhow::Result;
-use model::sea_orm_active_enums::State;
+use model::sea_orm_active_enums::{ResourceType, State};
 use model::{bangumi, episodes, file_name_parse_record, subscriptions, torrents};
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
@@ -33,6 +33,8 @@ pub struct BangumiWorker {
     pub(crate) bangumi: bangumi::Model,
     pub(crate) sub: subscriptions::Model,
     pub metrics: Arc<RwLock<WorkerMetrics>>,
+    pub recommended_resource_type: ResourceType,
+    client: reqwest::Client,
 }
 
 impl BangumiWorker {
@@ -44,6 +46,8 @@ impl BangumiWorker {
         parser: parser::worker::Worker,
         metadata: metadata::worker::Worker,
         task_manager: TaskManager,
+        recommended_resource_type: ResourceType,
+        client: reqwest::Client,
     ) -> Self {
         let (cmd_tx, _) = broadcast::channel(16);
         let selector = TorrentSelector::new(&sub);
@@ -61,11 +65,13 @@ impl BangumiWorker {
             cmd_tx,
             selector,
             metrics,
+            recommended_resource_type,
+            client,
         }
     }
 
     /// 为指定集数选择最合适的种子
-    fn select_episode_torrent(
+    async fn select_episode_torrent(
         &self,
         episode_number: i32,
         ep_start_number: i32,
@@ -73,7 +79,7 @@ impl BangumiWorker {
         episodes: &HashMap<i32, episodes::Model>,
     ) -> Result<Option<torrents::Model>> {
         // 过滤出当前集数的种子
-        let episode_torrents: Vec<_> = torrent_pairs
+        let mut episode_torrents: Vec<_> = torrent_pairs
             .iter()
             .filter(|(torrent, parse_result)| {
                 if let Some(ep) = parse_result.episode_number {
@@ -106,7 +112,51 @@ impl BangumiWorker {
             .collect();
 
         // 使用 TorrentSelector 选择最合适的种子
-        self.selector.select(episode_torrents)
+        loop {
+            let best = self.selector.select(&episode_torrents);
+            if let Some(ref best) = best {
+                // 如果推荐资源类型为种子，则尝试获取种子数据
+                if self.recommended_resource_type == ResourceType::Torrent {
+                    let torrent = self
+                        .db
+                        .get_torrent_by_info_hash(&best.info_hash)
+                        .await?
+                        .ok_or_else(|| anyhow::anyhow!("种子不存在"))?;
+                    if torrent.data.is_none() || torrent.data.unwrap().is_empty() {
+                        // 如果提供种子下载地址，则尝试
+                        if let Some(download_url) = &torrent.download_url {
+                            match self.download_torrent(download_url).await {
+                                Ok(data) => {
+                                    // 下载成功，那么则选择该种子
+                                    self.db.update_torrent_data(&best.info_hash, data).await?;
+                                    return Ok(Some(best.clone()));
+                                }
+                                Err(e) => {
+                                    error!("下载种子失败: {}", e);
+                                }
+                            }
+                        }
+
+                        // 如果无法获取种子数据，那么则移除该种子
+                        episode_torrents.retain(|(torrent, _)| torrent.info_hash == best.info_hash);
+                        continue;
+                    }
+                    return Ok(Some(best.clone()));
+                } else {
+                    // 如果推荐资源类型为磁力链接，则直接返回
+                    return Ok(Some(best.clone()));
+                }
+            } else {
+                // 如果无法选择到种子，则返回 None
+                return Ok(None);
+            }
+        }
+    }
+
+    pub async fn download_torrent(&self, download_url: &str) -> Result<Vec<u8>> {
+        let response = self.client.get(download_url).send().await?;
+        let data = response.bytes().await?;
+        Ok(data.to_vec())
     }
 
     /// 获取当前 worker metrics
@@ -123,11 +173,13 @@ impl BangumiWorker {
             .await?;
 
         // 2. 获取并解析种子
-        let torrents = self.db.get_bangumi_torrents(self.bangumi.id).await?;
-        if !torrents.is_empty() {
+        let torrents_file_names = self
+            .db
+            .get_bangumi_torrents_file_names(self.bangumi.id)
+            .await?;
+        if !torrents_file_names.is_empty() {
             info!("开始解析番剧 {} 的种子文件名", self.bangumi.name);
-            let file_names: Vec<String> = torrents.iter().map(|t| t.title.clone()).collect();
-            self.parser.parse_file_names(file_names).await?;
+            self.parser.parse_file_names(torrents_file_names).await?;
         }
 
         // 3. 获取所有种子及其解析结果
@@ -189,12 +241,15 @@ impl BangumiWorker {
 
         // 6. 为每个 Missing 任务选择合适的种子
         for task in missing_tasks {
-            if let Some(torrent) = self.select_episode_torrent(
-                task.episode_number,
-                self.bangumi.ep_start_number,
-                &unused_torrents,
-                &episodes,
-            )? {
+            if let Some(torrent) = self
+                .select_episode_torrent(
+                    task.episode_number,
+                    self.bangumi.ep_start_number,
+                    &unused_torrents,
+                    &episodes,
+                )
+                .await?
+            {
                 info!(
                     "已为番剧 {} 第 {} 集选择合适的种子",
                     self.bangumi.name, task.episode_number

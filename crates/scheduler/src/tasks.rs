@@ -235,7 +235,7 @@ impl TaskManager {
                     // 获取种子信息
                     let torrent = self
                         .db
-                        .get_torrent_by_info_hash(info_hash)
+                        .get_torrent_without_data_by_info_hash(info_hash)
                         .await?
                         .context("种子不存在")?;
 

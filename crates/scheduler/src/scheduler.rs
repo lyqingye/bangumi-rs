@@ -21,6 +21,7 @@ pub struct Scheduler {
     pub(crate) task_manager: TaskManager,
     pub(crate) workers: Arc<Mutex<HashMap<i32, BangumiWorker>>>, // 存储 worker 实例以便管理生命周期
     pub(crate) notify: notify::worker::Worker,
+    pub(crate) client: reqwest::Client,
 }
 
 impl Scheduler {
@@ -30,6 +31,7 @@ impl Scheduler {
         metadata: metadata::worker::Worker,
         downloader: Arc<Box<dyn Downloader>>,
         notify: notify::worker::Worker,
+        client: reqwest::Client,
     ) -> Self {
         let task_manager = TaskManager::new(db.clone(), downloader.clone(), notify.clone());
         Self {
@@ -40,6 +42,7 @@ impl Scheduler {
             task_manager,
             workers: Arc::new(Mutex::new(HashMap::new())),
             notify,
+            client,
         }
     }
 
@@ -49,9 +52,10 @@ impl Scheduler {
         metadata: metadata::worker::Worker,
         downloader: Arc<Box<dyn Downloader>>,
         notify: notify::worker::Worker,
+        client: reqwest::Client,
     ) -> Self {
         let db = Db::new(conn);
-        Self::new(db, parser, metadata, downloader, notify)
+        Self::new(db, parser, metadata, downloader, notify, client)
     }
 
     /// 创建并启动 worker 或重启 worker
@@ -84,6 +88,8 @@ impl Scheduler {
             self.parser.clone(),
             self.metadata.clone(),
             self.task_manager.clone(),
+            self.downloader.recommended_resource_type(),
+            self.client.clone(),
         );
         let worker_clone = worker.clone();
         worker.spawn();
@@ -164,7 +170,10 @@ impl Scheduler {
         episode_number: i32,
         info_hash: &str,
     ) -> Result<()> {
-        let torrent = self.db.get_torrent_by_info_hash(info_hash).await?;
+        let torrent = self
+            .db
+            .get_torrent_without_data_by_info_hash(info_hash)
+            .await?;
         if torrent.is_none() {
             return Err(anyhow::anyhow!("未找到种子信息"));
         }
