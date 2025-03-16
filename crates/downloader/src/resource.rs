@@ -63,10 +63,9 @@ impl Resource {
     pub fn magnet(&self) -> Option<String> {
         match self {
             Resource::MagnetLink(magnet, _) => Some(magnet.clone()),
-            Resource::MagnetInfoHash(_) => {
+            Resource::MagnetInfoHash(_) | Resource::TorrentFileBytes(_, _) => {
                 Some(format!("magnet:?xt=urn:btih:{}", self.info_hash()))
             }
-            _ => None,
         }
     }
 

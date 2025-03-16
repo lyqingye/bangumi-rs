@@ -16,7 +16,7 @@ tracing = { workspace = true }
 reqwest = {workspace = true}
 lru = {workspace = true}
 async-trait = {workspace = true}
-
+qbittorrent = {path = "../../libs/qbittorrent" }
 torrent = {path = "../../libs/torrent" }
 pan-115 = {path = "../../libs/pan-115" }
 model = {path = "../../crates/model" }

@@ -1,10 +1,10 @@
 #![allow(dead_code)]
 
 use model::Credential;
-mod client;
-mod error;
-mod ext;
-mod model;
+pub mod client;
+pub mod error;
+pub mod ext;
+pub mod model;
 
 #[derive(Clone)]
 enum LoginState {

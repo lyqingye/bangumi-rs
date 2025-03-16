@@ -1257,6 +1257,7 @@ dependencies = [
  "model",
  "notify",
  "pan-115",
+ "qbittorrent",
  "regex",
  "reqwest",
  "sea-orm",
