@@ -96,8 +96,6 @@ endpoint = "https://mikanani.me"
 
 # 下载器配置
 [downloader]
-# 这里的路径相当于你115网盘根目录下的animes文件夹
-download_dir = "/animes"
 # 下载最大重试次数
 max_retry_count = 5
 # 下载超时，避免由于死种导致一直在下载
@@ -106,12 +104,27 @@ download_timeout = "30m"
 retry_min_interval = "30s"
 retry_max_interval = "10m"
 
-# 115网盘下载器配置
+# 115网盘下载器配置 (至少启用一个下载器)
 [downloader.pan115]
+enabled = false
 # 获取文档可以参考: https://alist.nn.ci/zh/guide/drivers/115.html#cookie%E8%8E%B7%E5%8F%96%E6%96%B9%E5%BC%8F
 cookies = "Your 115 cookies"
 # 限流，写1也足够了，请求速率过快的话，会被封禁1小时
 max_requests_per_second = 1
+# 115网盘下载目录
+download_dir = "/animes"
+
+# qbittorrent 下载器配置 (至少启用一个下载器)
+[downloader.qbittorrent]
+enabled = false
+# qbittorrent 下载目录
+download_dir = "/downloads"
+# qbittorrent 用户名
+username = "admin"
+# qbittorrent 密码
+password = "adminadmin"
+# qbittorrent API 地址
+url = "http://127.0.0.1:8080"
 
 # Telegram 通知配置 (可选)
 [notify.telegram]
@@ -125,8 +138,10 @@ chat_id = "your_chat_id"
 enabled = true
 
 ```
-**前端服务Nginx配置文件 (nginx.conf):**
-```conf
+
+**前端服务 Nginx 配置文件 (nginx.conf):**
+
+```txt
 server {
     listen 80;
     server_name localhost;
@@ -237,11 +252,15 @@ networks:
 ```bash
 docker-compose up -d
 ```
+
 ## 查看服务日志
+
 ```bash
 docker-compose logs -f --tail 100 backend
 ```
+
 当你看到类似的启动日志时，说明程序配置完全正确:
+
 ```bash
 2025-03-08T15:31:41.921860Z  INFO sea_orm_migration::migrator: Applying all pending migrations
 2025-03-08T15:31:41.944244Z  INFO model::migrator: loading migration file: "V1.0.0__init.sql"
@@ -265,15 +284,17 @@ docker-compose logs -f --tail 100 backend
 ## 自动更新
 
 推荐直接使用 [watchtower](https://github.com/containrrr/watchtower) 来实现镜像自动更新, 在你的 `docker-compose.yaml` 配置文件中增加一个服务:
+
 ```yaml
-  watchtower:
-    restart: unless-stopped
-    image: containrrr/watchtower:latest
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-    command: --interval 60 --cleanup --label-enable
-    networks:
-      - bangumi-network
+watchtower:
+  restart: unless-stopped
+  image: containrrr/watchtower:latest
+  volumes:
+    - /var/run/docker.sock:/var/run/docker.sock
+  command: --interval 60 --cleanup --label-enable
+  networks:
+    - bangumi-network
 ```
+
 完整的`docker-compose.yml`可以参考:
 https://github.com/lyqingye/bangumi-rs/blob/master/docker-compose.yml
