@@ -154,6 +154,7 @@ pub struct Pan115Config {
     pub cookies: String,
     pub max_requests_per_second: u32,
     pub download_dir: String,
+    pub delete_task_on_completion: bool,
 }
 
 impl Default for Pan115Config {
@@ -163,6 +164,7 @@ impl Default for Pan115Config {
             cookies: "".to_owned(),
             max_requests_per_second: 1,
             download_dir: "/".to_owned(),
+            delete_task_on_completion: true,
         }
     }
 }
@@ -185,6 +187,7 @@ pub struct QbittorrentConfig {
     pub username: String,
     pub password: String,
     pub download_dir: String,
+    pub delete_task_on_completion: bool,
 }
 
 impl Default for QbittorrentConfig {
@@ -195,6 +198,7 @@ impl Default for QbittorrentConfig {
             username: "admin".to_owned(),
             password: "adminadmin".to_owned(),
             download_dir: "/downloads".to_owned(),
+            delete_task_on_completion: false,
         }
     }
 }

@@ -165,6 +165,10 @@ impl Server {
                     pan115,
                     downloader::thirdparty::pan_115_impl::Config {
                         download_dir: PathBuf::from_str(&config.downloader.pan115.download_dir)?,
+                        delete_task_on_completion: config
+                            .downloader
+                            .pan115
+                            .delete_task_on_completion,
                         ..Default::default()
                     },
                 ),
@@ -182,6 +186,10 @@ impl Server {
                     qbittorrent,
                     downloader::thirdparty::qbittorrent_impl::Config {
                         save_path: PathBuf::from_str(&config.downloader.qbittorrent.download_dir)?,
+                        delete_task_on_completion: config
+                            .downloader
+                            .qbittorrent
+                            .delete_task_on_completion,
                     },
                 ),
             ) as Box<dyn ThirdPartyDownloader>

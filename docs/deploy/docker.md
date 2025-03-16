@@ -113,6 +113,8 @@ cookies = "Your 115 cookies"
 max_requests_per_second = 1
 # 115网盘下载目录
 download_dir = "/animes"
+# 下载完成后是否删除任务, 不会删除文件，只会删除任务
+delete_task_on_completion = true
 
 # qbittorrent 下载器配置 (至少启用一个下载器)
 [downloader.qbittorrent]
@@ -125,6 +127,8 @@ username = "admin"
 password = "adminadmin"
 # qbittorrent API 地址
 url = "http://127.0.0.1:8080"
+# 下载完成后是否删除任务, 不会删除文件，只会删除任务
+delete_task_on_completion = false
 
 # Telegram 通知配置 (可选)
 [notify.telegram]

@@ -16,12 +16,14 @@ use reqwest::Url;
 #[derive(Debug, Clone)]
 pub struct Config {
     pub save_path: PathBuf,
+    pub delete_task_on_completion: bool,
 }
 
 impl Default for Config {
     fn default() -> Self {
         Self {
             save_path: PathBuf::from("/downloads"),
+            delete_task_on_completion: false,
         }
     }
 }
@@ -150,6 +152,10 @@ impl ThirdPartyDownloader for QbittorrentDownloaderImpl {
 
     fn recommended_resource_type(&self) -> ResourceType {
         ResourceType::Torrent
+    }
+
+    fn delete_task_on_completion(&self) -> bool {
+        self.config.delete_task_on_completion
     }
 }
 

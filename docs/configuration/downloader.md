@@ -101,6 +101,10 @@ download_dir = "/animes"
 - **格式**: 字符串
 - **示例**: `cookies = "UID=xxx; CID=xxx; SEID=xxx; KID=xxx"`
 
+::: warning 注意
+获取文档可以参考: https://alist.nn.ci/zh/guide/drivers/115.html#cookie%E8%8E%B7%E5%8F%96%E6%96%B9%E5%BC%8F
+:::
+
 ### 下载目录 (download_dir)
 
 - **说明**: 115 网盘下载目录,这里代表你 115 网盘根目录下的 animes 文件夹
@@ -108,9 +112,12 @@ download_dir = "/animes"
 - **格式**: 字符串
 - **示例**: `download_dir = "/animes"`
 
-::: warning 注意
-获取文档可以参考: https://alist.nn.ci/zh/guide/drivers/115.html#cookie%E8%8E%B7%E5%8F%96%E6%96%B9%E5%BC%8F
-:::
+### 下载完成后是否删除任务 (delete_task_on_completion)
+
+- **说明**: 下载完成后是否删除任务, 不会删除文件，只会删除任务
+- **默认值**: `true`
+- **格式**: 布尔值
+- **示例**: `delete_task_on_completion = true`
 
 ### 最大请求频率 (max_requests_per_second)
 
@@ -171,3 +178,10 @@ url = "http://127.0.0.1:8080"
 - **默认值**: `"http://127.0.0.1:8080"`
 - **格式**: 字符串
 - **示例**: `url = "http://127.0.0.1:8080"`
+
+### 下载完成后是否删除任务 (delete_task_on_completion)
+
+- **说明**: 下载完成后是否删除任务, 不会删除文件，只会删除任务
+- **默认值**: `false`
+- **格式**: 布尔值
+- **示例**: `delete_task_on_completion = true`
