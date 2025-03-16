@@ -51,8 +51,8 @@ impl ThirdPartyDownloader for QbittorrentDownloaderImpl {
         if dir.is_absolute() {
             return Err(anyhow::anyhow!("保存路径必须为相对路径"));
         }
-        let info_hash = resource.info_hash();
         let dir = self.config.save_path.join(dir);
+        let info_hash = resource.info_hash().to_owned();
         let source = match resource {
             Resource::MagnetInfoHash(_) | Resource::MagnetLink(_, _) => {
                 let magnet = resource.magnet().unwrap_or_default();
@@ -77,7 +77,7 @@ impl ThirdPartyDownloader for QbittorrentDownloaderImpl {
         };
 
         self.cli.add_torrent(arg).await?;
-        Ok(Some(info_hash.to_owned()))
+        Ok(Some(info_hash))
     }
 
     async fn list_tasks(
