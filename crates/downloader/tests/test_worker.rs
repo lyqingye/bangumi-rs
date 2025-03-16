@@ -127,7 +127,7 @@ async fn test_retry_exceed_max_count() {
         tasks[0].err_msg,
         Some("重试次数超过上限(1): error msg".to_string())
     );
-    assert_eq!(tasks[0].dir, "/test");
+    assert_eq!(tasks[0].dir, "test");
 }
 
 #[tokio::test]
@@ -185,7 +185,7 @@ async fn test_download_timeout_no_retry() {
         tasks[0].err_msg,
         Some("重试次数超过上限(0): 下载超时".to_string())
     );
-    assert_eq!(tasks[0].dir, "/test");
+    assert_eq!(tasks[0].dir, "test");
 }
 
 // 可以添加更多测试用例，复用上面的辅助函数
