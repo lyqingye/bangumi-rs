@@ -1,4 +1,4 @@
-use std::{collections::HashMap, panic, path::PathBuf, sync::Arc};
+use std::{collections::HashMap, path::PathBuf, sync::Arc};
 
 use crate::{resource::Resource, RemoteTaskStatus, ThirdPartyDownloader};
 use anyhow::Result;
