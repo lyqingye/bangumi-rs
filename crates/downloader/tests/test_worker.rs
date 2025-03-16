@@ -3,7 +3,7 @@ use std::{collections::HashMap, path::PathBuf, time::Duration};
 mod mock_store;
 use chrono::Local;
 use downloader::{config::Config, worker::Worker, MockThirdPartyDownloader, RemoteTaskStatus};
-use downloader::{Resource, Store};
+use downloader::{resource::Resource, Store};
 use mock_store::MockStore;
 use model::sea_orm_active_enums::DownloadStatus;
 use model::torrent_download_tasks;

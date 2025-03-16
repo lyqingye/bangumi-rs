@@ -148,7 +148,10 @@ impl Worker {
                     .ok_or_else(|| {
                         anyhow::anyhow!("种子文件不存在: info_hash={}", task.info_hash)
                     })?;
-                Resource::TorrentFileBytes(torrent.data, task.info_hash.clone())
+                let data = torrent
+                    .data
+                    .ok_or_else(|| anyhow::anyhow!("种子内容为空: info_hash={}", task.info_hash))?;
+                Resource::TorrentFileBytes(data, task.info_hash.clone())
             }
             ResourceType::Magnet => {
                 let magnet = task
