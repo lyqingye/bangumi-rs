@@ -13,14 +13,31 @@ use qbittorrent::model::{
 };
 use reqwest::Url;
 
+#[derive(Debug, Clone)]
+pub struct Config {
+    pub save_path: PathBuf,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            save_path: PathBuf::from("/downloads"),
+        }
+    }
+}
+
 #[derive(Clone)]
 pub struct QbittorrentDownloaderImpl {
     cli: Arc<qbittorrent::client::Client>,
+    config: Config,
 }
 
 impl QbittorrentDownloaderImpl {
-    pub fn new(cli: qbittorrent::client::Client) -> Self {
-        Self { cli: Arc::new(cli) }
+    pub fn new(cli: qbittorrent::client::Client, config: Config) -> Self {
+        Self {
+            cli: Arc::new(cli),
+            config,
+        }
     }
 }
 
@@ -31,11 +48,15 @@ impl ThirdPartyDownloader for QbittorrentDownloaderImpl {
     }
 
     async fn add_task(&self, resource: Resource, dir: PathBuf) -> Result<Option<String>> {
+        if dir.is_absolute() {
+            return Err(anyhow::anyhow!("保存路径必须为相对路径"));
+        }
+        let dir = self.config.save_path.join(dir);
         let source = match resource {
             Resource::MagnetInfoHash(_) | Resource::MagnetLink(_, _) => {
                 let magnet = resource.magnet().unwrap_or_default();
                 TorrentSource::Urls {
-                    urls: Sep::<Url, '\n'>::from(vec![magnet.parse::<Url>().unwrap()]),
+                    urls: Sep::from(vec![magnet.parse::<Url>()?]),
                 }
             }
             Resource::TorrentFileBytes(data, info_hash) => {
