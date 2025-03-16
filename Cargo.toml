@@ -48,6 +48,8 @@ opt-level = 0
 lto = "off"
 # 最大化并行编译单元数量
 codegen-units = 256
+# 禁用调试信息级别，设置为0表示禁用
+debug = 0
 # 启用增量编译
 incremental = true
 # 保留调试信息
