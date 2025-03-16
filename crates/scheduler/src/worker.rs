@@ -1,5 +1,5 @@
 use anyhow::Result;
-use model::sea_orm_active_enums::State;
+use model::sea_orm_active_enums::{ResourceType, State};
 use model::{bangumi, episodes, file_name_parse_record, subscriptions, torrents};
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
@@ -7,6 +7,7 @@ use tokio::sync::{broadcast, mpsc};
 use tracing::{error, info};
 
 use crate::db::Db;
+use crate::download_torrent;
 use crate::metrics::{WorkerMetrics, WorkerState};
 use crate::selector::TorrentSelector;
 use crate::tasks::TaskManager;
@@ -33,6 +34,8 @@ pub struct BangumiWorker {
     pub(crate) bangumi: bangumi::Model,
     pub(crate) sub: subscriptions::Model,
     pub metrics: Arc<RwLock<WorkerMetrics>>,
+    pub recommended_resource_type: ResourceType,
+    client: reqwest::Client,
 }
 
 impl BangumiWorker {
@@ -44,6 +47,8 @@ impl BangumiWorker {
         parser: parser::worker::Worker,
         metadata: metadata::worker::Worker,
         task_manager: TaskManager,
+        recommended_resource_type: ResourceType,
+        client: reqwest::Client,
     ) -> Self {
         let (cmd_tx, _) = broadcast::channel(16);
         let selector = TorrentSelector::new(&sub);
@@ -61,11 +66,13 @@ impl BangumiWorker {
             cmd_tx,
             selector,
             metrics,
+            recommended_resource_type,
+            client,
         }
     }
 
     /// 为指定集数选择最合适的种子
-    fn select_episode_torrent(
+    async fn select_episode_torrent(
         &self,
         episode_number: i32,
         ep_start_number: i32,
@@ -73,7 +80,7 @@ impl BangumiWorker {
         episodes: &HashMap<i32, episodes::Model>,
     ) -> Result<Option<torrents::Model>> {
         // 过滤出当前集数的种子
-        let episode_torrents: Vec<_> = torrent_pairs
+        let mut episode_torrents: Vec<_> = torrent_pairs
             .iter()
             .filter(|(torrent, parse_result)| {
                 if let Some(ep) = parse_result.episode_number {
@@ -105,8 +112,55 @@ impl BangumiWorker {
             .cloned()
             .collect();
 
-        // 使用 TorrentSelector 选择最合适的种子
-        self.selector.select(episode_torrents)
+        // 退而求其次，即使推荐的是种子文件，那么假设实在没有合适的种子，那么也可以尝试选择磁力链接，或者InfoHash
+        let mut first_best_torrent = None;
+        loop {
+            let best = self.selector.select(&episode_torrents);
+            if let Some(ref best) = best {
+                if first_best_torrent.is_none() {
+                    first_best_torrent = Some(best.clone());
+                }
+                // 如果推荐资源类型为种子，则尝试获取种子数据
+                if self.recommended_resource_type == ResourceType::Torrent {
+                    let torrent = self
+                        .db
+                        .get_torrent_by_info_hash(&best.info_hash)
+                        .await?
+                        .ok_or_else(|| anyhow::anyhow!("种子不存在"))?;
+                    if torrent.data.is_none() || torrent.data.unwrap().is_empty() {
+                        // 如果提供种子下载地址，则尝试
+                        if let Some(download_url) = &torrent.download_url {
+                            match download_torrent(&self.client, download_url).await {
+                                Ok(data) => {
+                                    // 下载成功，那么则选择该种子
+                                    self.db.update_torrent_data(&best.info_hash, data).await?;
+                                    return Ok(Some(best.clone()));
+                                }
+                                Err(e) => {
+                                    error!("下载种子失败: {}", e);
+                                }
+                            }
+                        }
+
+                        // 如果无法获取种子数据，那么则移除该种子
+                        episode_torrents.retain(|(torrent, _)| torrent.info_hash != best.info_hash);
+                        continue;
+                    }
+                    return Ok(Some(best.clone()));
+                } else {
+                    // 如果推荐资源类型为磁力链接，则直接返回
+                    return Ok(Some(best.clone()));
+                }
+            } else {
+                if self.recommended_resource_type == ResourceType::Torrent {
+                    // 下载器推荐的是种子，但无法获取到种子数据，那么可以选择磁力
+                    return Ok(first_best_torrent);
+                }
+
+                // 如果无法选择到种子，则返回 None
+                return Ok(None);
+            }
+        }
     }
 
     /// 获取当前 worker metrics
@@ -123,11 +177,13 @@ impl BangumiWorker {
             .await?;
 
         // 2. 获取并解析种子
-        let torrents = self.db.get_bangumi_torrents(self.bangumi.id).await?;
-        if !torrents.is_empty() {
+        let torrents_file_names = self
+            .db
+            .get_bangumi_torrents_file_names(self.bangumi.id)
+            .await?;
+        if !torrents_file_names.is_empty() {
             info!("开始解析番剧 {} 的种子文件名", self.bangumi.name);
-            let file_names: Vec<String> = torrents.iter().map(|t| t.title.clone()).collect();
-            self.parser.parse_file_names(file_names).await?;
+            self.parser.parse_file_names(torrents_file_names).await?;
         }
 
         // 3. 获取所有种子及其解析结果
@@ -189,12 +245,15 @@ impl BangumiWorker {
 
         // 6. 为每个 Missing 任务选择合适的种子
         for task in missing_tasks {
-            if let Some(torrent) = self.select_episode_torrent(
-                task.episode_number,
-                self.bangumi.ep_start_number,
-                &unused_torrents,
-                &episodes,
-            )? {
+            if let Some(torrent) = self
+                .select_episode_torrent(
+                    task.episode_number,
+                    self.bangumi.ep_start_number,
+                    &unused_torrents,
+                    &episodes,
+                )
+                .await?
+            {
                 info!(
                     "已为番剧 {} 第 {} 集选择合适的种子",
                     self.bangumi.name, task.episode_number

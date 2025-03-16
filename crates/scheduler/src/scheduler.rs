@@ -1,12 +1,14 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use downloader::Downloader;
+use model::sea_orm_active_enums::ResourceType;
 use model::subscriptions;
 use sea_orm::DatabaseConnection;
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::Mutex;
-use tracing::{error, info};
+use tracing::{error, info, warn};
 
 use crate::db::Db;
+use crate::download_torrent;
 use crate::metrics::Metrics;
 use crate::tasks::TaskManager;
 use crate::worker::BangumiWorker;
@@ -21,6 +23,7 @@ pub struct Scheduler {
     pub(crate) task_manager: TaskManager,
     pub(crate) workers: Arc<Mutex<HashMap<i32, BangumiWorker>>>, // 存储 worker 实例以便管理生命周期
     pub(crate) notify: notify::worker::Worker,
+    pub(crate) client: reqwest::Client,
 }
 
 impl Scheduler {
@@ -30,6 +33,7 @@ impl Scheduler {
         metadata: metadata::worker::Worker,
         downloader: Arc<Box<dyn Downloader>>,
         notify: notify::worker::Worker,
+        client: reqwest::Client,
     ) -> Self {
         let task_manager = TaskManager::new(db.clone(), downloader.clone(), notify.clone());
         Self {
@@ -40,6 +44,7 @@ impl Scheduler {
             task_manager,
             workers: Arc::new(Mutex::new(HashMap::new())),
             notify,
+            client,
         }
     }
 
@@ -49,9 +54,10 @@ impl Scheduler {
         metadata: metadata::worker::Worker,
         downloader: Arc<Box<dyn Downloader>>,
         notify: notify::worker::Worker,
+        client: reqwest::Client,
     ) -> Self {
         let db = Db::new(conn);
-        Self::new(db, parser, metadata, downloader, notify)
+        Self::new(db, parser, metadata, downloader, notify, client)
     }
 
     /// 创建并启动 worker 或重启 worker
@@ -84,6 +90,8 @@ impl Scheduler {
             self.parser.clone(),
             self.metadata.clone(),
             self.task_manager.clone(),
+            self.downloader.recommended_resource_type(),
+            self.client.clone(),
         );
         let worker_clone = worker.clone();
         worker.spawn();
@@ -164,10 +172,28 @@ impl Scheduler {
         episode_number: i32,
         info_hash: &str,
     ) -> Result<()> {
-        let torrent = self.db.get_torrent_by_info_hash(info_hash).await?;
-        if torrent.is_none() {
-            return Err(anyhow::anyhow!("未找到种子信息"));
+        let torrent = self
+            .db
+            .get_torrent_by_info_hash(info_hash)
+            .await?
+            .context("未找到种子信息")?;
+
+        // 如果推荐资源类型为种子，则尝试下载种子
+        #[allow(clippy::collapsible_if)]
+        if self.downloader.recommended_resource_type() == ResourceType::Torrent {
+            if torrent.data.is_none() && torrent.download_url.is_some() {
+                match download_torrent(&self.client, &torrent.download_url.unwrap()).await {
+                    Ok(data) => {
+                        info!("下载种子成功: {}, 更新种子数据", info_hash);
+                        self.db.update_torrent_data(info_hash, data).await?;
+                    }
+                    Err(e) => {
+                        warn!("下载种子失败: {}, 尝试使用磁力链接下载", e);
+                    }
+                }
+            }
         }
+
         let task = self
             .db
             .get_episode_task_by_bangumi_id_and_episode_number(bangumi_id, episode_number)

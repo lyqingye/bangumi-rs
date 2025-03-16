@@ -4,6 +4,7 @@ use chrono::{Local, NaiveDateTime};
 use model::{
     sea_orm_active_enums::DownloadStatus,
     torrent_download_tasks::{self, Column, Model},
+    torrents::{self, Column as TorrentColumn, Model as TorrentModel},
 };
 use sea_orm::{
     sea_query::{OnConflict, SimpleExpr},
@@ -145,5 +146,12 @@ impl Store for Db {
     ) -> Result<()> {
         self.update_task_retry_status(info_hash, next_retry_at, err_msg)
             .await
+    }
+
+    async fn get_torrent_by_info_hash(&self, info_hash: &str) -> Result<Option<TorrentModel>> {
+        Ok(torrents::Entity::find()
+            .filter(TorrentColumn::InfoHash.eq(info_hash))
+            .one(&*self.conn)
+            .await?)
     }
 }

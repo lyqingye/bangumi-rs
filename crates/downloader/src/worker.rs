@@ -10,14 +10,14 @@ use tracing::{debug, error, info, warn};
 
 use crate::{
     config::Config, db::Db, metrics, thirdparty::pan_115_impl::Pan115DownloaderImpl, Downloader,
-    Event, Store, ThirdPartyDownloader,
+    Event, Resource, ResourceType, Store, ThirdPartyDownloader,
 };
 
 type State = DownloadStatus;
 
 pub enum Tx {
     // 外部事件
-    StartTask(String),
+    StartTask(Resource),
     CancelTask(String),
     RemoveTask((String, bool)),
     RetryTask(String),
@@ -52,7 +52,7 @@ impl Tx {
 
     async fn get_ref_task(&self, tasks: &dyn Store) -> Result<Model> {
         let info_hash = match self {
-            Self::StartTask(info_hash) => info_hash,
+            Self::StartTask(resource) => resource.info_hash(),
             Self::CancelTask(info_hash) => info_hash,
             Self::RetryTask(info_hash) => info_hash,
             Self::AutoRetry(info_hash) => info_hash,
@@ -138,6 +138,40 @@ impl Worker {
         Ok(())
     }
 
+    async fn get_task_resource(&self, task: &Model) -> Result<Resource> {
+        Ok(match task.resource_type {
+            ResourceType::Torrent => {
+                let torrent = self
+                    .store
+                    .get_torrent_by_info_hash(&task.info_hash)
+                    .await?
+                    .ok_or_else(|| {
+                        anyhow::anyhow!("种子文件不存在: info_hash={}", task.info_hash)
+                    })?;
+                let data = torrent
+                    .data
+                    .ok_or_else(|| anyhow::anyhow!("种子内容为空: info_hash={}", task.info_hash))?;
+                Resource::TorrentFileBytes(data, task.info_hash.clone())
+            }
+            ResourceType::Magnet => {
+                let magnet = task
+                    .magnet
+                    .as_ref()
+                    .ok_or_else(|| anyhow::anyhow!("磁力链接为空: info_hash={}", task.info_hash))?;
+                Resource::from_magnet_link(magnet)?
+            }
+            ResourceType::InfoHash => Resource::from_info_hash(task.info_hash.clone())?,
+        })
+    }
+
+    async fn get_task_resource_by_info_hash(&self, info_hash: &str) -> Result<Resource> {
+        let tasks = self.store.list_by_hashes(&[info_hash.to_string()]).await?;
+        let task = tasks
+            .first()
+            .ok_or_else(|| anyhow::anyhow!("任务不存在: info_hash={}", info_hash))?;
+        self.get_task_resource(task).await
+    }
+
     async fn recover_pending_tasks(&self) -> Result<()> {
         info!("开始恢复未处理的下载任务");
 
@@ -148,7 +182,8 @@ impl Worker {
 
         info!("找到 {} 个未处理的任务", pending_tasks.len());
         for task in pending_tasks {
-            if let Err(e) = self.send_event(Tx::StartTask(task.info_hash.clone())) {
+            let resource = self.get_task_resource(&task).await?;
+            if let Err(e) = self.send_event(Tx::StartTask(resource)) {
                 error!("恢复任务到队列失败: {} - {}", task.info_hash, e);
             } else {
                 info!("成功恢复任务: info_hash={}", task.info_hash);
@@ -206,22 +241,23 @@ impl Worker {
 
 /// External Function
 impl Worker {
-    pub async fn add_task(&self, info_hash: &str, dir: PathBuf) -> Result<()> {
+    pub async fn add_task(&self, resource: Resource, dir: PathBuf) -> Result<()> {
+        let info_hash = resource.info_hash();
         info!(
-            "添加下载任务: info_hash={}, dir={}",
+            "添加下载任务: info_hash={:?}, dir={}",
             info_hash,
             dir.display()
         );
-        self.create_task(info_hash, &dir).await?;
-        self.send_event(Tx::StartTask(info_hash.to_string()))?;
+        self.create_task(&resource, &dir).await?;
+        self.send_event(Tx::StartTask(resource))?;
         Ok(())
     }
 
-    async fn create_task(&self, info_hash: &str, dir: &PathBuf) -> Result<()> {
+    async fn create_task(&self, resource: &Resource, dir: &PathBuf) -> Result<()> {
         let full_path = self.config.download_dir.join(dir);
         let now = Local::now().naive_utc();
         let task = Model {
-            info_hash: info_hash.to_string(),
+            info_hash: resource.info_hash().to_string(),
             download_status: DownloadStatus::Pending,
             downloader: Some(self.downloader.name().to_string()),
             context: None,
@@ -231,6 +267,8 @@ impl Worker {
             dir: full_path.to_string_lossy().into_owned(),
             retry_count: 0,
             next_retry_at: now,
+            resource_type: resource.get_type(),
+            magnet: resource.magnet(),
         };
 
         self.store.upsert(task).await?;
@@ -333,7 +371,7 @@ impl Worker {
         );
         match (event, state.clone()) {
             // 开始任务
-            (Tx::StartTask(info_hash), State::Pending) => self.on_start_task(info_hash, ctx).await,
+            (Tx::StartTask(resource), State::Pending) => self.on_start_task(resource, ctx).await,
 
             // 取消任务
             (Tx::CancelTask(info_hash), State::Downloading | State::Retrying) => {
@@ -389,9 +427,10 @@ impl Worker {
 
     async fn on_start_task(
         &self,
-        info_hash: String,
+        resource: Resource,
         ctx: &mut Context,
     ) -> Result<(Option<Tx>, Option<State>)> {
+        let info_hash = resource.info_hash().to_string();
         info!(
             "开始处理任务(StartTask): info_hash={} state={:?} dir={}",
             info_hash, ctx.ref_task.download_status, ctx.ref_task.dir
@@ -399,7 +438,7 @@ impl Worker {
 
         match self
             .downloader
-            .add_task(&info_hash, ctx.ref_task.dir.clone().into())
+            .add_task(resource, ctx.ref_task.dir.clone().into())
             .await
         {
             Ok(result) => {
@@ -491,6 +530,7 @@ impl Worker {
             ctx.ref_task.retry_count,
             self.config.max_retry_count
         );
+        let resource = self.get_task_resource_by_info_hash(&info_hash).await?;
         // 删除原有任务，然后重新下载
         if let Err(e) = self.downloader.remove_task(&info_hash, true).await {
             warn!("移除任务准备重试出错: info_hash={}, 错误: {}", info_hash, e);
@@ -498,7 +538,7 @@ impl Worker {
 
         self.update_task_status(&info_hash, DownloadStatus::Pending, None, None)
             .await?;
-        Ok((Some(Tx::StartTask(info_hash)), Some(State::Pending)))
+        Ok((Some(Tx::StartTask(resource)), Some(State::Pending)))
     }
 
     async fn on_task_cancelled(
@@ -656,8 +696,8 @@ impl Downloader for Worker {
         self.downloader.name()
     }
 
-    async fn add_task(&self, info_hash: &str, dir: PathBuf) -> Result<()> {
-        self.add_task(info_hash, dir).await
+    async fn add_task(&self, resource: Resource, dir: PathBuf) -> Result<()> {
+        self.add_task(resource, dir).await
     }
 
     async fn list_tasks(&self, info_hashes: &[String]) -> Result<Vec<Model>> {
@@ -699,6 +739,14 @@ impl Downloader for Worker {
     async fn resume_task(&self, info_hash: &str) -> Result<()> {
         self.resume_task(info_hash)
     }
+
+    fn supports_resource_type(&self, resource_type: ResourceType) -> bool {
+        self.downloader.supports_resource_type(resource_type)
+    }
+
+    fn recommended_resource_type(&self) -> ResourceType {
+        self.downloader.recommended_resource_type()
+    }
 }
 
 impl Worker {
@@ -726,7 +774,10 @@ mod tests {
         worker.spawn().await?;
         worker
             .add_task(
-                "f6ebf8a1f26d01f317c8e94ec40ebb3dd1a75d40",
+                Resource::from_magnet_link(
+                    "magnet:?xt=urn:btih:f6ebf8a1f26d01f317c8e94ec40ebb3dd1a75d40",
+                )
+                .unwrap(),
                 PathBuf::from("test"),
             )
             .await?;

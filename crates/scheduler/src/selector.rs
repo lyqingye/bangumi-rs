@@ -1,4 +1,3 @@
-use anyhow::Result;
 use model::{file_name_parse_record, subscriptions, torrents};
 use parser::{Language, VideoResolution};
 use std::collections::HashSet;
@@ -60,15 +59,15 @@ impl TorrentSelector {
     /// 根据订阅设置和解析结果选择最合适的种子
     pub fn select(
         &self,
-        torrents: Vec<(torrents::Model, file_name_parse_record::Model)>,
-    ) -> Result<Option<torrents::Model>> {
+        torrents: &[(torrents::Model, file_name_parse_record::Model)],
+    ) -> Option<torrents::Model> {
         if torrents.is_empty() {
-            return Ok(None);
+            return None;
         }
 
         // 根据订阅设置过滤种子
         let mut candidates: Vec<_> = torrents
-            .into_iter()
+            .iter()
             .filter(|(_, parse_result)| {
                 self.match_resolution_filter(parse_result)
                     && self.match_language_filter(parse_result)
@@ -81,7 +80,7 @@ impl TorrentSelector {
             .collect();
 
         if candidates.is_empty() {
-            return Ok(None);
+            return None;
         }
 
         // 按照优先级排序：
@@ -142,7 +141,7 @@ impl TorrentSelector {
         });
 
         // 返回排序后的第一个种子
-        Ok(Some(candidates.into_iter().next().unwrap().0))
+        Some(candidates[0].0.clone())
     }
 
     /// 检查是否匹配分辨率过滤器

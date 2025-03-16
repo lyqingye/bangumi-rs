@@ -3,6 +3,7 @@ pub mod config;
 pub mod context;
 pub mod db;
 pub mod metrics;
+pub mod resource;
 mod retry;
 mod syncer;
 pub mod thirdparty;
@@ -12,15 +13,20 @@ use anyhow::Result;
 use async_trait::async_trait;
 use chrono::NaiveDateTime;
 use pan_115::model::DownloadInfo;
+use resource::Resource;
 use std::{collections::HashMap, path::PathBuf};
 use tokio::sync::broadcast;
 
-use model::{sea_orm_active_enums::DownloadStatus, torrent_download_tasks::Model};
+use model::{
+    sea_orm_active_enums::{DownloadStatus, ResourceType},
+    torrent_download_tasks::Model,
+    torrents::Model as TorrentModel,
+};
 
 #[async_trait]
 pub trait Downloader: Send + Sync {
     fn name(&self) -> &'static str;
-    async fn add_task(&self, info_hash: &str, dir: PathBuf) -> Result<()>;
+    async fn add_task(&self, resource: Resource, dir: PathBuf) -> Result<()>;
     async fn list_tasks(&self, info_hashes: &[String]) -> Result<Vec<Model>>;
     async fn list_files(&self, info_hash: &str) -> Result<Vec<pan_115::model::FileInfo>>;
     async fn download_file(&self, file_id: &str, ua: &str) -> Result<DownloadInfo>;
@@ -31,6 +37,8 @@ pub trait Downloader: Send + Sync {
     async fn retry(&self, info_hash: &str) -> Result<()>;
     async fn pause_task(&self, info_hash: &str) -> Result<()>;
     async fn resume_task(&self, info_hash: &str) -> Result<()>;
+    fn supports_resource_type(&self, resource_type: ResourceType) -> bool;
+    fn recommended_resource_type(&self) -> ResourceType;
 }
 
 #[derive(Debug, Clone)]
@@ -50,7 +58,7 @@ pub struct RemoteTaskStatus {
 #[async_trait]
 pub trait ThirdPartyDownloader: Send + Sync {
     fn name(&self) -> &'static str;
-    async fn add_task(&self, info_hash: &str, dir: PathBuf) -> Result<Option<String>>;
+    async fn add_task(&self, resource: Resource, dir: PathBuf) -> Result<Option<String>>;
     async fn list_tasks(&self, info_hashes: &[String])
         -> Result<HashMap<String, RemoteTaskStatus>>;
 
@@ -64,6 +72,10 @@ pub trait ThirdPartyDownloader: Send + Sync {
     async fn remove_task(&self, info_hash: &str, remove_files: bool) -> Result<()>;
     async fn pause_task(&self, info_hash: &str) -> Result<()>;
     async fn resume_task(&self, info_hash: &str) -> Result<()>;
+    // 支持的资源类型
+    fn supports_resource_type(&self, resource_type: ResourceType) -> bool;
+    // 推荐的资源类型
+    fn recommended_resource_type(&self) -> ResourceType;
 }
 
 #[async_trait]
@@ -84,4 +96,19 @@ pub trait Store: Send + Sync {
         err_msg: Option<String>,
     ) -> Result<()>;
     async fn upsert(&self, task: Model) -> Result<()>;
+    async fn get_torrent_by_info_hash(&self, info_hash: &str) -> Result<Option<TorrentModel>>;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_resource_info_hash() {
+        let resource = Resource::from_magnet_link("magnet:?xt=urn:btih:e93a1a84df5f95b0a350ef4c25b91c2c88adce4b&dn=filename&tr=tracker_url".to_string()).unwrap();
+        assert_eq!(
+            resource.info_hash(),
+            "e93a1a84df5f95b0a350ef4c25b91c2c88adce4b"
+        );
+    }
 }
