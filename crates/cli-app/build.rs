@@ -53,7 +53,7 @@ fn main() {
     // 添加默认的CPU架构优化
     if !rustflags.contains("target-cpu=") {
         if !rustflags.is_empty() {
-            rustflags.push_str(" ");
+            rustflags.push(' ');
         }
         rustflags.push_str("-C target-cpu=native");
     }
@@ -62,7 +62,7 @@ fn main() {
     if profile == "release" {
         if let Some(pgo_flags) = attempt_pgo_optimization() {
             if !rustflags.is_empty() {
-                rustflags.push_str(" ");
+                rustflags.push(' ');
             }
             rustflags.push_str(&pgo_flags);
         }
