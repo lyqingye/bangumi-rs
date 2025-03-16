@@ -133,11 +133,11 @@ impl ThirdPartyDownloader for QbittorrentDownloaderImpl {
     }
 
     async fn list_files(&self, _info_hash: &str, _result: Option<String>) -> Result<Vec<FileInfo>> {
-        panic!("不支持获取下载文件列表")
+        return Err(anyhow::anyhow!("不支持获取下载文件列表"))
     }
 
     async fn download_file(&self, _file_id: &str, _ua: &str) -> Result<DownloadInfo> {
-        panic!("不支持下载文件")
+        return Err(anyhow::anyhow!("不支持下载文件"))
     }
 
     fn supports_resource_type(&self, resource_type: ResourceType) -> bool {
