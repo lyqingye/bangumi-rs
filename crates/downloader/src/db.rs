@@ -4,7 +4,7 @@ use chrono::{Local, NaiveDateTime};
 use model::{
     sea_orm_active_enums::DownloadStatus,
     torrent_download_tasks::{self, Column, Model},
-    torrents::{self, Model as TorrentModel, Column as TorrentColumn},
+    torrents::{self, Column as TorrentColumn, Model as TorrentModel},
 };
 use sea_orm::{
     sea_query::{OnConflict, SimpleExpr},
