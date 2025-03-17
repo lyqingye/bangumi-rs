@@ -2,6 +2,7 @@ use std::{collections::HashMap, path::PathBuf, time::Duration};
 
 mod mock_store;
 use chrono::Local;
+use downloader::config::GenericConfig;
 use downloader::{config::Config, worker::Worker, MockThirdPartyDownloader, RemoteTaskStatus};
 use downloader::{resource::Resource, Store};
 use mock_store::MockStore;
@@ -18,13 +19,13 @@ fn init_test_env() {
 }
 
 // 创建测试用的配置
-fn create_test_config() -> Config {
-    Config {
+fn create_test_config() -> GenericConfig {
+    GenericConfig {
         max_retry_count: 1,
-        sync_interval: Duration::from_nanos(1),
         retry_processor_interval: Duration::from_secs(30),
         retry_min_interval: chrono::Duration::nanoseconds(1),
         retry_max_interval: chrono::Duration::nanoseconds(1),
+        download_dir: PathBuf::from("test"),
         ..Default::default()
     }
 }
@@ -34,7 +35,7 @@ fn create_test_resource() -> Resource {
 }
 
 // 创建模拟下载器，可自定义任务状态
-fn create_mock_downloader() -> MockThirdPartyDownloader {
+fn create_mock_downloader(config: GenericConfig) -> MockThirdPartyDownloader {
     let mut mock_downloader = MockThirdPartyDownloader::new();
     mock_downloader.expect_add_task().returning(|_, _| Ok(None));
     mock_downloader
@@ -49,23 +50,19 @@ fn create_mock_downloader() -> MockThirdPartyDownloader {
     mock_downloader.expect_pause_task().returning(|_| Ok(()));
 
     mock_downloader.expect_resume_task().returning(|_| Ok(()));
-    mock_downloader
-        .expect_delete_task_on_completion()
-        .returning(|| true);
-
+    mock_downloader.expect_config().return_const(config);
     mock_downloader
 }
 
 // 创建Worker实例
-fn create_test_worker(
-    mock_store: MockStore,
-    mock_downloader: MockThirdPartyDownloader,
-    config: Config,
-) -> Worker {
+fn create_test_worker(mock_store: MockStore, mock_downloader: MockThirdPartyDownloader) -> Worker {
     Worker::new_with_conn(
         Box::new(mock_store.clone()),
         Box::new(mock_downloader),
-        config,
+        Config {
+            sync_interval: Duration::from_millis(100),
+            ..Default::default()
+        },
     )
     .unwrap()
 }
@@ -93,14 +90,13 @@ async fn test_retry_exceed_max_count() {
     // 准备测试数据和依赖
     let mock_store = MockStore::new();
     let failed_tasks = create_failed_tasks();
-    let mut mock_downloader = create_mock_downloader();
+    let mut mock_downloader = create_mock_downloader(create_test_config());
     mock_downloader
         .expect_list_tasks()
         .returning(move |_| Ok(failed_tasks.clone()));
-    let config = create_test_config();
 
     // 创建并启动worker
-    let mut worker = create_test_worker(mock_store.clone(), mock_downloader, config);
+    let mut worker = create_test_worker(mock_store.clone(), mock_downloader);
     worker.spawn().await.unwrap();
     let worker_clone = worker.clone();
 
@@ -150,16 +146,15 @@ async fn test_download_timeout_no_retry() {
             result: None,
         },
     );
-    let mut mock_downloader = create_mock_downloader();
-    mock_downloader
-        .expect_list_tasks()
-        .returning(move |_| Ok(pending_tasks.clone()));
     let mut config = create_test_config();
     config.max_retry_count = 0;
     config.download_timeout = chrono::Duration::nanoseconds(1);
-    config.sync_interval = Duration::from_millis(100);
+    let mut mock_downloader = create_mock_downloader(config);
+    mock_downloader
+        .expect_list_tasks()
+        .returning(move |_| Ok(pending_tasks.clone()));
     // 创建并启动worker
-    let mut worker = create_test_worker(mock_store.clone(), mock_downloader, config);
+    let mut worker = create_test_worker(mock_store.clone(), mock_downloader);
     worker.spawn().await.unwrap();
     let worker_clone = worker.clone();
 
@@ -221,7 +216,7 @@ async fn test_worker_retry_success() {
 
     // 准备测试数据和依赖
     let mock_store = MockStore::new();
-    let mut mock_downloader = create_mock_downloader();
+    let mut mock_downloader = create_mock_downloader(create_test_config());
     mock_downloader
         .expect_list_tasks()
         .once()
@@ -229,10 +224,9 @@ async fn test_worker_retry_success() {
     mock_downloader
         .expect_list_tasks()
         .returning(move |_| Ok(success_remote_tasks.clone()));
-    let config = create_test_config();
 
     // 创建并启动worker
-    let mut worker = create_test_worker(mock_store.clone(), mock_downloader, config);
+    let mut worker = create_test_worker(mock_store.clone(), mock_downloader);
     worker.spawn().await.unwrap();
     let worker_clone = worker.clone();
 
@@ -275,14 +269,13 @@ async fn test_worker_add_task_success() {
 
     // 准备测试数据和依赖
     let mock_store = MockStore::new();
-    let mut mock_downloader = create_mock_downloader();
+    let mut mock_downloader = create_mock_downloader(create_test_config());
     mock_downloader
         .expect_list_tasks()
         .returning(move |_| Ok(pending_remote_task.clone()));
-    let config = create_test_config();
 
     // 创建并启动worker
-    let mut worker = create_test_worker(mock_store.clone(), mock_downloader, config);
+    let mut worker = create_test_worker(mock_store.clone(), mock_downloader);
     worker.spawn().await.unwrap();
     let worker_clone = worker.clone();
 
@@ -324,14 +317,13 @@ async fn test_worker_add_cancel_downloading_task() {
 
     // 准备测试数据和依赖
     let mock_store = MockStore::new();
-    let mut mock_downloader = create_mock_downloader();
+    let mut mock_downloader = create_mock_downloader(create_test_config());
     mock_downloader
         .expect_list_tasks()
         .returning(move |_| Ok(pending_remote_task.clone()));
-    let config = create_test_config();
 
     // 创建并启动worker
-    let mut worker = create_test_worker(mock_store.clone(), mock_downloader, config);
+    let mut worker = create_test_worker(mock_store.clone(), mock_downloader);
     worker.spawn().await.unwrap();
     let worker_clone = worker.clone();
 
@@ -384,7 +376,9 @@ async fn test_worker_add_retry_failed_task() {
 
     // 准备测试数据和依赖
     let mock_store = MockStore::new();
-    let mut mock_downloader = create_mock_downloader();
+    let mut config = create_test_config();
+    config.max_retry_count = 0;
+    let mut mock_downloader = create_mock_downloader(config);
     mock_downloader
         .expect_list_tasks()
         .once()
@@ -392,11 +386,9 @@ async fn test_worker_add_retry_failed_task() {
     mock_downloader
         .expect_list_tasks()
         .returning(move |_| Ok(pending_remote_task.clone()));
-    let mut config = create_test_config();
-    config.max_retry_count = 0;
 
     // 创建并启动worker
-    let mut worker = create_test_worker(mock_store.clone(), mock_downloader, config);
+    let mut worker = create_test_worker(mock_store.clone(), mock_downloader);
     worker.spawn().await.unwrap();
     let worker_clone = worker.clone();
 
@@ -457,14 +449,13 @@ async fn test_worker_recover_pending_tasks() {
         })
         .await
         .unwrap();
-    let mut mock_downloader = create_mock_downloader();
+    let mut mock_downloader = create_mock_downloader(create_test_config());
     mock_downloader
         .expect_list_tasks()
         .returning(move |_| Ok(pending_remote_task.clone()));
-    let config = create_test_config();
 
     // 创建并启动worker
-    let mut worker = create_test_worker(mock_store.clone(), mock_downloader, config);
+    let mut worker = create_test_worker(mock_store.clone(), mock_downloader);
     worker.spawn().await.unwrap();
     let worker_clone = worker.clone();
 
@@ -500,14 +491,13 @@ async fn test_worker_pause_task() {
 
     // 准备测试数据和依赖
     let mock_store = MockStore::new();
-    let mut mock_downloader = create_mock_downloader();
+    let mut mock_downloader = create_mock_downloader(create_test_config());
     mock_downloader
         .expect_list_tasks()
         .returning(move |_| Ok(pending_remote_task.clone()));
-    let config = create_test_config();
 
     // 创建并启动worker
-    let mut worker = create_test_worker(mock_store.clone(), mock_downloader, config);
+    let mut worker = create_test_worker(mock_store.clone(), mock_downloader);
     worker.spawn().await.unwrap();
     let worker_clone = worker.clone();
 
@@ -550,13 +540,12 @@ async fn test_worker_resume_task() {
 
     // 准备测试数据和依赖
     let mock_store = MockStore::new();
-    let mut mock_downloader = create_mock_downloader();
+    let mut mock_downloader = create_mock_downloader(create_test_config());
     mock_downloader
         .expect_list_tasks()
         .returning(move |_| Ok(pending_remote_task.clone()));
-    let config = create_test_config();
     // 创建并启动worker
-    let mut worker = create_test_worker(mock_store.clone(), mock_downloader, config);
+    let mut worker = create_test_worker(mock_store.clone(), mock_downloader);
     worker.spawn().await.unwrap();
     let worker_clone = worker.clone();
 
@@ -600,14 +589,13 @@ async fn test_worker_user_manual_pause_task() {
 
     // 准备测试数据和依赖
     let mock_store = MockStore::new();
-    let mut mock_downloader = create_mock_downloader();
+    let mut mock_downloader = create_mock_downloader(create_test_config());
     mock_downloader
         .expect_list_tasks()
         .returning(move |_| Ok(pending_remote_task.clone()));
-    let config = create_test_config();
 
     // 创建并启动worker
-    let mut worker = create_test_worker(mock_store.clone(), mock_downloader, config);
+    let mut worker = create_test_worker(mock_store.clone(), mock_downloader);
     worker.spawn().await.unwrap();
     let worker_clone = worker.clone();
 

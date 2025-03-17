@@ -253,17 +253,50 @@ export interface NotifyConfig {
   telegram: TelegramConfig
 }
 
-export interface DownloaderConfig {
-  pan115: Pan115Config
+// 通用下载器配置
+export interface GenericDownloaderConfig {
+  download_dir: string
   max_retry_count: number
-  download_timeout: string
   retry_min_interval: string
   retry_max_interval: string
+  download_timeout: string
+  delete_task_on_completion: boolean
+  priority: number
 }
 
+// 115网盘下载器配置
 export interface Pan115Config {
+  enabled: boolean
   cookies: string
   max_requests_per_second: number
+  download_dir: string
+  max_retry_count: number
+  retry_min_interval: string
+  retry_max_interval: string
+  download_timeout: string
+  delete_task_on_completion: boolean
+  priority: number
+}
+
+// qBittorrent下载器配置
+export interface QbittorrentConfig {
+  enabled: boolean
+  url: string
+  username: string
+  password: string
+  download_dir: string
+  max_retry_count: number
+  retry_min_interval: string
+  retry_max_interval: string
+  download_timeout: string
+  delete_task_on_completion: boolean
+  priority: number
+}
+
+// 下载器配置
+export interface DownloaderConfig {
+  pan115: Pan115Config
+  qbittorrent: QbittorrentConfig
 }
 
 export interface SiliconflowConfig {

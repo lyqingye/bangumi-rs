@@ -96,13 +96,7 @@ endpoint = "https://mikanani.me"
 
 # 下载器配置
 [downloader]
-# 下载最大重试次数
-max_retry_count = 5
-# 下载超时，避免由于死种导致一直在下载
-download_timeout = "30m"
-# 重试的最小时间间隔，将逐级递增
-retry_min_interval = "30s"
-retry_max_interval = "10m"
+
 
 # 115网盘下载器配置 (至少启用一个下载器)
 [downloader.pan115]
@@ -115,6 +109,13 @@ max_requests_per_second = 1
 download_dir = "/animes"
 # 下载完成后是否删除任务, 不会删除文件，只会删除任务
 delete_task_on_completion = true
+# 下载最大重试次数
+max_retry_count = 5
+# 下载超时，避免由于死种导致一直在下载
+download_timeout = "30m"
+# 重试的最小时间间隔，将逐级递增
+retry_min_interval = "30s"
+retry_max_interval = "10m"
 
 # qbittorrent 下载器配置 (至少启用一个下载器)
 [downloader.qbittorrent]
@@ -129,6 +130,13 @@ password = "adminadmin"
 url = "http://127.0.0.1:8080"
 # 下载完成后是否删除任务, 不会删除文件，只会删除任务
 delete_task_on_completion = false
+# 下载最大重试次数
+max_retry_count = 5
+# 下载超时，避免由于死种导致一直在下载
+download_timeout = "30m"
+# 重试的最小时间间隔，将逐级递增
+retry_min_interval = "30s"
+retry_max_interval = "10m"
 
 # Telegram 通知配置 (可选)
 [notify.telegram]

@@ -238,12 +238,37 @@ onMounted(() => {
 
           <!-- 下载器配置 -->
           <template v-if="index === 1">
-            <v-card variant="outlined">
+            <!-- 115网盘配置 -->
+            <v-card variant="outlined" class="mb-6">
               <v-card-item>
                 <v-card-title>115网盘</v-card-title>
                 <v-card-subtitle>配置115网盘下载器</v-card-subtitle>
               </v-card-item>
               <v-card-text>
+                <v-row>
+                  <v-col cols="12">
+                    <v-switch
+                      v-model="config.downloader.pan115.enabled"
+                      label="启用"
+                      color="primary"
+                      class="mb-4"
+                      inset
+                    />
+                  </v-col>
+                </v-row>
+                <v-row>
+                  <v-col cols="12">
+                    <v-text-field
+                      v-model="config.downloader.pan115.download_dir"
+                      label="下载目录"
+                      variant="outlined"
+                      density="comfortable"
+                      class="mb-4"
+                      :disabled="!config.downloader.pan115.enabled"
+                      prepend-inner-icon="mdi-folder"
+                    />
+                  </v-col>
+                </v-row>
                 <v-row>
                   <v-col cols="12">
                     <v-textarea
@@ -253,6 +278,7 @@ onMounted(() => {
                       density="comfortable"
                       class="mb-4"
                       rows="3"
+                      :disabled="!config.downloader.pan115.enabled"
                       prepend-inner-icon="mdi-cookie"
                     />
                   </v-col>
@@ -266,38 +292,177 @@ onMounted(() => {
                       variant="outlined"
                       density="comfortable"
                       class="mb-4"
+                      :disabled="!config.downloader.pan115.enabled"
                       prepend-inner-icon="mdi-speedometer"
+                    />
+                  </v-col>
+                  <v-col cols="12" md="6">
+                    <v-text-field
+                      v-model.number="config.downloader.pan115.max_retry_count"
+                      label="最大重试次数"
+                      type="number"
+                      variant="outlined"
+                      density="comfortable"
+                      class="mb-4"
+                      :disabled="!config.downloader.pan115.enabled"
+                      prepend-inner-icon="mdi-refresh"
+                    />
+                  </v-col>
+                </v-row>
+                <v-row>
+                  <v-col cols="12" md="6">
+                    <v-text-field
+                      v-model="config.downloader.pan115.download_timeout"
+                      label="下载超时"
+                      variant="outlined"
+                      density="comfortable"
+                      class="mb-4"
+                      :disabled="!config.downloader.pan115.enabled"
+                      prepend-inner-icon="mdi-timer-sand"
+                    />
+                  </v-col>
+                  <v-col cols="12" md="6">
+                    <v-text-field
+                      v-model="config.downloader.pan115.retry_min_interval"
+                      label="最小重试间隔"
+                      variant="outlined"
+                      density="comfortable"
+                      class="mb-4"
+                      :disabled="!config.downloader.pan115.enabled"
+                      prepend-inner-icon="mdi-timer-outline"
+                    />
+                  </v-col>
+                </v-row>
+                <v-row>
+                  <v-col cols="12" md="6">
+                    <v-text-field
+                      v-model="config.downloader.pan115.retry_max_interval"
+                      label="最大重试间隔"
+                      variant="outlined"
+                      density="comfortable"
+                      class="mb-4"
+                      :disabled="!config.downloader.pan115.enabled"
+                      prepend-inner-icon="mdi-timer"
+                    />
+                  </v-col>
+                  <v-col cols="12" md="6">
+                    <v-text-field
+                      v-model.number="config.downloader.pan115.priority"
+                      label="优先级"
+                      type="number"
+                      variant="outlined"
+                      density="comfortable"
+                      class="mb-4"
+                      :disabled="!config.downloader.pan115.enabled"
+                      prepend-inner-icon="mdi-priority-high"
+                    />
+                  </v-col>
+                </v-row>
+                <v-row>
+                  <v-col cols="12">
+                    <v-switch
+                      v-model="config.downloader.pan115.delete_task_on_completion"
+                      label="完成后删除任务（不会删除文件）"
+                      color="primary"
+                      class="mb-4"
+                      :disabled="!config.downloader.pan115.enabled"
+                      inset
                     />
                   </v-col>
                 </v-row>
               </v-card-text>
             </v-card>
 
-            <v-card variant="outlined" class="mt-6">
+            <!-- qBittorrent配置 -->
+            <v-card variant="outlined" class="mb-6">
               <v-card-item>
-                <v-card-title>通用下载器配置</v-card-title>
-                <v-card-subtitle>配置所有下载器的通用参数</v-card-subtitle>
+                <v-card-title>qBittorrent</v-card-title>
+                <v-card-subtitle>配置qBittorrent下载器</v-card-subtitle>
               </v-card-item>
               <v-card-text>
                 <v-row>
+                  <v-col cols="12">
+                    <v-switch
+                      v-model="config.downloader.qbittorrent.enabled"
+                      label="启用"
+                      color="primary"
+                      class="mb-4"
+                      inset
+                    />
+                  </v-col>
+                </v-row>
+                <v-row>
+                  <v-col cols="12">
+                    <v-text-field
+                      v-model="config.downloader.qbittorrent.download_dir"
+                      label="下载目录"
+                      variant="outlined"
+                      density="comfortable"
+                      class="mb-4"
+                      :disabled="!config.downloader.qbittorrent.enabled"
+                      prepend-inner-icon="mdi-folder"
+                    />
+                  </v-col>
+                </v-row>
+                <v-row>
+                  <v-col cols="12">
+                    <v-text-field
+                      v-model="config.downloader.qbittorrent.url"
+                      label="服务器地址"
+                      variant="outlined"
+                      density="comfortable"
+                      class="mb-4"
+                      :disabled="!config.downloader.qbittorrent.enabled"
+                      prepend-inner-icon="mdi-web"
+                    />
+                  </v-col>
+                </v-row>
+                <v-row>
                   <v-col cols="12" md="6">
                     <v-text-field
-                      v-model.number="config.downloader.max_retry_count"
+                      v-model="config.downloader.qbittorrent.username"
+                      label="用户名"
+                      variant="outlined"
+                      density="comfortable"
+                      class="mb-4"
+                      :disabled="!config.downloader.qbittorrent.enabled"
+                      prepend-inner-icon="mdi-account"
+                    />
+                  </v-col>
+                  <v-col cols="12" md="6">
+                    <v-text-field
+                      v-model="config.downloader.qbittorrent.password"
+                      label="密码"
+                      variant="outlined"
+                      density="comfortable"
+                      class="mb-4"
+                      type="password"
+                      :disabled="!config.downloader.qbittorrent.enabled"
+                      prepend-inner-icon="mdi-key"
+                    />
+                  </v-col>
+                </v-row>
+                <v-row>
+                  <v-col cols="12" md="6">
+                    <v-text-field
+                      v-model.number="config.downloader.qbittorrent.max_retry_count"
                       label="最大重试次数"
                       type="number"
                       variant="outlined"
                       density="comfortable"
                       class="mb-4"
+                      :disabled="!config.downloader.qbittorrent.enabled"
                       prepend-inner-icon="mdi-refresh"
                     />
                   </v-col>
                   <v-col cols="12" md="6">
                     <v-text-field
-                      v-model="config.downloader.download_timeout"
+                      v-model="config.downloader.qbittorrent.download_timeout"
                       label="下载超时"
                       variant="outlined"
                       density="comfortable"
                       class="mb-4"
+                      :disabled="!config.downloader.qbittorrent.enabled"
                       prepend-inner-icon="mdi-timer-sand"
                     />
                   </v-col>
@@ -305,22 +470,48 @@ onMounted(() => {
                 <v-row>
                   <v-col cols="12" md="6">
                     <v-text-field
-                      v-model="config.downloader.retry_min_interval"
+                      v-model="config.downloader.qbittorrent.retry_min_interval"
                       label="最小重试间隔"
                       variant="outlined"
                       density="comfortable"
                       class="mb-4"
+                      :disabled="!config.downloader.qbittorrent.enabled"
                       prepend-inner-icon="mdi-timer-outline"
                     />
                   </v-col>
                   <v-col cols="12" md="6">
                     <v-text-field
-                      v-model="config.downloader.retry_max_interval"
+                      v-model="config.downloader.qbittorrent.retry_max_interval"
                       label="最大重试间隔"
                       variant="outlined"
                       density="comfortable"
                       class="mb-4"
+                      :disabled="!config.downloader.qbittorrent.enabled"
                       prepend-inner-icon="mdi-timer"
+                    />
+                  </v-col>
+                </v-row>
+                <v-row>
+                  <v-col cols="12" md="6">
+                    <v-text-field
+                      v-model.number="config.downloader.qbittorrent.priority"
+                      label="优先级"
+                      type="number"
+                      variant="outlined"
+                      density="comfortable"
+                      class="mb-4"
+                      :disabled="!config.downloader.qbittorrent.enabled"
+                      prepend-inner-icon="mdi-priority-high"
+                    />
+                  </v-col>
+                  <v-col cols="12" md="6">
+                    <v-switch
+                      v-model="config.downloader.qbittorrent.delete_task_on_completion"
+                      label="完成后删除任务（不会删除文件）"
+                      color="primary"
+                      class="mb-4"
+                      :disabled="!config.downloader.qbittorrent.enabled"
+                      inset
                     />
                   </v-col>
                 </v-row>

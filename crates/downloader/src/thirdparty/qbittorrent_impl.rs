@@ -1,6 +1,6 @@
-use std::{collections::HashMap, path::PathBuf, sync::Arc};
+use std::{collections::HashMap, path::PathBuf, sync::Arc, time::Duration};
 
-use crate::{resource::Resource, RemoteTaskStatus, ThirdPartyDownloader};
+use crate::{config, resource::Resource, RemoteTaskStatus, ThirdPartyDownloader};
 use anyhow::Result;
 use async_trait::async_trait;
 use model::sea_orm_active_enums::{DownloadStatus, ResourceType};
@@ -15,15 +15,22 @@ use reqwest::Url;
 
 #[derive(Debug, Clone)]
 pub struct Config {
-    pub save_path: PathBuf,
-    pub delete_task_on_completion: bool,
+    pub generic: config::GenericConfig,
 }
 
 impl Default for Config {
     fn default() -> Self {
         Self {
-            save_path: PathBuf::from("/downloads"),
-            delete_task_on_completion: false,
+            generic: config::GenericConfig {
+                max_retry_count: 1,
+                retry_processor_interval: Duration::from_secs(30),
+                retry_min_interval: chrono::Duration::seconds(30),
+                retry_max_interval: chrono::Duration::minutes(60),
+                download_timeout: chrono::Duration::hours(1),
+                delete_task_on_completion: false,
+                priority: 0,
+                download_dir: PathBuf::from("/downloads"),
+            },
         }
     }
 }
@@ -53,7 +60,7 @@ impl ThirdPartyDownloader for QbittorrentDownloaderImpl {
         if dir.is_absolute() {
             return Err(anyhow::anyhow!("保存路径必须为相对路径"));
         }
-        let dir = self.config.save_path.join(dir);
+        let dir = self.config.generic.download_dir.join(dir);
         let info_hash = resource.info_hash().to_owned();
         let source = match resource {
             Resource::MagnetInfoHash(_) | Resource::MagnetLink(_, _) => {
@@ -154,8 +161,8 @@ impl ThirdPartyDownloader for QbittorrentDownloaderImpl {
         ResourceType::Torrent
     }
 
-    fn delete_task_on_completion(&self) -> bool {
-        self.config.delete_task_on_completion
+    fn config(&self) -> &config::GenericConfig {
+        &self.config.generic
     }
 }
 

@@ -484,17 +484,20 @@ impl Worker {
             warn!("移除失败任务出错: info_hash={}, 错误: {}", info_hash, e);
         }
 
-        if ctx.ref_task.retry_count >= self.config.max_retry_count {
+        if ctx.ref_task.retry_count >= self.downloader.config().max_retry_count {
             warn!(
                 "任务重试次数已达上限: info_hash={}, 重试次数={}/{}",
-                info_hash, ctx.ref_task.retry_count, self.config.max_retry_count
+                info_hash,
+                ctx.ref_task.retry_count,
+                self.downloader.config().max_retry_count
             );
             self.update_task_status(
                 &info_hash,
                 DownloadStatus::Failed,
                 Some(format!(
                     "重试次数超过上限({}): {}",
-                    self.config.max_retry_count, err_msg
+                    self.downloader.config().max_retry_count,
+                    err_msg
                 )),
                 None,
             )
@@ -502,14 +505,15 @@ impl Worker {
             Ok((None, Some(State::Failed)))
         } else {
             let next_retry_at = self
-                .config
+                .downloader
+                .config()
                 .calculate_next_retry(ctx.ref_task.retry_count + 1);
 
             info!(
                 "更新任务重试状态(TaskFailed): info_hash={}, 重试次数={}/{}, next_retry_at={}",
                 info_hash,
                 ctx.ref_task.retry_count + 1,
-                self.config.max_retry_count,
+                self.downloader.config().max_retry_count,
                 next_retry_at
             );
             self.update_task_retry_status(&info_hash, next_retry_at, Some(err_msg))
@@ -528,7 +532,7 @@ impl Worker {
             info_hash,
             ctx.ref_task.download_status,
             ctx.ref_task.retry_count,
-            self.config.max_retry_count
+            self.downloader.config().max_retry_count
         );
         let resource = self.get_task_resource_by_info_hash(&info_hash).await?;
         // 删除原有任务，然后重新下载
@@ -573,7 +577,7 @@ impl Worker {
         self.update_task_status(&info_hash, DownloadStatus::Completed, None, result)
             .await?;
 
-        if self.downloader.delete_task_on_completion() {
+        if self.downloader.config().delete_task_on_completion {
             if let Err(e) = self.downloader.remove_task(&info_hash, false).await {
                 warn!("清理下载记录出错: info_hash={}, 错误: {}", info_hash, e);
             }

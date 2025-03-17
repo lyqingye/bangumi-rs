@@ -7,7 +7,7 @@ use tracing::{error, info};
 impl Worker {
     pub(crate) fn spawn_retry_processor(&self) {
         let svc = self.clone();
-        let interval = self.config.retry_processor_interval;
+        let interval = self.downloader.config().retry_processor_interval;
 
         tokio::spawn(async move {
             let mut ticker = tokio::time::interval(interval);

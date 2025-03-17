@@ -1,9 +1,14 @@
 use anyhow::Result;
 use chrono::Duration as ChronoDuration;
+use downloader::config::GenericConfig;
 use humantime_serde;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
-use std::{os::unix::net::SocketAddr, path::Path, time::Duration as StdDuration};
+use std::{
+    os::unix::net::SocketAddr,
+    path::{Path, PathBuf},
+    time::Duration as StdDuration,
+};
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
 #[serde(default)]
@@ -104,9 +109,8 @@ impl TelegramConfig {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(default)]
-pub struct DownloaderConfig {
-    pub pan115: Pan115Config,
-    pub qbittorrent: QbittorrentConfig,
+pub struct GenericDownloaderConfig {
+    pub download_dir: String,
     pub max_retry_count: i32,
     #[serde(
         serialize_with = "serialize_chrono_duration",
@@ -123,19 +127,44 @@ pub struct DownloaderConfig {
         deserialize_with = "deserialize_chrono_duration"
     )]
     pub download_timeout: ChronoDuration,
+    pub delete_task_on_completion: bool,
+    pub priority: u8,
 }
 
-impl Default for DownloaderConfig {
+impl Default for GenericDownloaderConfig {
     fn default() -> Self {
         Self {
-            pan115: Pan115Config::default(),
-            qbittorrent: QbittorrentConfig::default(),
+            download_dir: "/".to_owned(),
             max_retry_count: 10,
             retry_min_interval: ChronoDuration::seconds(30),
             retry_max_interval: ChronoDuration::hours(1),
             download_timeout: ChronoDuration::minutes(30),
+            delete_task_on_completion: true,
+            priority: 0,
         }
     }
+}
+
+impl GenericDownloaderConfig {
+    pub fn to_downloader_config(&self) -> GenericConfig {
+        GenericConfig {
+            download_dir: PathBuf::from(&self.download_dir),
+            max_retry_count: self.max_retry_count,
+            retry_min_interval: self.retry_min_interval,
+            retry_max_interval: self.retry_max_interval,
+            download_timeout: self.download_timeout,
+            delete_task_on_completion: self.delete_task_on_completion,
+            priority: self.priority,
+            ..Default::default()
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+#[serde(default)]
+pub struct DownloaderConfig {
+    pub pan115: Pan115Config,
+    pub qbittorrent: QbittorrentConfig,
 }
 
 impl DownloaderConfig {
@@ -153,8 +182,8 @@ pub struct Pan115Config {
     pub enabled: bool,
     pub cookies: String,
     pub max_requests_per_second: u32,
-    pub download_dir: String,
-    pub delete_task_on_completion: bool,
+    #[serde(flatten)]
+    pub generic: GenericDownloaderConfig,
 }
 
 impl Default for Pan115Config {
@@ -163,8 +192,7 @@ impl Default for Pan115Config {
             enabled: false,
             cookies: "".to_owned(),
             max_requests_per_second: 1,
-            download_dir: "/".to_owned(),
-            delete_task_on_completion: true,
+            generic: GenericDownloaderConfig::default(),
         }
     }
 }
@@ -173,7 +201,7 @@ impl Pan115Config {
     fn validate(&self) -> Result<()> {
         if self.enabled {
             validate_not_empty(&self.cookies, "downloader.pan115.cookies")?;
-            validate_abs_path_format(&self.download_dir, "downloader.pan115.download_dir")?;
+            validate_abs_path_format(&self.generic.download_dir, "downloader.pan115.download_dir")?;
         }
         Ok(())
     }
@@ -186,8 +214,8 @@ pub struct QbittorrentConfig {
     pub url: String,
     pub username: String,
     pub password: String,
-    pub download_dir: String,
-    pub delete_task_on_completion: bool,
+    #[serde(flatten)]
+    pub generic: GenericDownloaderConfig,
 }
 
 impl Default for QbittorrentConfig {
@@ -197,8 +225,7 @@ impl Default for QbittorrentConfig {
             url: "http://127.0.0.1:8080".to_owned(),
             username: "admin".to_owned(),
             password: "adminadmin".to_owned(),
-            download_dir: "/downloads".to_owned(),
-            delete_task_on_completion: false,
+            generic: GenericDownloaderConfig::default(),
         }
     }
 }
@@ -209,7 +236,10 @@ impl QbittorrentConfig {
             validate_url(&self.url, "downloader.qbittorrent.url")?;
             validate_not_empty(&self.username, "downloader.qbittorrent.username")?;
             validate_not_empty(&self.password, "downloader.qbittorrent.password")?;
-            validate_abs_path_format(&self.download_dir, "downloader.qbittorrent.download_dir")?;
+            validate_abs_path_format(
+                &self.generic.download_dir,
+                "downloader.qbittorrent.download_dir",
+            )?;
         }
         Ok(())
     }

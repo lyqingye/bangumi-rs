@@ -16,7 +16,7 @@ use tokio::sync::Mutex;
 use tracing::{debug, info, warn};
 
 use crate::{
-    context::Pan115Context, RemoteTaskStatus, Resource, ResourceType, ThirdPartyDownloader,
+    config, context::Pan115Context, RemoteTaskStatus, Resource, ResourceType, ThirdPartyDownloader,
 };
 use anyhow::Result;
 use anyhow::{anyhow, Context};
@@ -27,8 +27,7 @@ pub struct Config {
     pub download_cache_ttl: Duration,
     pub download_cache_size: usize,
     pub file_list_cache_size: usize,
-    pub download_dir: PathBuf,
-    pub delete_task_on_completion: bool,
+    pub generic: config::GenericConfig,
 }
 
 impl Default for Config {
@@ -37,8 +36,16 @@ impl Default for Config {
             download_cache_ttl: Duration::from_secs(60 * 60),
             download_cache_size: 16,
             file_list_cache_size: 16,
-            download_dir: PathBuf::from("/"),
-            delete_task_on_completion: true,
+            generic: config::GenericConfig {
+                max_retry_count: 5,
+                retry_processor_interval: Duration::from_secs(30),
+                retry_min_interval: chrono::Duration::seconds(30),
+                retry_max_interval: chrono::Duration::minutes(10),
+                download_timeout: chrono::Duration::minutes(30),
+                delete_task_on_completion: true,
+                priority: 0,
+                download_dir: PathBuf::from("/downloads"),
+            },
         }
     }
 }
@@ -82,7 +89,7 @@ impl ThirdPartyDownloader for Pan115DownloaderImpl {
     }
 
     async fn add_task(&self, resource: Resource, dir: PathBuf) -> Result<Option<String>> {
-        let dir = self.config.download_dir.join(dir);
+        let dir = self.config.generic.download_dir.join(dir);
         let dir_cid = self.get_or_create_dir_cid(&dir).await?;
         let magnet = resource
             .magnet()
@@ -233,8 +240,8 @@ impl ThirdPartyDownloader for Pan115DownloaderImpl {
         ResourceType::Magnet
     }
 
-    fn delete_task_on_completion(&self) -> bool {
-        self.config.delete_task_on_completion
+    fn config(&self) -> &config::GenericConfig {
+        &self.config.generic
     }
 }
 
