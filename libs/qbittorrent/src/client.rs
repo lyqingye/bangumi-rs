@@ -128,7 +128,7 @@ impl Client {
                                 form.text(k.to_string(), v.to_string())
                             }),
                         |mut form, torrent| {
-                            let p = reqwest::multipart::Part::bytes(torrent.data.clone())
+                            let p = reqwest::multipart::Part::bytes(torrent.data.to_vec())
                                 .file_name(torrent.filename.to_string())
                                 .mime_str("application/x-bittorrent")
                                 .unwrap();
