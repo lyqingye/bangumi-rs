@@ -164,11 +164,7 @@ impl Server {
                 downloader::thirdparty::pan_115_impl::Pan115DownloaderImpl::new(
                     pan115,
                     downloader::thirdparty::pan_115_impl::Config {
-                        download_dir: PathBuf::from_str(&config.downloader.pan115.download_dir)?,
-                        delete_task_on_completion: config
-                            .downloader
-                            .pan115
-                            .delete_task_on_completion,
+                        generic: config.downloader.pan115.generic.to_downloader_config(),
                         ..Default::default()
                     },
                 ),
@@ -185,11 +181,7 @@ impl Server {
                 downloader::thirdparty::qbittorrent_impl::QbittorrentDownloaderImpl::new(
                     qbittorrent,
                     downloader::thirdparty::qbittorrent_impl::Config {
-                        save_path: PathBuf::from_str(&config.downloader.qbittorrent.download_dir)?,
-                        delete_task_on_completion: config
-                            .downloader
-                            .qbittorrent
-                            .delete_task_on_completion,
+                        generic: config.downloader.qbittorrent.generic.to_downloader_config(),
                     },
                 ),
             ) as Box<dyn ThirdPartyDownloader>
@@ -201,13 +193,7 @@ impl Server {
         let mut downloader_worker = downloader::worker::Worker::new_with_conn(
             Box::new(dl_store),
             downloader,
-            downloader::config::Config {
-                max_retry_count: config.downloader.max_retry_count,
-                download_timeout: config.downloader.download_timeout,
-                retry_min_interval: config.downloader.retry_min_interval,
-                retry_max_interval: config.downloader.retry_max_interval,
-                ..Default::default()
-            },
+            downloader::config::Config::default(),
         )?;
 
         downloader_worker.spawn().await?;
