@@ -56,7 +56,13 @@ image_base_url = "https://lain.bgm.tv"
 endpoint = "https://mikanani.me"
 
 # 下载器配置
-[downloader]
+# 115网盘下载器配置
+[downloader.pan115]
+enabled = true
+# 获取文档可以参考: https://alist.nn.ci/zh/guide/drivers/115.html#cookie%E8%8E%B7%E5%8F%96%E6%96%B9%E5%BC%8F
+cookies = "Your 115 cookies"
+# 限流，写1也足够了，请求速率过快的话，会被封禁1小时
+max_requests_per_second = 1
 # 这里的路径相当于你115网盘根目录下的animes文件夹
 download_dir = "/animes"
 # 下载最大重试次数
@@ -66,13 +72,29 @@ download_timeout = "30m"
 # 重试的最小时间间隔，将逐级递增
 retry_min_interval = "30s"
 retry_max_interval = "10m"
+# 下载完成后是否删除任务（不会删除文件）
+delete_task_on_completion = true
+# 下载优先级
+priority = 0
 
-# 115网盘下载器配置
-[downloader.pan115]
-# 获取文档可以参考: https://alist.nn.ci/zh/guide/drivers/115.html#cookie%E8%8E%B7%E5%8F%96%E6%96%B9%E5%BC%8F
-cookies = "Your 115 cookies"
-# 限流，写1也足够了，请求速率过快的话，会被封禁1小时
-max_requests_per_second = 1
+# qBittorrent下载器配置
+[downloader.qbittorrent]
+enabled = false
+url = "http://127.0.0.1:8080"
+username = "admin"
+password = "adminadmin"
+download_dir = "/downloads"
+# 下载最大重试次数
+max_retry_count = 5
+# 下载超时，避免由于死种导致一直在下载
+download_timeout = "30m"
+# 重试的最小时间间隔，将逐级递增
+retry_min_interval = "30s"
+retry_max_interval = "10m"
+# 下载完成后是否删除任务（不会删除文件）
+delete_task_on_completion = false
+# 下载优先级
+priority = 0
 
 # Telegram 通知配置 (可选)
 [notify.telegram]
