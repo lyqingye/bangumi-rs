@@ -1,4 +1,4 @@
-use reqwest::{header, Method, Response, StatusCode, Url};
+use reqwest::{header, Body, Method, Response, StatusCode, Url};
 use serde::Serialize;
 use serde_with::skip_serializing_none;
 use std::{
@@ -128,10 +128,11 @@ impl Client {
                                 form.text(k.to_string(), v.to_string())
                             }),
                         |mut form, torrent| {
-                            let p = reqwest::multipart::Part::bytes(torrent.data.to_vec())
-                                .file_name(torrent.filename.to_string())
-                                .mime_str("application/x-bittorrent")
-                                .unwrap();
+                            let p =
+                                reqwest::multipart::Part::stream(Body::from(torrent.data.clone()))
+                                    .file_name(torrent.filename.to_string())
+                                    .mime_str("application/x-bittorrent")
+                                    .unwrap();
                             form = form.part("torrents", p);
                             form
                         },
