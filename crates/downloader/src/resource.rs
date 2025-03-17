@@ -1,4 +1,5 @@
 use anyhow::Result;
+use bytes::Bytes;
 use lazy_static::lazy_static;
 use model::sea_orm_active_enums::ResourceType;
 
@@ -9,7 +10,7 @@ pub enum Resource {
     // InfoHash
     MagnetInfoHash(String),
     // 种子文件字节,InfoHash
-    TorrentFileBytes(Vec<u8>, String),
+    TorrentFileBytes(Bytes, String),
 }
 
 impl Resource {
@@ -43,7 +44,7 @@ impl Resource {
         Err(anyhow::anyhow!("非法磁力链接，无法获取info_hash"))
     }
 
-    pub fn from_torrent_file_bytes<T: Into<Vec<u8>>>(torrent_file_bytes: T) -> Result<Self> {
+    pub fn from_torrent_file_bytes<T: Into<Bytes>>(torrent_file_bytes: T) -> Result<Self> {
         let torrent_file_bytes = torrent_file_bytes.into();
         let torrent = torrent::Torrent::from_bytes(&torrent_file_bytes)?;
         Ok(Resource::TorrentFileBytes(

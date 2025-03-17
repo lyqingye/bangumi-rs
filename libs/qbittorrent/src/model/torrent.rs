@@ -1,5 +1,6 @@
 use std::fmt::{Debug, Display};
 
+use bytes::Bytes;
 use reqwest::Url;
 use serde::Serialize;
 use serde_with::{skip_serializing_none, SerializeDisplay};
@@ -394,7 +395,7 @@ pub enum TorrentSource {
 /// Torrent file
 pub struct TorrentFile {
     pub filename: String,
-    pub data: Vec<u8>,
+    pub data: Bytes,
 }
 impl Default for TorrentSource {
     fn default() -> Self {

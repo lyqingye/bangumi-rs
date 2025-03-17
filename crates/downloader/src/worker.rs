@@ -2,6 +2,7 @@ use std::{path::PathBuf, sync::Arc};
 
 use anyhow::{Context as _, Result};
 use async_trait::async_trait;
+use bytes::Bytes;
 use chrono::{Local, NaiveDateTime};
 use model::{sea_orm_active_enums::DownloadStatus, torrent_download_tasks::Model};
 use pan_115::model::DownloadInfo;
@@ -151,7 +152,7 @@ impl Worker {
                 let data = torrent
                     .data
                     .ok_or_else(|| anyhow::anyhow!("种子内容为空: info_hash={}", task.info_hash))?;
-                Resource::TorrentFileBytes(data, task.info_hash.clone())
+                Resource::TorrentFileBytes(Bytes::from(data), task.info_hash.clone())
             }
             ResourceType::Magnet => {
                 let magnet = task
