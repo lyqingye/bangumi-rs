@@ -724,6 +724,7 @@ async fn test_worker_fallback_task() {
     assert_eq!(task.download_status, DownloadStatus::Downloading);
     assert_eq!(task.resource_type, resource.get_type());
     assert_eq!(task.magnet, resource.magnet());
+    assert_eq!(task.downloader, "failed,success");
 
     // 关闭工作者
     worker.shutdown().await.unwrap();
