@@ -11,7 +11,7 @@ use tracing::{debug, error, info, warn};
 
 use crate::{
     config::Config, db::Db, metrics, thirdparty::pan_115_impl::Pan115DownloaderImpl, Downloader,
-    Event, Resource, ResourceType, Store, ThirdPartyDownloader,
+    Event, FileInfo, Resource, ResourceType, Store, ThirdPartyDownloader,
 };
 
 type State = DownloadStatus;
@@ -26,6 +26,7 @@ pub enum Tx {
     ResumeTask(String),
 
     // 内部事件
+    AutoFallback(String),
     AutoRetry(String),
     TaskFailed(String, String),
     TaskCompleted(String, Option<String>),
@@ -41,6 +42,7 @@ impl Tx {
             Self::CancelTask(_) => "CancelTask",
             Self::RetryTask(_) => "RetryTask",
             Self::AutoRetry(_) => "AutoRetry",
+            Self::AutoFallback(_) => "AutoFallback",
             Self::TaskFailed(_, _) => "TaskFailed",
             Self::TaskCompleted(_, _) => "TaskCompleted",
             Self::RemoveTask((_, _)) => "RemoveTask",
@@ -57,6 +59,7 @@ impl Tx {
             Self::CancelTask(info_hash) => info_hash,
             Self::RetryTask(info_hash) => info_hash,
             Self::AutoRetry(info_hash) => info_hash,
+            Self::AutoFallback(info_hash) => info_hash,
             Self::TaskFailed(info_hash, _) => info_hash,
             Self::TaskCompleted(info_hash, _) => info_hash,
             Self::RemoveTask((info_hash, _)) => info_hash,
@@ -76,31 +79,31 @@ impl Tx {
 
 pub struct Context {
     ref_task: Model,
+    downloader: Arc<Box<dyn ThirdPartyDownloader>>,
 }
 
 #[derive(Clone)]
 pub struct Worker {
     event_queue: Option<mpsc::UnboundedSender<Tx>>,
     pub(crate) store: Arc<Box<dyn Store>>,
-    pub(crate) downloader: Arc<Box<dyn ThirdPartyDownloader>>,
     pub(crate) config: Config,
-
     notify_tx: broadcast::Sender<Event>,
+    pub(crate) downloaders: Vec<Arc<Box<dyn ThirdPartyDownloader>>>,
 }
 
 impl Worker {
     pub fn new_with_conn(
         store: Box<dyn Store>,
-        downloader: Box<dyn ThirdPartyDownloader>,
         config: Config,
+        downloaders: Vec<Arc<Box<dyn ThirdPartyDownloader>>>,
     ) -> Result<Self> {
         let (notify_tx, _) = broadcast::channel(config.event_queue_size);
         Ok(Self {
             event_queue: None,
             store: Arc::new(store),
-            downloader: Arc::new(downloader),
             config,
             notify_tx,
+            downloaders,
         })
     }
 }
@@ -224,6 +227,7 @@ impl Worker {
 
         let mut ctx = Context {
             ref_task: task.clone(),
+            downloader: self.take_downloader(&task.downloader),
         };
         let mut event = Some(event);
         let mut state = Some(task.download_status);
@@ -255,11 +259,12 @@ impl Worker {
     }
 
     async fn create_task(&self, resource: &Resource, dir: PathBuf) -> Result<()> {
+        let downloader = self.best_downloader();
         let now = Local::now().naive_utc();
         let task = Model {
             info_hash: resource.info_hash().to_string(),
             download_status: DownloadStatus::Pending,
-            downloader: Some(self.downloader.name().to_string()),
+            downloader: downloader.name().to_string(),
             context: None,
             err_msg: None,
             created_at: now,
@@ -296,7 +301,7 @@ impl Worker {
         Ok(())
     }
 
-    pub async fn list_files(&self, info_hash: &str) -> Result<Vec<pan_115::model::FileInfo>> {
+    pub async fn list_files(&self, info_hash: &str) -> Result<Vec<FileInfo>> {
         info!("列出文件: info_hash={}", info_hash);
         let task = self
             .store
@@ -305,12 +310,19 @@ impl Worker {
             .first()
             .cloned()
             .context("任务不存在")?;
-        self.downloader.list_files(info_hash, task.context).await
+        let downloader = self.take_downloader(&task.downloader);
+        let mut result = downloader.list_files(info_hash, task.context).await?;
+        for file in result.iter_mut() {
+            file.file_id = format!("{}-{}", downloader.name(), file.file_id);
+        }
+        Ok(result)
     }
 
     pub async fn download_file(&self, file_id: &str, ua: &str) -> Result<DownloadInfo> {
         info!("下载文件: file_id={}, ua={}", file_id, ua);
-        let result = self.downloader.download_file(file_id, ua).await;
+        let (downloader_name, file_id) = file_id.split_once('-').context("文件ID格式错误")?;
+        let downloader = self.take_downloader(downloader_name);
+        let result = downloader.download_file(file_id, ua).await;
 
         if let Err(ref e) = result {
             warn!("下载文件失败: file_id={}, 错误: {}", file_id, e);
@@ -414,6 +426,11 @@ impl Worker {
                 self.on_task_status_updated(info_hash, status, ctx).await
             }
 
+            // 自动回退
+            (Tx::AutoFallback(info_hash), State::Downloading) => {
+                self.on_task_fallback(info_hash, ctx).await
+            }
+
             (event, state) => {
                 warn!(
                     "无效的状态转换: 事件={}, 状态={:?}",
@@ -436,7 +453,7 @@ impl Worker {
             info_hash, ctx.ref_task.download_status, ctx.ref_task.dir
         );
 
-        match self
+        match ctx
             .downloader
             .add_task(resource, ctx.ref_task.dir.clone().into())
             .await
@@ -480,31 +497,31 @@ impl Worker {
         );
 
         debug!("从第三方下载器移除失败任务: info_hash={}", info_hash);
-        if let Err(e) = self.downloader.remove_task(&info_hash, true).await {
+        if let Err(e) = ctx.downloader.remove_task(&info_hash, true).await {
             warn!("移除失败任务出错: info_hash={}, 错误: {}", info_hash, e);
         }
 
-        if ctx.ref_task.retry_count >= self.downloader.config().max_retry_count {
+        if ctx.ref_task.retry_count >= ctx.downloader.config().max_retry_count {
             warn!(
                 "任务重试次数已达上限: info_hash={}, 重试次数={}/{}",
                 info_hash,
                 ctx.ref_task.retry_count,
-                self.downloader.config().max_retry_count
+                ctx.downloader.config().max_retry_count
             );
             self.update_task_status(
                 &info_hash,
                 DownloadStatus::Failed,
                 Some(format!(
                     "重试次数超过上限({}): {}",
-                    self.downloader.config().max_retry_count,
+                    ctx.downloader.config().max_retry_count,
                     err_msg
                 )),
                 None,
             )
             .await?;
-            Ok((None, Some(State::Failed)))
+            Ok((Some(Tx::AutoFallback(info_hash)), Some(State::Retrying)))
         } else {
-            let next_retry_at = self
+            let next_retry_at = ctx
                 .downloader
                 .config()
                 .calculate_next_retry(ctx.ref_task.retry_count + 1);
@@ -513,7 +530,7 @@ impl Worker {
                 "更新任务重试状态(TaskFailed): info_hash={}, 重试次数={}/{}, next_retry_at={}",
                 info_hash,
                 ctx.ref_task.retry_count + 1,
-                self.downloader.config().max_retry_count,
+                ctx.downloader.config().max_retry_count,
                 next_retry_at
             );
             self.update_task_retry_status(&info_hash, next_retry_at, Some(err_msg))
@@ -532,11 +549,11 @@ impl Worker {
             info_hash,
             ctx.ref_task.download_status,
             ctx.ref_task.retry_count,
-            self.downloader.config().max_retry_count
+            ctx.downloader.config().max_retry_count
         );
         let resource = self.get_task_resource_by_info_hash(&info_hash).await?;
         // 删除原有任务，然后重新下载
-        if let Err(e) = self.downloader.remove_task(&info_hash, true).await {
+        if let Err(e) = ctx.downloader.remove_task(&info_hash, true).await {
             warn!("移除任务准备重试出错: info_hash={}, 错误: {}", info_hash, e);
         }
 
@@ -555,7 +572,7 @@ impl Worker {
             info_hash, ctx.ref_task.download_status
         );
 
-        if let Err(e) = self.downloader.cancel_task(&info_hash).await {
+        if let Err(e) = ctx.downloader.cancel_task(&info_hash).await {
             warn!("取消任务出错: info_hash={}, 错误: {}", info_hash, e);
         }
 
@@ -577,8 +594,8 @@ impl Worker {
         self.update_task_status(&info_hash, DownloadStatus::Completed, None, result)
             .await?;
 
-        if self.downloader.config().delete_task_on_completion {
-            if let Err(e) = self.downloader.remove_task(&info_hash, false).await {
+        if ctx.downloader.config().delete_task_on_completion {
+            if let Err(e) = ctx.downloader.remove_task(&info_hash, false).await {
                 warn!("清理下载记录出错: info_hash={}, 错误: {}", info_hash, e);
             }
         }
@@ -595,7 +612,7 @@ impl Worker {
             "移除任务(TaskRemoved): info_hash={} state={:?}",
             info_hash, ctx.ref_task.download_status
         );
-        if let Err(e) = self.downloader.remove_task(&info_hash, true).await {
+        if let Err(e) = ctx.downloader.remove_task(&info_hash, true).await {
             warn!("移除任务出错: info_hash={}, 错误: {}", info_hash, e);
         }
         self.update_task_status(&info_hash, DownloadStatus::Cancelled, None, None)
@@ -613,7 +630,7 @@ impl Worker {
             info_hash, ctx.ref_task.download_status
         );
 
-        if let Err(e) = self.downloader.pause_task(&info_hash).await {
+        if let Err(e) = ctx.downloader.pause_task(&info_hash).await {
             warn!("暂停任务出错: info_hash={}, 错误: {}", info_hash, e);
             Ok((None, Some(State::Downloading)))
         } else {
@@ -633,7 +650,7 @@ impl Worker {
             info_hash, ctx.ref_task.download_status
         );
 
-        if let Err(e) = self.downloader.resume_task(&info_hash).await {
+        if let Err(e) = ctx.downloader.resume_task(&info_hash).await {
             warn!("恢复任务出错: info_hash={}, 错误: {}", info_hash, e);
             Ok((None, Some(State::Paused)))
         } else {
@@ -656,6 +673,71 @@ impl Worker {
         self.update_task_status(&info_hash, status.clone(), None, None)
             .await?;
         Ok((None, Some(status)))
+    }
+
+    async fn on_task_fallback(
+        &self,
+        info_hash: String,
+        ctx: &mut Context,
+    ) -> Result<(Option<Tx>, Option<State>)> {
+        info!(
+            "自动回退任务(AutoFallback): info_hash={} state={:?}",
+            info_hash, ctx.ref_task.download_status
+        );
+
+        // 找到优先级最高的未使用下载器
+        let fallback_downloader = self
+            .downloaders
+            .iter()
+            .filter(|d| !ctx.ref_task.downloader.contains(d.name()))
+            .max_by_key(|d| d.config().priority)
+            .map(|d| d.name());
+
+        match fallback_downloader {
+            Some(downloader) => {
+                // 更新任务的下载器
+                let mut new_downloader = ctx.ref_task.downloader.to_string();
+                new_downloader.push(',');
+                new_downloader.push_str(downloader);
+
+                // 更新任务状态
+                self.store
+                    .assign_downloader(&info_hash, new_downloader)
+                    .await?;
+
+                ctx.downloader = self.take_downloader(downloader);
+                ctx.ref_task.downloader = downloader.to_string();
+                Ok((Some(Tx::AutoRetry(info_hash)), Some(State::Retrying)))
+            }
+            None => {
+                // 没有可用的备选下载器，标记为失败
+                self.update_task_status(
+                    &info_hash,
+                    DownloadStatus::Failed,
+                    Some("没有可用的备选下载器".to_string()),
+                    None,
+                )
+                .await?;
+                Ok((None, Some(State::Failed)))
+            }
+        }
+    }
+
+    fn take_downloader(&self, assigned_downloader: &str) -> Arc<Box<dyn ThirdPartyDownloader>> {
+        let latest = assigned_downloader.split(',').last().unwrap();
+        self.downloaders
+            .iter()
+            .find(|d| d.name() == latest)
+            .unwrap()
+            .clone()
+    }
+
+    fn best_downloader(&self) -> Arc<Box<dyn ThirdPartyDownloader>> {
+        self.downloaders
+            .iter()
+            .max_by_key(|d| d.config().priority)
+            .unwrap()
+            .clone()
     }
 
     async fn update_task_retry_status(
@@ -698,10 +780,6 @@ impl Worker {
 /// Implmentation Downloader
 #[async_trait]
 impl Downloader for Worker {
-    fn name(&self) -> &'static str {
-        self.downloader.name()
-    }
-
     async fn add_task(&self, resource: Resource, dir: PathBuf) -> Result<()> {
         self.add_task(resource, dir).await
     }
@@ -734,7 +812,7 @@ impl Downloader for Worker {
         self.remove_task(info_hash, remove_files)
     }
 
-    async fn list_files(&self, info_hash: &str) -> Result<Vec<pan_115::model::FileInfo>> {
+    async fn list_files(&self, info_hash: &str) -> Result<Vec<FileInfo>> {
         self.list_files(info_hash).await
     }
 
@@ -747,11 +825,16 @@ impl Downloader for Worker {
     }
 
     fn supports_resource_type(&self, resource_type: ResourceType) -> bool {
-        self.downloader.supports_resource_type(resource_type)
+        for downloader in self.downloaders.iter() {
+            if downloader.supports_resource_type(resource_type.clone()) {
+                return true;
+            }
+        }
+        false
     }
 
     fn recommended_resource_type(&self) -> ResourceType {
-        self.downloader.recommended_resource_type()
+        self.best_downloader().recommended_resource_type()
     }
 }
 
@@ -760,7 +843,7 @@ impl Worker {
         let db = Db::new_from_env().await?;
         let downloader = Pan115DownloaderImpl::new_from_env()?;
         let config = Config::default();
-        Self::new_with_conn(Box::new(db), Box::new(downloader), config)
+        Self::new_with_conn(Box::new(db), config, vec![Arc::new(Box::new(downloader))])
     }
 }
 

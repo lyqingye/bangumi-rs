@@ -111,6 +111,31 @@ impl Db {
             .all(&*self.conn)
             .await?)
     }
+
+    pub async fn list_download_tasks_by_downloader_and_status(
+        &self,
+        downloader: &str,
+        status: Vec<DownloadStatus>,
+    ) -> Result<Vec<Model>> {
+        Ok(torrent_download_tasks::Entity::find()
+            .filter(Column::Downloader.eq(downloader))
+            .filter(Column::DownloadStatus.is_in(status))
+            .all(&*self.conn)
+            .await?)
+    }
+
+    pub async fn assign_downloader(&self, info_hash: &str, downloader: String) -> Result<()> {
+        let now = Local::now().naive_utc();
+
+        torrent_download_tasks::Entity::update_many()
+            .col_expr(Column::Downloader, SimpleExpr::from(downloader))
+            .col_expr(Column::UpdatedAt, SimpleExpr::from(now))
+            .col_expr(Column::RetryCount, SimpleExpr::from(0))
+            .filter(Column::InfoHash.eq(info_hash))
+            .exec(&*self.conn)
+            .await?;
+        Ok(())
+    }
 }
 
 #[async_trait]
@@ -121,6 +146,15 @@ impl Store for Db {
 
     async fn list_by_status(&self, status: &[DownloadStatus]) -> Result<Vec<Model>> {
         self.list_download_tasks_by_status(status.to_vec()).await
+    }
+
+    async fn list_by_downloader_and_status(
+        &self,
+        downloader: &str,
+        status: &[DownloadStatus],
+    ) -> Result<Vec<Model>> {
+        self.list_download_tasks_by_downloader_and_status(downloader, status.to_vec())
+            .await
     }
 
     async fn update_status(
@@ -153,5 +187,9 @@ impl Store for Db {
             .filter(TorrentColumn::InfoHash.eq(info_hash))
             .one(&*self.conn)
             .await?)
+    }
+
+    async fn assign_downloader(&self, info_hash: &str, downloader: String) -> Result<()> {
+        self.assign_downloader(info_hash, downloader).await
     }
 }

@@ -155,7 +155,6 @@ impl GenericDownloaderConfig {
             download_timeout: self.download_timeout,
             delete_task_on_completion: self.delete_task_on_completion,
             priority: self.priority,
-            ..Default::default()
         }
     }
 }

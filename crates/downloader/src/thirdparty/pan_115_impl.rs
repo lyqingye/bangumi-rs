@@ -10,13 +10,14 @@ use lru::LruCache;
 use model::sea_orm_active_enums::DownloadStatus;
 use pan_115::{
     errors::Pan115Error,
-    model::{DownloadInfo, FileInfo, OfflineTaskStatus},
+    model::{DownloadInfo, OfflineTaskStatus},
 };
 use tokio::sync::Mutex;
 use tracing::{debug, info, warn};
 
 use crate::{
-    config, context::Pan115Context, RemoteTaskStatus, Resource, ResourceType, ThirdPartyDownloader,
+    config, context::Pan115Context, FileInfo, RemoteTaskStatus, Resource, ResourceType,
+    ThirdPartyDownloader,
 };
 use anyhow::Result;
 use anyhow::{anyhow, Context};
@@ -38,7 +39,6 @@ impl Default for Config {
             file_list_cache_size: 16,
             generic: config::GenericConfig {
                 max_retry_count: 5,
-                retry_processor_interval: Duration::from_secs(30),
                 retry_min_interval: chrono::Duration::seconds(30),
                 retry_max_interval: chrono::Duration::minutes(10),
                 download_timeout: chrono::Duration::minutes(30),
@@ -181,7 +181,17 @@ impl ThirdPartyDownloader for Pan115DownloaderImpl {
                 }
 
                 let client = self.pan115.clone();
-                let files = client.list_files_recursive(&context.file_id).await?;
+                let files = client
+                    .list_files_recursive(&context.file_id)
+                    .await?
+                    .iter()
+                    .map(|file| FileInfo {
+                        file_id: file.file_id(),
+                        file_name: file.name.clone(),
+                        file_size: file.file_size(),
+                        is_dir: file.is_dir(),
+                    })
+                    .collect::<Vec<_>>();
                 cache.put(context.file_id, (files.clone(), now));
                 Ok(files)
             }

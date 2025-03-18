@@ -9,12 +9,15 @@ pub struct Config {
     pub sync_interval: Duration,
     /// 事件队列大小
     pub event_queue_size: usize,
+    /// 重试任务间隔
+    pub retry_processor_interval: Duration,
 }
 
 impl Default for Config {
     fn default() -> Self {
         Self {
             sync_interval: Duration::from_secs(10),
+            retry_processor_interval: Duration::from_secs(30),
             event_queue_size: 128,
         }
     }
@@ -26,8 +29,6 @@ pub struct GenericConfig {
     pub download_dir: PathBuf,
     /// 最大重试次数
     pub max_retry_count: i32,
-    /// 重试任务间隔
-    pub retry_processor_interval: Duration,
     /// 重试最小间隔
     pub retry_min_interval: chrono::Duration,
     /// 重试最大间隔
@@ -44,7 +45,6 @@ impl Default for GenericConfig {
     fn default() -> Self {
         Self {
             max_retry_count: 5,
-            retry_processor_interval: Duration::from_secs(30),
             retry_min_interval: chrono::Duration::seconds(30),
             retry_max_interval: chrono::Duration::minutes(10),
             download_timeout: chrono::Duration::minutes(30),

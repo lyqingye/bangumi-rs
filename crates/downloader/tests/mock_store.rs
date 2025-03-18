@@ -60,6 +60,20 @@ impl Store for MockStore {
         Ok(result)
     }
 
+    async fn list_by_downloader_and_status(
+        &self,
+        downloader: &str,
+        status: &[DownloadStatus],
+    ) -> Result<Vec<Model>> {
+        let tasks = self.tasks.read().await;
+        let result = tasks
+            .values()
+            .filter(|task| task.downloader == downloader && status.contains(&task.download_status))
+            .cloned()
+            .collect();
+        Ok(result)
+    }
+
     async fn update_status(
         &self,
         info_hash: &str,
@@ -100,5 +114,14 @@ impl Store for MockStore {
     async fn get_torrent_by_info_hash(&self, info_hash: &str) -> Result<Option<TorrentModel>> {
         let torrents = self.torrents.read().await;
         Ok(torrents.get(info_hash).cloned())
+    }
+
+    async fn assign_downloader(&self, info_hash: &str, downloader: String) -> Result<()> {
+        let mut tasks = self.tasks.write().await;
+        if let Some(task) = tasks.get_mut(info_hash) {
+            task.downloader = downloader;
+            task.retry_count = 0;
+        }
+        Ok(())
     }
 }

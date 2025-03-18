@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use std::{collections::HashMap, path::PathBuf, time::Duration};
 
 mod mock_store;
@@ -22,7 +23,6 @@ fn init_test_env() {
 fn create_test_config() -> GenericConfig {
     GenericConfig {
         max_retry_count: 1,
-        retry_processor_interval: Duration::from_secs(30),
         retry_min_interval: chrono::Duration::nanoseconds(1),
         retry_max_interval: chrono::Duration::nanoseconds(1),
         download_dir: PathBuf::from("test"),
@@ -58,11 +58,11 @@ fn create_mock_downloader(config: GenericConfig) -> MockThirdPartyDownloader {
 fn create_test_worker(mock_store: MockStore, mock_downloader: MockThirdPartyDownloader) -> Worker {
     Worker::new_with_conn(
         Box::new(mock_store.clone()),
-        Box::new(mock_downloader),
         Config {
             sync_interval: Duration::from_millis(100),
             ..Default::default()
         },
+        vec![Arc::new(Box::new(mock_downloader))],
     )
     .unwrap()
 }
@@ -109,7 +109,7 @@ async fn test_retry_exceed_max_count() {
 
     // 等待同步
     tokio::time::sleep(Duration::from_secs(1)).await;
-    worker_clone.sync_remote_task_status().await.unwrap();
+    worker_clone.sync_remote_task_status().await;
 
     // 关闭worker
     worker_clone.shutdown().await.unwrap();
@@ -166,7 +166,7 @@ async fn test_download_timeout_no_retry() {
 
     // 等待同步
     tokio::time::sleep(Duration::from_secs(1)).await;
-    worker_clone.sync_remote_task_status().await.unwrap();
+    worker_clone.sync_remote_task_status().await;
 
     // 关闭worker
     worker_clone.shutdown().await.unwrap();
@@ -237,7 +237,7 @@ async fn test_worker_retry_success() {
         .unwrap();
 
     tokio::time::sleep(Duration::from_secs(1)).await;
-    worker_clone.sync_remote_task_status().await.unwrap();
+    worker_clone.sync_remote_task_status().await;
     worker_clone.shutdown().await.unwrap();
 
     // 验证下载中的任务状态
@@ -286,7 +286,7 @@ async fn test_worker_add_task_success() {
         .unwrap();
 
     tokio::time::sleep(Duration::from_secs(1)).await;
-    worker_clone.sync_remote_task_status().await.unwrap();
+    worker_clone.sync_remote_task_status().await;
     worker_clone.shutdown().await.unwrap();
 
     // 验证下载中的任务状态
@@ -334,7 +334,7 @@ async fn test_worker_add_cancel_downloading_task() {
         .unwrap();
 
     tokio::time::sleep(Duration::from_secs(1)).await;
-    worker_clone.sync_remote_task_status().await.unwrap();
+    worker_clone.sync_remote_task_status().await;
     worker_clone.cancel_task(resource.info_hash()).unwrap();
     worker_clone.shutdown().await.unwrap();
 
@@ -399,9 +399,9 @@ async fn test_worker_add_retry_failed_task() {
         .unwrap();
 
     tokio::time::sleep(Duration::from_secs(1)).await;
-    worker_clone.sync_remote_task_status().await.unwrap();
+    worker_clone.sync_remote_task_status().await;
     worker_clone.retry_task(resource.info_hash()).unwrap();
-    worker_clone.sync_remote_task_status().await.unwrap();
+    worker_clone.sync_remote_task_status().await;
     worker_clone.shutdown().await.unwrap();
 
     // 验证下载中的任务状态
@@ -436,7 +436,7 @@ async fn test_worker_recover_pending_tasks() {
         .insert_task(torrent_download_tasks::Model {
             info_hash: resource.info_hash().to_string(),
             download_status: DownloadStatus::Pending,
-            downloader: Some("mock_downloader".to_string()),
+            downloader: "mock_downloader".to_string(),
             dir: "test2".to_string(),
             context: None,
             err_msg: None,
@@ -460,7 +460,7 @@ async fn test_worker_recover_pending_tasks() {
     let worker_clone = worker.clone();
 
     tokio::time::sleep(Duration::from_secs(1)).await;
-    worker_clone.sync_remote_task_status().await.unwrap();
+    worker_clone.sync_remote_task_status().await;
     worker_clone.shutdown().await.unwrap();
 
     // 验证下载中的任务状态
@@ -508,7 +508,7 @@ async fn test_worker_pause_task() {
         .unwrap();
 
     tokio::time::sleep(Duration::from_secs(1)).await;
-    worker_clone.sync_remote_task_status().await.unwrap();
+    worker_clone.sync_remote_task_status().await;
     worker_clone.pause_task(resource.info_hash()).unwrap();
     worker_clone.shutdown().await.unwrap();
 
@@ -556,9 +556,9 @@ async fn test_worker_resume_task() {
         .unwrap();
 
     tokio::time::sleep(Duration::from_secs(1)).await;
-    worker_clone.sync_remote_task_status().await.unwrap();
+    worker_clone.sync_remote_task_status().await;
     worker_clone.resume_task(resource.info_hash()).unwrap();
-    worker_clone.sync_remote_task_status().await.unwrap();
+    worker_clone.sync_remote_task_status().await;
     worker_clone.shutdown().await.unwrap();
 
     // 验证下载中的任务状态
@@ -606,7 +606,7 @@ async fn test_worker_user_manual_pause_task() {
         .unwrap();
 
     tokio::time::sleep(Duration::from_secs(1)).await;
-    worker_clone.sync_remote_task_status().await.unwrap();
+    worker_clone.sync_remote_task_status().await;
     worker_clone.shutdown().await.unwrap();
 
     // 验证下载中的任务状态
