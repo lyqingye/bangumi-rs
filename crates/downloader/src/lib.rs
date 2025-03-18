@@ -25,10 +25,9 @@ use model::{
 
 #[async_trait]
 pub trait Downloader: Send + Sync {
-    fn name(&self) -> &'static str;
     async fn add_task(&self, resource: Resource, dir: PathBuf) -> Result<()>;
     async fn list_tasks(&self, info_hashes: &[String]) -> Result<Vec<Model>>;
-    async fn list_files(&self, info_hash: &str) -> Result<Vec<pan_115::model::FileInfo>>;
+    async fn list_files(&self, info_hash: &str) -> Result<Vec<FileInfo>>;
     async fn download_file(&self, file_id: &str, ua: &str) -> Result<DownloadInfo>;
     async fn cancel_task(&self, info_hash: &str) -> Result<()>;
     async fn remove_task(&self, info_hash: &str, remove_files: bool) -> Result<()>;
@@ -54,6 +53,14 @@ pub struct RemoteTaskStatus {
     pub result: Option<String>,
 }
 
+#[derive(Debug, Clone)]
+pub struct FileInfo {
+    pub file_id: String,
+    pub file_name: String,
+    pub file_size: usize,
+    pub is_dir: bool,
+}
+
 #[mockall::automock]
 #[async_trait]
 pub trait ThirdPartyDownloader: Send + Sync {
@@ -62,11 +69,7 @@ pub trait ThirdPartyDownloader: Send + Sync {
     async fn list_tasks(&self, info_hashes: &[String])
         -> Result<HashMap<String, RemoteTaskStatus>>;
 
-    async fn list_files(
-        &self,
-        info_hash: &str,
-        result: Option<String>,
-    ) -> Result<Vec<pan_115::model::FileInfo>>;
+    async fn list_files(&self, info_hash: &str, result: Option<String>) -> Result<Vec<FileInfo>>;
     async fn download_file(&self, file_id: &str, ua: &str) -> Result<DownloadInfo>;
     async fn cancel_task(&self, info_hash: &str) -> Result<()>;
     async fn remove_task(&self, info_hash: &str, remove_files: bool) -> Result<()>;
@@ -83,6 +86,11 @@ pub trait ThirdPartyDownloader: Send + Sync {
 pub trait Store: Send + Sync {
     async fn list_by_hashes(&self, info_hashes: &[String]) -> Result<Vec<Model>>;
     async fn list_by_status(&self, status: &[DownloadStatus]) -> Result<Vec<Model>>;
+    async fn list_by_downloader_and_status(
+        &self,
+        downloader: &str,
+        status: &[DownloadStatus],
+    ) -> Result<Vec<Model>>;
     async fn update_status(
         &self,
         info_hash: &str,
@@ -98,6 +106,7 @@ pub trait Store: Send + Sync {
     ) -> Result<()>;
     async fn upsert(&self, task: Model) -> Result<()>;
     async fn get_torrent_by_info_hash(&self, info_hash: &str) -> Result<Option<TorrentModel>>;
+    async fn assign_downloader(&self, info_hash: &str, downloader: String) -> Result<()>;
 }
 
 #[cfg(test)]

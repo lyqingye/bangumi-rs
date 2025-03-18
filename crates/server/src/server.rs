@@ -152,7 +152,8 @@ impl Server {
         parser_worker.spawn(parser_impl).await?;
 
         // Downloader worker
-        let downloader = if config.downloader.pan115.enabled {
+        let mut downloaders = vec![];
+        if config.downloader.pan115.enabled {
             let mut pan115 = pan_115::client::Client::new(
                 config.downloader.pan115.cookies.as_str(),
                 Some(pan_115::client::RateLimitConfig {
@@ -160,7 +161,7 @@ impl Server {
                 }),
             )?;
             pan115.login_check().await?;
-            Box::new(
+            downloaders.push(Arc::new(Box::new(
                 downloader::thirdparty::pan_115_impl::Pan115DownloaderImpl::new(
                     pan115,
                     downloader::thirdparty::pan_115_impl::Config {
@@ -168,8 +169,9 @@ impl Server {
                         ..Default::default()
                     },
                 ),
-            ) as Box<dyn ThirdPartyDownloader>
-        } else if config.downloader.qbittorrent.enabled {
+            ) as Box<dyn ThirdPartyDownloader>));
+        }
+        if config.downloader.qbittorrent.enabled {
             let qbittorrent = qbittorrent::client::Client::new(
                 client.clone(),
                 Url::parse(&config.downloader.qbittorrent.url)?,
@@ -177,23 +179,24 @@ impl Server {
                 config.downloader.qbittorrent.password.as_str(),
             );
             qbittorrent.login(false).await?;
-            Box::new(
+            downloaders.push(Arc::new(Box::new(
                 downloader::thirdparty::qbittorrent_impl::QbittorrentDownloaderImpl::new(
                     qbittorrent,
                     downloader::thirdparty::qbittorrent_impl::Config {
                         generic: config.downloader.qbittorrent.generic.to_downloader_config(),
                     },
                 ),
-            ) as Box<dyn ThirdPartyDownloader>
-        } else {
+            ) as Box<dyn ThirdPartyDownloader>));
+        }
+        if downloaders.is_empty() {
             panic!("没有启用任何下载器");
-        };
+        }
 
         let dl_store = downloader::db::Db::new(db.conn_pool());
         let mut downloader_worker = downloader::worker::Worker::new_with_conn(
             Box::new(dl_store),
-            downloader,
             downloader::config::Config::default(),
+            downloaders,
         )?;
 
         downloader_worker.spawn().await?;

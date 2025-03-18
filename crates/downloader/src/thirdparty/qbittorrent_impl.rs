@@ -1,10 +1,10 @@
-use std::{collections::HashMap, path::PathBuf, sync::Arc, time::Duration};
+use std::{collections::HashMap, path::PathBuf, sync::Arc};
 
-use crate::{config, resource::Resource, RemoteTaskStatus, ThirdPartyDownloader};
+use crate::{config, resource::Resource, FileInfo, RemoteTaskStatus, ThirdPartyDownloader};
 use anyhow::Result;
 use async_trait::async_trait;
 use model::sea_orm_active_enums::{DownloadStatus, ResourceType};
-use pan_115::model::{DownloadInfo, FileInfo};
+use pan_115::model::DownloadInfo;
 use qbittorrent::model::{
     torrent::{
         AddTorrentArg, GetTorrentListArg, Hashes, State, Torrent, TorrentFile, TorrentSource,
@@ -23,7 +23,6 @@ impl Default for Config {
         Self {
             generic: config::GenericConfig {
                 max_retry_count: 1,
-                retry_processor_interval: Duration::from_secs(30),
                 retry_min_interval: chrono::Duration::seconds(30),
                 retry_max_interval: chrono::Duration::minutes(60),
                 download_timeout: chrono::Duration::hours(1),

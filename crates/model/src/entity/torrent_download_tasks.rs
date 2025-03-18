@@ -11,7 +11,7 @@ pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
     pub info_hash: String,
     pub download_status: DownloadStatus,
-    pub downloader: Option<String>,
+    pub downloader: String,
     pub dir: String,
     #[sea_orm(column_type = "Text", nullable)]
     pub context: Option<String>,

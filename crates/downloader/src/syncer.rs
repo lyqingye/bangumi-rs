@@ -1,4 +1,7 @@
-use crate::worker::{Tx, Worker};
+use crate::{
+    worker::{Tx, Worker},
+    ThirdPartyDownloader,
+};
 use anyhow::Result;
 use chrono::Local;
 use model::sea_orm_active_enums::DownloadStatus;
@@ -12,22 +15,37 @@ impl Worker {
             let mut ticker = tokio::time::interval(worker.config.sync_interval);
             loop {
                 ticker.tick().await;
-                if let Err(e) = worker.sync_remote_task_status().await {
-                    error!("同步远程任务状态失败: {}", e);
-                }
+                worker.sync_remote_task_status().await;
             }
         });
         Ok(())
     }
 
-    pub async fn sync_remote_task_status(&self) -> Result<()> {
+    pub async fn sync_remote_task_status(&self) {
+        for downloader in &self.downloaders {
+            if let Err(e) = self
+                .sync_remote_task_status_for_downloader(&***downloader)
+                .await
+            {
+                error!("同步远程任务状态失败: {}", e);
+            }
+        }
+    }
+
+    pub async fn sync_remote_task_status_for_downloader(
+        &self,
+        downloader: &dyn ThirdPartyDownloader,
+    ) -> Result<()> {
         let local_tasks = self
             .store
-            .list_by_status(&[
-                DownloadStatus::Downloading,
-                DownloadStatus::Pending,
-                DownloadStatus::Paused,
-            ])
+            .list_by_downloader_and_status(
+                downloader.name(),
+                &[
+                    DownloadStatus::Downloading,
+                    DownloadStatus::Pending,
+                    DownloadStatus::Paused,
+                ],
+            )
             .await?;
 
         if local_tasks.is_empty() {
@@ -41,7 +59,7 @@ impl Worker {
             .map(|task| task.info_hash.clone())
             .collect();
 
-        let remote_tasks = self.downloader.list_tasks(&target_info_hashes).await?;
+        let remote_tasks = downloader.list_tasks(&target_info_hashes).await?;
 
         for local_task in local_tasks {
             let info_hash = local_task.info_hash.clone();
@@ -103,7 +121,7 @@ impl Worker {
             {
                 let now = Local::now().naive_utc();
                 let elapsed = now - local_task.updated_at;
-                if elapsed > self.downloader.config().download_timeout {
+                if elapsed > downloader.config().download_timeout {
                     warn!("下载超时: info_hash={}", info_hash);
                     self.send_event(Tx::TaskFailed(info_hash, "下载超时".to_string()))?;
                 }

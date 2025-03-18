@@ -441,13 +441,13 @@ pub async fn list_download_files(
 
     let mut downloaded_files = Vec::new();
     for file in files {
-        if file.is_dir() {
+        if file.is_dir {
             continue;
         }
 
         // 保存需要使用的值，避免部分移动问题
-        let file_name = file.name.clone();
-        let file_size = file.file_size();
+        let file_name = file.file_name.clone();
+        let file_size = file.file_size;
 
         // 根据文件扩展名判断文件类型
         let file_type = determine_file_type(&file_name);
@@ -456,7 +456,7 @@ pub async fn list_download_files(
         }
 
         downloaded_files.push(DownloadedFile {
-            file_id: file.file_id(),
+            file_id: file.file_id,
             file_name,
             file_size,
             file_type,

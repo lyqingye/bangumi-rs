@@ -19,7 +19,7 @@ stateDiagram
   Failed --> [*]
   Failed --> RetryExceed: RetryExceed?
   state RetryExceed <<choice>>
-  RetryExceed --> [*]
+  RetryExceed --> Fallback
   RetryExceed --> Retrying
 
   Cancelled --> Retrying:RetryTask
@@ -31,6 +31,9 @@ stateDiagram
 
   Paused --> Downloading:ResumeTask
   Paused --> [*]
+
+  Fallback --> Failed:NoDownloader
+  Fallback --> Pending:UsingNewDownloader
 
   Completed --> [*]
 ```
