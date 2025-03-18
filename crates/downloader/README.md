@@ -33,7 +33,7 @@ stateDiagram
   Paused --> [*]
 
   Fallback --> Failed:NoDownloader
-  Fallback --> Retrying:RetryTask
+  Fallback --> Pending:UsingNewDownloader
 
   Completed --> [*]
 ```

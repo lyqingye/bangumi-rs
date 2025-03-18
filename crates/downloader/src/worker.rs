@@ -237,6 +237,12 @@ impl Worker {
             if let Some(state) = next_state.as_ref() {
                 ctx.ref_task.download_status = state.clone();
             }
+
+            // 更新上下文
+            if let Some(event) = next_event.as_ref() {
+                ctx.ref_task = event.get_ref_task(&**self.store).await?;
+                ctx.downloader = self.take_downloader(&ctx.ref_task.downloader);
+            }
             event = next_event;
             state = next_state;
         }
@@ -427,7 +433,7 @@ impl Worker {
             }
 
             // 自动回退
-            (Tx::AutoFallback(info_hash), State::Downloading) => {
+            (Tx::AutoFallback(info_hash), State::Failed) => {
                 self.on_task_fallback(info_hash, ctx).await
             }
 
@@ -519,7 +525,7 @@ impl Worker {
                 None,
             )
             .await?;
-            Ok((Some(Tx::AutoFallback(info_hash)), Some(State::Retrying)))
+            Ok((Some(Tx::AutoFallback(info_hash)), Some(State::Failed)))
         } else {
             let next_retry_at = ctx
                 .downloader
@@ -693,6 +699,13 @@ impl Worker {
             .max_by_key(|d| d.config().priority)
             .map(|d| d.name());
 
+        info!("当前任务的下载器: {}", ctx.ref_task.downloader);
+
+        info!(
+            "自动回退任务(AutoFallback): info_hash={} state={:?}, 备用下载器: {:?}",
+            info_hash, ctx.ref_task.download_status, fallback_downloader
+        );
+
         match fallback_downloader {
             Some(downloader) => {
                 // 更新任务的下载器
@@ -705,16 +718,27 @@ impl Worker {
                     .assign_downloader(&info_hash, new_downloader)
                     .await?;
 
+                // 更新上下文中的下载器
                 ctx.downloader = self.take_downloader(downloader);
-                ctx.ref_task.downloader = downloader.to_string();
-                Ok((Some(Tx::AutoRetry(info_hash)), Some(State::Retrying)))
+
+                // 重新启动任务
+                let resource = self.get_task_resource_by_info_hash(&info_hash).await?;
+
+                // 更新任务状态为 Pending
+                self.update_task_status(&info_hash, DownloadStatus::Pending, None, None)
+                    .await?;
+
+                Ok((Some(Tx::StartTask(resource)), Some(State::Pending)))
             }
             None => {
                 // 没有可用的备选下载器，标记为失败
                 self.update_task_status(
                     &info_hash,
                     DownloadStatus::Failed,
-                    Some("没有可用的备选下载器".to_string()),
+                    Some(format!(
+                        "没有可用的备选下载器: {}",
+                        &ctx.ref_task.err_msg.as_ref().unwrap_or(&"".to_string())
+                    )),
                     None,
                 )
                 .await?;
