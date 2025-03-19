@@ -106,7 +106,7 @@ async fn test_retry_exceed_max_count() {
     let resource = create_test_resource();
     // 添加任务
     worker_clone
-        .add_task(resource.clone(), PathBuf::from("test"))
+        .add_task(resource.clone(), PathBuf::from("test"), None, true)
         .await
         .unwrap();
 
@@ -163,7 +163,7 @@ async fn test_download_timeout_no_retry() {
 
     // 添加任务
     worker_clone
-        .add_task(resource.clone(), PathBuf::from("test"))
+        .add_task(resource.clone(), PathBuf::from("test"), None, true)
         .await
         .unwrap();
 
@@ -235,7 +235,7 @@ async fn test_worker_retry_success() {
 
     // 添加任务并同步
     worker_clone
-        .add_task(resource.clone(), PathBuf::from("test2"))
+        .add_task(resource.clone(), PathBuf::from("test2"), None, true)
         .await
         .unwrap();
 
@@ -284,7 +284,7 @@ async fn test_worker_add_task_success() {
 
     // 添加任务并同步
     worker_clone
-        .add_task(resource.clone(), PathBuf::from("test2"))
+        .add_task(resource.clone(), PathBuf::from("test2"), None, true)
         .await
         .unwrap();
 
@@ -332,7 +332,7 @@ async fn test_worker_add_cancel_downloading_task() {
 
     // 添加任务并同步
     worker_clone
-        .add_task(resource.clone(), PathBuf::from("test2"))
+        .add_task(resource.clone(), PathBuf::from("test2"), None, true)
         .await
         .unwrap();
 
@@ -397,7 +397,7 @@ async fn test_worker_add_retry_failed_task() {
 
     // 添加任务并同步
     worker_clone
-        .add_task(resource.clone(), PathBuf::from("test2"))
+        .add_task(resource.clone(), PathBuf::from("test2"), None, true)
         .await
         .unwrap();
 
@@ -449,6 +449,7 @@ async fn test_worker_recover_pending_tasks() {
             updated_at: Local::now().naive_utc(),
             magnet: None,
             resource_type: resource.get_type(),
+            allow_fallback: true,
         })
         .await
         .unwrap();
@@ -506,7 +507,7 @@ async fn test_worker_pause_task() {
 
     // 添加任务并同步
     worker_clone
-        .add_task(resource.clone(), PathBuf::from("test2"))
+        .add_task(resource.clone(), PathBuf::from("test2"), None, true)
         .await
         .unwrap();
 
@@ -554,7 +555,7 @@ async fn test_worker_resume_task() {
 
     // 添加任务并同步
     worker_clone
-        .add_task(resource.clone(), PathBuf::from("test2"))
+        .add_task(resource.clone(), PathBuf::from("test2"), None, true)
         .await
         .unwrap();
 
@@ -604,7 +605,7 @@ async fn test_worker_user_manual_pause_task() {
 
     // 添加任务并同步
     worker_clone
-        .add_task(resource.clone(), PathBuf::from("test2"))
+        .add_task(resource.clone(), PathBuf::from("test2"), None, true)
         .await
         .unwrap();
 
@@ -706,7 +707,7 @@ async fn test_worker_fallback_task() {
     // 添加下载任务
     let resource = create_test_resource();
     worker
-        .add_task(resource.clone(), PathBuf::from("/tmp"))
+        .add_task(resource.clone(), PathBuf::from("/tmp"), None, true)
         .await
         .unwrap();
 
@@ -725,6 +726,111 @@ async fn test_worker_fallback_task() {
     assert_eq!(task.resource_type, resource.get_type());
     assert_eq!(task.magnet, resource.magnet());
     assert_eq!(task.downloader, "failed,success");
+
+    // 关闭工作者
+    worker.shutdown().await.unwrap();
+}
+
+#[tokio::test]
+async fn test_worker_fallback_task_with_allow_fallback_false() {
+    // 初始化测试环境
+    init_test_env();
+
+    // 创建两个下载器，一个会失败，一个会成功
+    let mut failed_config = create_test_config();
+    failed_config.priority = 2; // 优先级更高，会先使用
+    failed_config.max_retry_count = 0; // 失败后直接切换到备用下载器
+    let mut failed_downloader = MockThirdPartyDownloader::new();
+    failed_downloader
+        .expect_add_task()
+        .returning(|_, _| Err(anyhow::anyhow!("模拟下载失败")));
+    failed_downloader.expect_name().returning(|| "failed");
+    failed_downloader.expect_list_tasks().returning(|_| {
+        let mut tasks = HashMap::new();
+        tasks.insert(
+            "f6ebf8a1f26d01f317c8e94ec40ebb3dd1a75d40".to_string(),
+            RemoteTaskStatus {
+                status: DownloadStatus::Failed,
+                err_msg: Some("模拟下载失败".to_string()),
+                result: None,
+            },
+        );
+        Ok(tasks)
+    });
+    failed_downloader
+        .expect_config()
+        .return_const(failed_config);
+    failed_downloader
+        .expect_remove_task()
+        .returning(|_, _| Ok(()));
+
+    let mut success_config = create_test_config();
+    success_config.priority = 1;
+    success_config.max_retry_count = 0;
+    let mut success_downloader = MockThirdPartyDownloader::new();
+    success_downloader
+        .expect_add_task()
+        .returning(|_, _| Ok(Some("success".to_string())));
+    success_downloader.expect_name().returning(|| "success");
+    success_downloader.expect_list_tasks().returning(|_| {
+        let mut tasks = HashMap::new();
+        tasks.insert(
+            "f6ebf8a1f26d01f317c8e94ec40ebb3dd1a75d40".to_string(),
+            RemoteTaskStatus {
+                status: DownloadStatus::Downloading,
+                err_msg: None,
+                result: None,
+            },
+        );
+        Ok(tasks)
+    });
+    success_downloader
+        .expect_remove_task()
+        .returning(|_, _| Ok(()));
+    success_downloader
+        .expect_config()
+        .return_const(success_config);
+
+    // 创建存储和配置
+    let store = MockStore::new();
+    let config = Config {
+        event_queue_size: 100,
+        sync_interval: Duration::from_secs(1),
+        retry_processor_interval: Duration::from_secs(1),
+    };
+
+    // 创建下载器工作者
+    let mut worker = Worker::new_with_conn(
+        Box::new(store.clone()),
+        config,
+        vec![
+            Arc::new(Box::new(failed_downloader)),
+            Arc::new(Box::new(success_downloader)),
+        ],
+    )
+    .unwrap();
+
+    // 启动工作者
+    worker.spawn().await.unwrap();
+
+    // 添加下载任务
+    let resource = create_test_resource();
+    worker
+        .add_task(resource.clone(), PathBuf::from("/tmp"), None, false)
+        .await
+        .unwrap();
+
+    tokio::time::sleep(Duration::from_secs(1)).await;
+    worker.sync_remote_task_status().await;
+    // 验证最终使用的下载器
+    let tasks = store.get_tasks().await;
+    assert_eq!(tasks.len(), 1);
+    let task = &tasks[0];
+    assert_eq!(task.retry_count, 0, "切换下载器后重试次数应该重置");
+    assert_eq!(task.download_status, DownloadStatus::Failed);
+    assert_eq!(task.resource_type, resource.get_type());
+    assert_eq!(task.magnet, resource.magnet());
+    assert_eq!(task.downloader, "failed");
 
     // 关闭工作者
     worker.shutdown().await.unwrap();

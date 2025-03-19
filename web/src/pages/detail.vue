@@ -2012,7 +2012,9 @@ const currentSubscribeSettings = computed(() => {
     language_filter: anime.value.language_filter ?? undefined,
     release_group_filter: anime.value.release_group_filter ?? undefined,
     status: anime.value.subscribe_status ?? undefined,
-    enforce_torrent_release_after_broadcast: anime.value.enforce_torrent_release_after_broadcast ?? undefined
+    enforce_torrent_release_after_broadcast: anime.value.enforce_torrent_release_after_broadcast ?? undefined,
+    preferred_downloader: anime.value.preferred_downloader ?? undefined,
+    allow_fallback: anime.value.allow_fallback ?? true
   }
 })
 

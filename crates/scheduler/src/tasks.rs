@@ -2,6 +2,7 @@ use anyhow::{Context, Result};
 use downloader::{resource::Resource, Downloader, Event};
 use model::sea_orm_active_enums::{ResourceType, State};
 use model::{episode_download_tasks, sea_orm_active_enums::DownloadStatus};
+use model::{subscriptions, torrents};
 use sea_orm::Set;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -162,6 +163,31 @@ impl TaskManager {
         self.db.batch_create_tasks(tasks).await?;
         Ok(())
     }
+
+    pub fn use_torrent_to_download(
+        &self,
+        subscribe: &subscriptions::Model,
+        torrent: &torrents::Model,
+    ) -> bool {
+        let mut using_torrent = false;
+        let mut use_preferred_downloader = false;
+        // 如果指定了下载器，则使用指定的下载器
+        if let Some(ref preferred_downloader) = subscribe.preferred_downloader {
+            if let Some(downloader) = self.downloader.get_downloader(preferred_downloader) {
+                using_torrent = downloader.recommended_resource_type() == ResourceType::Torrent
+                    && torrent.data.is_some();
+                use_preferred_downloader = true;
+            } else {
+                warn!("指定的下载器 {} 不存在", preferred_downloader);
+            }
+        }
+        if !use_preferred_downloader {
+            // 如果没有指定下载器，则使用默认的下载器
+            using_torrent = self.downloader.recommended_resource_type() == ResourceType::Torrent
+                && torrent.data.is_some();
+        }
+        using_torrent
+    }
 }
 
 impl TaskManager {
@@ -238,15 +264,20 @@ impl TaskManager {
                         .get_torrent_by_info_hash(info_hash)
                         .await?
                         .context("种子不存在")?;
+                    let subscribe = self
+                        .db
+                        .get_subscription(task.bangumi_id)
+                        .await?
+                        .context("你需要先订阅番剧")?;
 
                     // 创建下载任务, 如果推荐资源类型为种子，则优先提供种子
-                    if self.downloader.recommended_resource_type() == ResourceType::Torrent
-                        && torrent.data.is_some()
-                    {
+                    if self.use_torrent_to_download(&subscribe, &torrent) {
                         self.downloader
                             .add_task(
                                 Resource::from_torrent_file_bytes(torrent.data.unwrap())?,
                                 PathBuf::from(bangumi.name),
+                                subscribe.preferred_downloader,
+                                subscribe.allow_fallback,
                             )
                             .await?;
                     } else {
@@ -254,6 +285,8 @@ impl TaskManager {
                             .add_task(
                                 Resource::from_info_hash(torrent.info_hash)?,
                                 PathBuf::from(bangumi.name),
+                                subscribe.preferred_downloader,
+                                subscribe.allow_fallback,
                             )
                             .await?;
                     }

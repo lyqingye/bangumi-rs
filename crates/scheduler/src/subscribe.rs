@@ -15,6 +15,8 @@ impl Scheduler {
         collector_interval: Option<i32>,
         metadata_interval: Option<i32>,
         enforce_torrent_release_after_broadcast: bool,
+        preferred_downloader: Option<String>,
+        allow_fallback: bool,
     ) -> Result<()> {
         // 将分辨率列表转换为逗号分隔的字符串
         let resolution_filter_str = resolution_filter.map(|resolutions| {
@@ -80,6 +82,8 @@ impl Scheduler {
                 collector_interval,
                 metadata_interval,
                 enforce_torrent_release_after_broadcast,
+                preferred_downloader,
+                allow_fallback,
             )
             .await
             .context("更新订阅状态失败")?;

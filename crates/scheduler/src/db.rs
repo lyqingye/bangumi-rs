@@ -389,6 +389,8 @@ impl Db {
         collector_interval: Option<i32>,
         metadata_interval: Option<i32>,
         enforce_torrent_release_after_broadcast: bool,
+        preferred_downloader: Option<String>,
+        allow_fallback: bool,
     ) -> Result<()> {
         use model::subscriptions::Column as SubscriptionColumn;
         use model::subscriptions::Entity as Subscriptions;
@@ -405,6 +407,8 @@ impl Db {
             enforce_torrent_release_after_broadcast: Set(
                 enforce_torrent_release_after_broadcast as i8
             ),
+            preferred_downloader: Set(preferred_downloader),
+            allow_fallback: Set(allow_fallback),
             ..Default::default()
         };
 
@@ -420,6 +424,8 @@ impl Db {
                     .update_column(SubscriptionColumn::MetadataInterval)
                     .update_column(SubscriptionColumn::StartEpisodeNumber)
                     .update_column(SubscriptionColumn::EnforceTorrentReleaseAfterBroadcast)
+                    .update_column(SubscriptionColumn::PreferredDownloader)
+                    .update_column(SubscriptionColumn::AllowFallback)
                     .to_owned(),
             )
             .exec(self.conn())

@@ -23,9 +23,21 @@ use model::{
     torrents::Model as TorrentModel,
 };
 
+#[derive(Debug, Clone)]
+pub struct DownloaderInfo {
+    pub name: String,
+    pub priority: u8,
+}
+
 #[async_trait]
 pub trait Downloader: Send + Sync {
-    async fn add_task(&self, resource: Resource, dir: PathBuf) -> Result<()>;
+    async fn add_task(
+        &self,
+        resource: Resource,
+        dir: PathBuf,
+        downloader: Option<String>,
+        allow_fallback: bool,
+    ) -> Result<()>;
     async fn list_tasks(&self, info_hashes: &[String]) -> Result<Vec<Model>>;
     async fn list_files(&self, info_hash: &str) -> Result<Vec<FileInfo>>;
     async fn download_file(&self, file_id: &str, ua: &str) -> Result<DownloadInfo>;
@@ -38,6 +50,8 @@ pub trait Downloader: Send + Sync {
     async fn resume_task(&self, info_hash: &str) -> Result<()>;
     fn supports_resource_type(&self, resource_type: ResourceType) -> bool;
     fn recommended_resource_type(&self) -> ResourceType;
+    fn get_downloader(&self, downloader: &str) -> Option<&dyn ThirdPartyDownloader>;
+    fn list_downloaders(&self) -> Vec<DownloaderInfo>;
 }
 
 #[derive(Debug, Clone)]

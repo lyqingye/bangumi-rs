@@ -1,6 +1,5 @@
 use anyhow::{Context, Result};
 use downloader::Downloader;
-use model::sea_orm_active_enums::ResourceType;
 use model::subscriptions;
 use sea_orm::DatabaseConnection;
 use std::{collections::HashMap, sync::Arc};
@@ -177,10 +176,18 @@ impl Scheduler {
             .get_torrent_by_info_hash(info_hash)
             .await?
             .context("未找到种子信息")?;
+        let subscribe = self
+            .db
+            .get_subscription(bangumi_id)
+            .await?
+            .context("你需要先订阅番剧")?;
 
         // 如果推荐资源类型为种子，则尝试下载种子
         #[allow(clippy::collapsible_if)]
-        if self.downloader.recommended_resource_type() == ResourceType::Torrent {
+        if self
+            .task_manager
+            .use_torrent_to_download(&subscribe, &torrent)
+        {
             if torrent.data.is_none() && torrent.download_url.is_some() {
                 match download_torrent(&self.client, &torrent.download_url.unwrap()).await {
                     Ok(data) => {
