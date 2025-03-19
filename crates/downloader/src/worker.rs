@@ -261,9 +261,11 @@ impl Worker {
     ) -> Result<()> {
         let info_hash = resource.info_hash();
         info!(
-            "添加下载任务: info_hash={:?}, dir={}",
+            "添加下载任务: info_hash={:?}, dir={}, downloader={:?}, allow_fallback={}",
             info_hash,
-            dir.display()
+            dir.display(),
+            downloader,
+            allow_fallback
         );
         self.create_task(&resource, dir, downloader, allow_fallback)
             .await?;
@@ -545,8 +547,10 @@ impl Worker {
             .await?;
 
             if ctx.ref_task.allow_fallback {
+                info!("任务允许自动回退，尝试其它下载器: info_hash={}", info_hash);
                 Ok((Some(Tx::AutoFallback(info_hash)), Some(State::Failed)))
             } else {
+                info!("任务不允许自动回退，直接失败: info_hash={}", info_hash);
                 Ok((None, Some(State::Failed)))
             }
         } else {
@@ -722,15 +726,12 @@ impl Worker {
             .max_by_key(|d| d.config().priority)
             .map(|d| d.name());
 
-        info!("当前任务的下载器: {}", ctx.ref_task.downloader);
-
-        info!(
-            "自动回退任务(AutoFallback): info_hash={} state={:?}, 备用下载器: {:?}",
-            info_hash, ctx.ref_task.download_status, fallback_downloader
-        );
-
         match fallback_downloader {
             Some(downloader) => {
+                info!(
+                    "自动回退任务(AutoFallback): info_hash={} state={:?}, 使用备用下载器: {}",
+                    info_hash, ctx.ref_task.download_status, downloader
+                );
                 // 更新任务的下载器
                 let mut new_downloader = ctx.ref_task.downloader.to_string();
                 new_downloader.push(',');
@@ -754,6 +755,10 @@ impl Worker {
                 Ok((Some(Tx::StartTask(resource)), Some(State::Pending)))
             }
             None => {
+                info!(
+                    "自动回退失败: info_hash={}, 没有可用的备选下载器",
+                    info_hash
+                );
                 // 没有可用的备选下载器，标记为失败
                 self.update_task_status(
                     &info_hash,
