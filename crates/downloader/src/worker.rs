@@ -281,8 +281,7 @@ impl Worker {
         allow_fallback: bool,
     ) -> Result<()> {
         let downloader = if let Some(downloader_name) = downloader {
-            self.get_downloader(&downloader_name)
-                .context(format!("指定的下载器不存在: {}", downloader_name))?
+            self.take_downloader(&downloader_name)?
         } else {
             self.best_downloader()
         };
