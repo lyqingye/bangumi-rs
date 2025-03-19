@@ -77,9 +77,9 @@ impl Tx {
     }
 }
 
-pub struct Context {
+pub struct Context<'a> {
     ref_task: Model,
-    downloader: Arc<Box<dyn ThirdPartyDownloader>>,
+    downloader: &'a dyn ThirdPartyDownloader,
 }
 
 #[derive(Clone)]
@@ -227,7 +227,7 @@ impl Worker {
 
         let mut ctx = Context {
             ref_task: task.clone(),
-            downloader: self.take_downloader(&task.downloader),
+            downloader: self.take_downloader(&task.downloader)?,
         };
         let mut event = Some(event);
         let mut state = Some(task.download_status);
@@ -241,7 +241,7 @@ impl Worker {
             // 更新上下文
             if let Some(event) = next_event.as_ref() {
                 ctx.ref_task = event.get_ref_task(&**self.store).await?;
-                ctx.downloader = self.take_downloader(&ctx.ref_task.downloader);
+                ctx.downloader = self.take_downloader(&ctx.ref_task.downloader)?;
             }
             event = next_event;
             state = next_state;
@@ -337,7 +337,7 @@ impl Worker {
             .first()
             .cloned()
             .context("任务不存在")?;
-        let downloader = self.take_downloader(&task.downloader);
+        let downloader = self.take_downloader(&task.downloader)?;
         let mut result = downloader.list_files(info_hash, task.context).await?;
         for file in result.iter_mut() {
             file.file_id = format!("{}-{}", downloader.name(), file.file_id);
@@ -348,7 +348,7 @@ impl Worker {
     pub async fn download_file(&self, file_id: &str, ua: &str) -> Result<DownloadInfo> {
         info!("下载文件: file_id={}, ua={}", file_id, ua);
         let (downloader_name, file_id) = file_id.split_once('-').context("文件ID格式错误")?;
-        let downloader = self.take_downloader(downloader_name);
+        let downloader = self.take_downloader(downloader_name)?;
         let result = downloader.download_file(file_id, ua).await;
 
         if let Err(ref e) = result {
@@ -401,7 +401,7 @@ impl Worker {
         &self,
         event: Tx,
         state: State,
-        ctx: &mut Context,
+        ctx: &mut Context<'_>,
     ) -> Result<(Option<Tx>, Option<State>)> {
         debug!(
             "状态转换开始: 事件={}, 状态={:?}",
@@ -472,7 +472,7 @@ impl Worker {
     async fn on_start_task(
         &self,
         resource: Resource,
-        ctx: &mut Context,
+        ctx: &mut Context<'_>,
     ) -> Result<(Option<Tx>, Option<State>)> {
         let info_hash = resource.info_hash().to_string();
         info!(
@@ -516,7 +516,7 @@ impl Worker {
         &self,
         info_hash: String,
         err_msg: String,
-        ctx: &mut Context,
+        ctx: &mut Context<'_>,
     ) -> Result<(Option<Tx>, Option<State>)> {
         error!(
             "处理任务失败(TaskFailed): info_hash={} state={:?} -> TaskFailed, err_msg={}",
@@ -576,7 +576,7 @@ impl Worker {
     async fn on_task_retry(
         &self,
         info_hash: String,
-        ctx: &mut Context,
+        ctx: &mut Context<'_>,
     ) -> Result<(Option<Tx>, Option<State>)> {
         info!(
             "开始重试任务(TaskRetry): info_hash={} state={:?}, 重试次数={}/{}",
@@ -599,7 +599,7 @@ impl Worker {
     async fn on_task_cancelled(
         &self,
         info_hash: String,
-        ctx: &mut Context,
+        ctx: &mut Context<'_>,
     ) -> Result<(Option<Tx>, Option<State>)> {
         info!(
             "取消任务(TaskCancelled): info_hash={} state={:?}",
@@ -619,7 +619,7 @@ impl Worker {
         &self,
         info_hash: String,
         result: Option<String>,
-        ctx: &mut Context,
+        ctx: &mut Context<'_>,
     ) -> Result<(Option<Tx>, Option<State>)> {
         info!(
             "任务完成(TaskCompleted): info_hash={} state={:?}, 结果: {:?}",
@@ -640,7 +640,7 @@ impl Worker {
     async fn on_task_removed(
         &self,
         info_hash: String,
-        ctx: &mut Context,
+        ctx: &mut Context<'_>,
     ) -> Result<(Option<Tx>, Option<State>)> {
         info!(
             "移除任务(TaskRemoved): info_hash={} state={:?}",
@@ -657,7 +657,7 @@ impl Worker {
     async fn on_task_paused(
         &self,
         info_hash: String,
-        ctx: &mut Context,
+        ctx: &mut Context<'_>,
     ) -> Result<(Option<Tx>, Option<State>)> {
         info!(
             "暂停任务(TaskPaused): info_hash={} state={:?}",
@@ -677,7 +677,7 @@ impl Worker {
     async fn on_task_resumed(
         &self,
         info_hash: String,
-        ctx: &mut Context,
+        ctx: &mut Context<'_>,
     ) -> Result<(Option<Tx>, Option<State>)> {
         info!(
             "恢复任务(TaskResumed): info_hash={} state={:?}",
@@ -698,7 +698,7 @@ impl Worker {
         &self,
         info_hash: String,
         status: DownloadStatus,
-        _ctx: &mut Context,
+        _ctx: &mut Context<'_>,
     ) -> Result<(Option<Tx>, Option<State>)> {
         info!(
             "远程任务状态被手动更新(TaskStatusUpdated): info_hash={} state={:?}",
@@ -712,7 +712,7 @@ impl Worker {
     async fn on_task_fallback(
         &self,
         info_hash: String,
-        ctx: &mut Context,
+        ctx: &mut Context<'_>,
     ) -> Result<(Option<Tx>, Option<State>)> {
         info!(
             "自动回退任务(AutoFallback): info_hash={} state={:?}",
@@ -742,9 +742,6 @@ impl Worker {
                 self.store
                     .assign_downloader(&info_hash, new_downloader)
                     .await?;
-
-                // 更新上下文中的下载器
-                ctx.downloader = self.take_downloader(downloader);
 
                 // 重新启动任务
                 let resource = self.get_task_resource_by_info_hash(&info_hash).await?;
@@ -776,13 +773,14 @@ impl Worker {
         }
     }
 
-    fn take_downloader(&self, assigned_downloader: &str) -> Arc<Box<dyn ThirdPartyDownloader>> {
+    fn take_downloader(&self, assigned_downloader: &str) -> Result<&dyn ThirdPartyDownloader> {
         let latest = assigned_downloader.split(',').last().unwrap();
-        self.downloaders
+        let downloader = &***self
+            .downloaders
             .iter()
             .find(|d| d.name() == latest)
-            .unwrap()
-            .clone()
+            .context(format!("指定的下载器不存在: {}", latest))?;
+        Ok(downloader)
     }
 
     fn best_downloader(&self) -> &dyn ThirdPartyDownloader {
