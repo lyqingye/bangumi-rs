@@ -1,6 +1,5 @@
 use anyhow::{Context, Result};
 use downloader::Downloader;
-use model::sea_orm_active_enums::ResourceType;
 use model::subscriptions;
 use sea_orm::DatabaseConnection;
 use std::{collections::HashMap, sync::Arc};
