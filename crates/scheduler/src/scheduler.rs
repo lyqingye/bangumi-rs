@@ -183,20 +183,12 @@ impl Scheduler {
             .await?
             .context("你需要先订阅番剧")?;
 
-        let mut using_torrent = false;
-        if let Some(ref preferred_downloader) = subscribe.preferred_downloader {
-            if let Some(downloader) = self.downloader.get_downloader(preferred_downloader) {
-                using_torrent = downloader.recommended_resource_type() == ResourceType::Torrent
-                    && torrent.data.is_some();
-            }
-        } else {
-            using_torrent = self.downloader.recommended_resource_type() == ResourceType::Torrent
-                && torrent.data.is_some();
-        }
-
         // 如果推荐资源类型为种子，则尝试下载种子
         #[allow(clippy::collapsible_if)]
-        if using_torrent {
+        if self
+            .task_manager
+            .use_torrent_to_download(&subscribe, &torrent)
+        {
             if torrent.data.is_none() && torrent.download_url.is_some() {
                 match download_torrent(&self.client, &torrent.download_url.unwrap()).await {
                     Ok(data) => {
