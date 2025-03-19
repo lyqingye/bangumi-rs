@@ -280,8 +280,9 @@ impl Worker {
         downloader: Option<String>,
         allow_fallback: bool,
     ) -> Result<()> {
-        let downloader = if let Some(downloader) = downloader {
-            self.take_downloader(&downloader)
+        let downloader = if let Some(downloader_name) = downloader {
+            self.get_downloader(&downloader_name)
+                .context(format!("指定的下载器不存在: {}", downloader_name))?
         } else {
             self.best_downloader()
         };
@@ -784,12 +785,12 @@ impl Worker {
             .clone()
     }
 
-    fn best_downloader(&self) -> Arc<Box<dyn ThirdPartyDownloader>> {
-        self.downloaders
+    fn best_downloader(&self) -> &dyn ThirdPartyDownloader {
+        &***self
+            .downloaders
             .iter()
             .max_by_key(|d| d.config().priority)
             .unwrap()
-            .clone()
     }
 
     async fn update_task_retry_status(
