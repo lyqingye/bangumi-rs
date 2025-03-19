@@ -252,20 +252,34 @@ impl Worker {
 
 /// External Function
 impl Worker {
-    pub async fn add_task(&self, resource: Resource, dir: PathBuf) -> Result<()> {
+    pub async fn add_task(
+        &self,
+        resource: Resource,
+        dir: PathBuf,
+        downloader: Option<String>,
+    ) -> Result<()> {
         let info_hash = resource.info_hash();
         info!(
             "添加下载任务: info_hash={:?}, dir={}",
             info_hash,
             dir.display()
         );
-        self.create_task(&resource, dir).await?;
+        self.create_task(&resource, dir, downloader).await?;
         self.send_event(Tx::StartTask(resource))?;
         Ok(())
     }
 
-    async fn create_task(&self, resource: &Resource, dir: PathBuf) -> Result<()> {
-        let downloader = self.best_downloader();
+    async fn create_task(
+        &self,
+        resource: &Resource,
+        dir: PathBuf,
+        downloader: Option<String>,
+    ) -> Result<()> {
+        let downloader = if let Some(downloader) = downloader {
+            self.take_downloader(&downloader)
+        } else {
+            self.best_downloader()
+        };
         let now = Local::now().naive_utc();
         let task = Model {
             info_hash: resource.info_hash().to_string(),
@@ -804,8 +818,13 @@ impl Worker {
 /// Implmentation Downloader
 #[async_trait]
 impl Downloader for Worker {
-    async fn add_task(&self, resource: Resource, dir: PathBuf) -> Result<()> {
-        self.add_task(resource, dir).await
+    async fn add_task(
+        &self,
+        resource: Resource,
+        dir: PathBuf,
+        downloader: Option<String>,
+    ) -> Result<()> {
+        self.add_task(resource, dir, downloader).await
     }
 
     async fn list_tasks(&self, info_hashes: &[String]) -> Result<Vec<Model>> {
@@ -892,6 +911,7 @@ mod tests {
                 )
                 .unwrap(),
                 PathBuf::from("test"),
+                None,
             )
             .await?;
         let mut rx = worker.subscribe();

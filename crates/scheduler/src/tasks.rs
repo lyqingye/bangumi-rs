@@ -247,6 +247,7 @@ impl TaskManager {
                             .add_task(
                                 Resource::from_torrent_file_bytes(torrent.data.unwrap())?,
                                 PathBuf::from(bangumi.name),
+                                None,
                             )
                             .await?;
                     } else {
@@ -254,6 +255,7 @@ impl TaskManager {
                             .add_task(
                                 Resource::from_info_hash(torrent.info_hash)?,
                                 PathBuf::from(bangumi.name),
+                                None,
                             )
                             .await?;
                     }

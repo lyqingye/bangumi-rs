@@ -25,7 +25,12 @@ use model::{
 
 #[async_trait]
 pub trait Downloader: Send + Sync {
-    async fn add_task(&self, resource: Resource, dir: PathBuf) -> Result<()>;
+    async fn add_task(
+        &self,
+        resource: Resource,
+        dir: PathBuf,
+        downloader: Option<String>,
+    ) -> Result<()>;
     async fn list_tasks(&self, info_hashes: &[String]) -> Result<Vec<Model>>;
     async fn list_files(&self, info_hash: &str) -> Result<Vec<FileInfo>>;
     async fn download_file(&self, file_id: &str, ua: &str) -> Result<DownloadInfo>;

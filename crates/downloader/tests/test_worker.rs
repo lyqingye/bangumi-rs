@@ -106,7 +106,7 @@ async fn test_retry_exceed_max_count() {
     let resource = create_test_resource();
     // 添加任务
     worker_clone
-        .add_task(resource.clone(), PathBuf::from("test"))
+        .add_task(resource.clone(), PathBuf::from("test"), None)
         .await
         .unwrap();
 
@@ -163,7 +163,7 @@ async fn test_download_timeout_no_retry() {
 
     // 添加任务
     worker_clone
-        .add_task(resource.clone(), PathBuf::from("test"))
+        .add_task(resource.clone(), PathBuf::from("test"), None)
         .await
         .unwrap();
 
@@ -235,7 +235,7 @@ async fn test_worker_retry_success() {
 
     // 添加任务并同步
     worker_clone
-        .add_task(resource.clone(), PathBuf::from("test2"))
+        .add_task(resource.clone(), PathBuf::from("test2"), None)
         .await
         .unwrap();
 
@@ -284,7 +284,7 @@ async fn test_worker_add_task_success() {
 
     // 添加任务并同步
     worker_clone
-        .add_task(resource.clone(), PathBuf::from("test2"))
+        .add_task(resource.clone(), PathBuf::from("test2"), None)
         .await
         .unwrap();
 
@@ -332,7 +332,7 @@ async fn test_worker_add_cancel_downloading_task() {
 
     // 添加任务并同步
     worker_clone
-        .add_task(resource.clone(), PathBuf::from("test2"))
+        .add_task(resource.clone(), PathBuf::from("test2"), None)
         .await
         .unwrap();
 
@@ -397,7 +397,7 @@ async fn test_worker_add_retry_failed_task() {
 
     // 添加任务并同步
     worker_clone
-        .add_task(resource.clone(), PathBuf::from("test2"))
+        .add_task(resource.clone(), PathBuf::from("test2"), None)
         .await
         .unwrap();
 
@@ -506,7 +506,7 @@ async fn test_worker_pause_task() {
 
     // 添加任务并同步
     worker_clone
-        .add_task(resource.clone(), PathBuf::from("test2"))
+        .add_task(resource.clone(), PathBuf::from("test2"), None)
         .await
         .unwrap();
 
@@ -554,7 +554,7 @@ async fn test_worker_resume_task() {
 
     // 添加任务并同步
     worker_clone
-        .add_task(resource.clone(), PathBuf::from("test2"))
+        .add_task(resource.clone(), PathBuf::from("test2"), None)
         .await
         .unwrap();
 
@@ -604,7 +604,7 @@ async fn test_worker_user_manual_pause_task() {
 
     // 添加任务并同步
     worker_clone
-        .add_task(resource.clone(), PathBuf::from("test2"))
+        .add_task(resource.clone(), PathBuf::from("test2"), None)
         .await
         .unwrap();
 
@@ -706,7 +706,7 @@ async fn test_worker_fallback_task() {
     // 添加下载任务
     let resource = create_test_resource();
     worker
-        .add_task(resource.clone(), PathBuf::from("/tmp"))
+        .add_task(resource.clone(), PathBuf::from("/tmp"), None)
         .await
         .unwrap();
 
