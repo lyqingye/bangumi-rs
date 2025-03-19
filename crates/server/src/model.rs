@@ -62,6 +62,8 @@ pub struct Bangumi {
     pub release_group_filter: Option<String>,
     #[sea_orm(column_type = "Boolean")]
     pub enforce_torrent_release_after_broadcast: Option<bool>,
+    pub preferred_downloader: Option<String>,
+    pub allow_fallback: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize, FromQueryResult)]
@@ -118,6 +120,9 @@ pub struct SubscribeParams {
     pub metadata_interval: Option<i32>,
     #[serde(default)]
     pub enforce_torrent_release_after_broadcast: bool,
+    pub preferred_downloader: Option<String>,
+    #[serde(default)]
+    pub allow_fallback: bool,
 }
 
 // 定义一个结构体来接收查询结果
@@ -245,4 +250,10 @@ pub struct DownloadedFile {
     pub file_name: String,
     pub file_size: usize,
     pub file_type: FileType,
+}
+
+#[derive(Debug, Serialize)]
+pub struct DownloaderInfo {
+    pub name: String,
+    pub priority: u8,
 }

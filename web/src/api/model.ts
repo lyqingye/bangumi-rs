@@ -61,6 +61,8 @@ export interface SubscribeParams {
   collector_interval?: number | undefined
   metadata_interval?: number | undefined
   enforce_torrent_release_after_broadcast?: boolean | undefined
+  preferred_downloader?: string | undefined
+  allow_fallback?: boolean | undefined
 }
 
 // 番剧信息
@@ -86,6 +88,8 @@ export interface Bangumi {
   language_filter: string | null
   release_group_filter: string | null
   enforce_torrent_release_after_broadcast: boolean | null
+  preferred_downloader: string | null
+  allow_fallback: boolean
 }
 
 // 剧集信息
@@ -412,4 +416,9 @@ export interface DownloadedFile {
   file_name: string
   file_size: number
   file_type: string
+}
+
+export interface DownloaderInfo {
+  name: string
+  priority: number
 }

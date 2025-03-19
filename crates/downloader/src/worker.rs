@@ -11,7 +11,7 @@ use tracing::{debug, error, info, warn};
 
 use crate::{
     config::Config, db::Db, metrics, thirdparty::pan_115_impl::Pan115DownloaderImpl, Downloader,
-    Event, FileInfo, Resource, ResourceType, Store, ThirdPartyDownloader,
+    DownloaderInfo, Event, FileInfo, Resource, ResourceType, Store, ThirdPartyDownloader,
 };
 
 type State = DownloadStatus;
@@ -896,6 +896,21 @@ impl Downloader for Worker {
             .iter()
             .find(|d| d.name() == downloader)
             .map(|d| &***d)
+    }
+
+    fn list_downloaders(&self) -> Vec<DownloaderInfo> {
+        let mut downloaders: Vec<DownloaderInfo> = self
+            .downloaders
+            .iter()
+            .map(|d| DownloaderInfo {
+                name: d.name().to_string(),
+                priority: d.config().priority,
+            })
+            .collect();
+
+        downloaders.sort_by(|a, b| b.priority.cmp(&a.priority));
+
+        downloaders
     }
 }
 

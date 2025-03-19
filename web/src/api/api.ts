@@ -17,7 +17,8 @@ import type {
   QueryBangumiParams,
   MikanSearchResultItem,
   AddBangumiParams,
-  DownloadedFile
+  DownloadedFile,
+  DownloaderInfo
 } from './model'
 import { ApiError } from './model'
 import { useSnackbar } from '../composables/useSnackbar'
@@ -276,5 +277,14 @@ export async function addBangumi(params: AddBangumiParams): Promise<number> {
     return handleResponse(response, '添加番剧失败')
   } catch (error) {
     return handleError(error, '添加番剧失败')
+  }
+}
+
+export async function listDownloaders(): Promise<DownloaderInfo[]> {
+  try {
+    const response = await api.get<ApiResponse<DownloaderInfo[]>>('/downloaders')
+    return handleResponse(response, '获取下载器列表失败')
+  } catch (error) {
+    return handleError(error, '获取下载器列表失败')
   }
 }

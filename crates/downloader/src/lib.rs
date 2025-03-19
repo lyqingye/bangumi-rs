@@ -23,6 +23,12 @@ use model::{
     torrents::Model as TorrentModel,
 };
 
+#[derive(Debug, Clone)]
+pub struct DownloaderInfo {
+    pub name: String,
+    pub priority: u8,
+}
+
 #[async_trait]
 pub trait Downloader: Send + Sync {
     async fn add_task(
@@ -45,6 +51,7 @@ pub trait Downloader: Send + Sync {
     fn supports_resource_type(&self, resource_type: ResourceType) -> bool;
     fn recommended_resource_type(&self) -> ResourceType;
     fn get_downloader(&self, downloader: &str) -> Option<&dyn ThirdPartyDownloader>;
+    fn list_downloaders(&self) -> Vec<DownloaderInfo>;
 }
 
 #[derive(Debug, Clone)]

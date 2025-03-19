@@ -15,9 +15,10 @@ use tracing::{info, instrument};
 use crate::{
     config::Config,
     model::{
-        AddBangumiParams, BangumiListResp, CalendarQuery, DownloadTask, DownloadedFile, FileType,
-        Metrics, MikanSearchResultItem, ProcessMetrics, QueryBangumiParams, QueryDownloadTask,
-        TMDBMetadata, TMDBSeason, UpdateMDBParams, VersionInfo,
+        AddBangumiParams, BangumiListResp, CalendarQuery, DownloadTask, DownloadedFile,
+        DownloaderInfo, FileType, Metrics, MikanSearchResultItem, ProcessMetrics,
+        QueryBangumiParams, QueryDownloadTask, TMDBMetadata, TMDBSeason, UpdateMDBParams,
+        VersionInfo,
     },
 };
 use crate::{
@@ -86,6 +87,8 @@ pub async fn calendar(
         .column(SubscriptionColumn::LanguageFilter)
         .column(SubscriptionColumn::ReleaseGroupFilter)
         .column(SubscriptionColumn::EnforceTorrentReleaseAfterBroadcast)
+        .column(SubscriptionColumn::PreferredDownloader)
+        .column(SubscriptionColumn::AllowFallback)
         // 联表查询
         .join_rev(
             JoinType::LeftJoin,
@@ -155,6 +158,8 @@ pub async fn get_bangumi_by_id(
         .column(SubscriptionColumn::LanguageFilter)
         .column(SubscriptionColumn::ReleaseGroupFilter)
         .column(SubscriptionColumn::EnforceTorrentReleaseAfterBroadcast)
+        .column(SubscriptionColumn::PreferredDownloader)
+        .column(SubscriptionColumn::AllowFallback)
         // 联表查询
         .join_rev(
             JoinType::LeftJoin,
@@ -287,6 +292,8 @@ pub async fn subscribe_bangumi(
                     params.collector_interval,
                     params.metadata_interval,
                     params.enforce_torrent_release_after_broadcast,
+                    params.preferred_downloader.clone(),
+                    params.allow_fallback,
                 )
                 .await?;
         }
@@ -900,4 +907,21 @@ pub async fn get_version() -> Result<Json<Resp<VersionInfo>>, ServerError> {
         build_time: crate::built_info::BUILT_TIME_UTC,
     };
     Ok(Json(Resp::ok(version)))
+}
+
+#[get("/api/downloaders")]
+pub async fn list_downloaders(
+    state: web::Data<Arc<AppState>>,
+) -> Result<Json<Resp<Vec<DownloaderInfo>>>, ServerError> {
+    let downloaders = state
+        .scheduler
+        .get_downloader()
+        .list_downloaders()
+        .into_iter()
+        .map(|d| DownloaderInfo {
+            name: d.name,
+            priority: d.priority,
+        })
+        .collect();
+    Ok(Json(Resp::ok(downloaders)))
 }
