@@ -238,16 +238,34 @@ impl TaskManager {
                         .get_torrent_by_info_hash(info_hash)
                         .await?
                         .context("种子不存在")?;
+                    let subscribe = self
+                        .db
+                        .get_subscription(task.bangumi_id)
+                        .await?
+                        .context("你需要先订阅番剧")?;
+                    let mut using_torrent = false;
+                    if let Some(ref preferred_downloader) = subscribe.preferred_downloader {
+                        if let Some(downloader) =
+                            self.downloader.get_downloader(preferred_downloader)
+                        {
+                            using_torrent = downloader.recommended_resource_type()
+                                == ResourceType::Torrent
+                                && torrent.data.is_some();
+                        }
+                    } else {
+                        using_torrent = self.downloader.recommended_resource_type()
+                            == ResourceType::Torrent
+                            && torrent.data.is_some();
+                    }
 
                     // 创建下载任务, 如果推荐资源类型为种子，则优先提供种子
-                    if self.downloader.recommended_resource_type() == ResourceType::Torrent
-                        && torrent.data.is_some()
-                    {
+                    if using_torrent {
                         self.downloader
                             .add_task(
                                 Resource::from_torrent_file_bytes(torrent.data.unwrap())?,
                                 PathBuf::from(bangumi.name),
-                                None,
+                                subscribe.preferred_downloader,
+                                subscribe.allow_fallback,
                             )
                             .await?;
                     } else {
@@ -255,7 +273,8 @@ impl TaskManager {
                             .add_task(
                                 Resource::from_info_hash(torrent.info_hash)?,
                                 PathBuf::from(bangumi.name),
-                                None,
+                                subscribe.preferred_downloader,
+                                subscribe.allow_fallback,
                             )
                             .await?;
                     }

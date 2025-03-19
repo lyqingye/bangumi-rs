@@ -257,6 +257,7 @@ impl Worker {
         resource: Resource,
         dir: PathBuf,
         downloader: Option<String>,
+        allow_fallback: bool,
     ) -> Result<()> {
         let info_hash = resource.info_hash();
         info!(
@@ -264,7 +265,8 @@ impl Worker {
             info_hash,
             dir.display()
         );
-        self.create_task(&resource, dir, downloader).await?;
+        self.create_task(&resource, dir, downloader, allow_fallback)
+            .await?;
         self.send_event(Tx::StartTask(resource))?;
         Ok(())
     }
@@ -274,6 +276,7 @@ impl Worker {
         resource: &Resource,
         dir: PathBuf,
         downloader: Option<String>,
+        allow_fallback: bool,
     ) -> Result<()> {
         let downloader = if let Some(downloader) = downloader {
             self.take_downloader(&downloader)
@@ -285,6 +288,7 @@ impl Worker {
             info_hash: resource.info_hash().to_string(),
             download_status: DownloadStatus::Pending,
             downloader: downloader.name().to_string(),
+            allow_fallback,
             context: None,
             err_msg: None,
             created_at: now,
@@ -539,7 +543,12 @@ impl Worker {
                 None,
             )
             .await?;
-            Ok((Some(Tx::AutoFallback(info_hash)), Some(State::Failed)))
+
+            if ctx.ref_task.allow_fallback {
+                Ok((Some(Tx::AutoFallback(info_hash)), Some(State::Failed)))
+            } else {
+                Ok((None, Some(State::Failed)))
+            }
         } else {
             let next_retry_at = ctx
                 .downloader
@@ -823,8 +832,10 @@ impl Downloader for Worker {
         resource: Resource,
         dir: PathBuf,
         downloader: Option<String>,
+        allow_fallback: bool,
     ) -> Result<()> {
-        self.add_task(resource, dir, downloader).await
+        self.add_task(resource, dir, downloader, allow_fallback)
+            .await
     }
 
     async fn list_tasks(&self, info_hashes: &[String]) -> Result<Vec<Model>> {
@@ -879,6 +890,13 @@ impl Downloader for Worker {
     fn recommended_resource_type(&self) -> ResourceType {
         self.best_downloader().recommended_resource_type()
     }
+
+    fn get_downloader(&self, downloader: &str) -> Option<&dyn ThirdPartyDownloader> {
+        self.downloaders
+            .iter()
+            .find(|d| d.name() == downloader)
+            .map(|d| &***d)
+    }
 }
 
 impl Worker {
@@ -912,6 +930,7 @@ mod tests {
                 .unwrap(),
                 PathBuf::from("test"),
                 None,
+                true,
             )
             .await?;
         let mut rx = worker.subscribe();

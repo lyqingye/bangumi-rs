@@ -12,6 +12,7 @@ pub struct Model {
     pub info_hash: String,
     pub download_status: DownloadStatus,
     pub downloader: String,
+    pub allow_fallback: bool,
     pub dir: String,
     #[sea_orm(column_type = "Text", nullable)]
     pub context: Option<String>,

@@ -19,6 +19,8 @@ pub struct Model {
     pub collector_interval: Option<i32>,
     pub metadata_interval: Option<i32>,
     pub enforce_torrent_release_after_broadcast: i8,
+    pub preferred_downloader: Option<String>,
+    pub allow_fallback: bool,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
