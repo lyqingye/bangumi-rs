@@ -163,7 +163,9 @@ const currentSubscribeSettings = computed(() => {
     language_filter: props.item.language_filter ?? undefined,
     release_group_filter: props.item.release_group_filter ?? undefined,
     status: props.item.subscribe_status ?? undefined,
-    enforce_torrent_release_after_broadcast: props.item.enforce_torrent_release_after_broadcast ?? undefined
+    enforce_torrent_release_after_broadcast: props.item.enforce_torrent_release_after_broadcast ?? undefined,
+    preferred_downloader: props.item.preferred_downloader ?? undefined,
+    allow_fallback: props.item.allow_fallback ?? true
   }
 })
 

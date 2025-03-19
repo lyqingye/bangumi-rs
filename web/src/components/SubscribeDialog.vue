@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
-import type { SubscribeParams } from '../api/model'
+import { ref, watch, onMounted } from 'vue'
+import type { SubscribeParams, DownloaderInfo } from '../api/model'
 import { SubscribeStatus } from '../api/model'
+import { listDownloaders } from '../api/api'
 
 const props = defineProps<{
   modelValue: boolean
@@ -15,6 +16,70 @@ const emit = defineEmits<{
   (e: 'update:modelValue', value: boolean): void
   (e: 'subscribe', params: SubscribeParams): void
 }>()
+
+// 下载器列表
+const downloaders = ref<DownloaderInfo[]>([])
+const loadingDownloaders = ref(false)
+
+// 获取下载器列表
+async function fetchDownloaders() {
+  loadingDownloaders.value = true
+  try {
+    downloaders.value = await listDownloaders()
+  } catch (error) {
+    console.error('获取下载器列表失败:', error)
+  } finally {
+    loadingDownloaders.value = false
+  }
+}
+
+// 初始化表单数据
+function initFormData(settings?: SubscribeParams) {
+  return {
+    status: SubscribeStatus.Subscribed,
+    start_episode_number: settings?.start_episode_number ?? 1,
+    resolution_filter: settings?.resolution_filter
+      ? settings.resolution_filter.split(',')
+      : ['2160P', '1440P', '1080P', '720P'],
+    language_filter: settings?.language_filter
+      ? settings.language_filter.split(',')
+      : ['CHS', 'CHT'],
+    release_group_filter: settings?.release_group_filter
+      ? settings.release_group_filter.split(',')
+      : [],
+    collector_interval: settings?.collector_interval
+      ? Math.floor(settings.collector_interval / 60)
+      : 30,
+    metadata_interval: settings?.metadata_interval
+      ? Math.floor(settings.metadata_interval / 60)
+      : 60,
+    enforce_torrent_release_after_broadcast: settings?.enforce_torrent_release_after_broadcast ?? true,
+    preferred_downloader: settings?.preferred_downloader ?? undefined,
+    allow_fallback: settings?.allow_fallback ?? true
+  }
+}
+
+const formData = ref(initFormData(props.currentSubscribeSettings))
+
+// 监听对话框打开状态和订阅设置变化
+watch(
+  [() => props.modelValue, () => props.currentSubscribeSettings],
+  ([newModelValue, newSettings]) => {
+    if (newModelValue) {
+      // 当对话框打开时，获取下载器列表
+      fetchDownloaders()
+    }
+    // 无论对话框是否打开，都更新表单数据
+    if (newSettings) {
+      formData.value = initFormData(newSettings)
+    }
+  },
+  { immediate: true }
+)
+
+onMounted(() => {
+  fetchDownloaders()
+})
 
 // 添加新字幕组相关变量
 const showAddReleaseGroupDialog = ref(false)
@@ -41,27 +106,6 @@ function addNewReleaseGroup() {
   }
   showAddReleaseGroupDialog.value = false
 }
-
-const formData = ref({
-  status: SubscribeStatus.Subscribed,
-  start_episode_number: props.currentSubscribeSettings?.start_episode_number ?? 1,
-  resolution_filter: props.currentSubscribeSettings?.resolution_filter
-    ? props.currentSubscribeSettings.resolution_filter.split(',')
-    : ['2160P', '1440P', '1080P', '720P'],
-  language_filter: props.currentSubscribeSettings?.language_filter
-    ? props.currentSubscribeSettings.language_filter.split(',')
-    : ['CHS', 'CHT'],
-  release_group_filter: props.currentSubscribeSettings?.release_group_filter
-    ? props.currentSubscribeSettings.release_group_filter.split(',')
-    : [],
-  collector_interval: props.currentSubscribeSettings?.collector_interval
-    ? Math.floor(props.currentSubscribeSettings.collector_interval / 60)
-    : 30,
-  metadata_interval: props.currentSubscribeSettings?.metadata_interval
-    ? Math.floor(props.currentSubscribeSettings.metadata_interval / 60)
-    : 60,
-  enforce_torrent_release_after_broadcast: props.currentSubscribeSettings?.enforce_torrent_release_after_broadcast ?? true
-})
 
 interface Resolution {
   text: string
@@ -105,7 +149,9 @@ function onSubmit() {
     metadata_interval: formData.value.metadata_interval
       ? formData.value.metadata_interval * 60
       : undefined,
-    enforce_torrent_release_after_broadcast: formData.value.enforce_torrent_release_after_broadcast
+    enforce_torrent_release_after_broadcast: formData.value.enforce_torrent_release_after_broadcast,
+    preferred_downloader: formData.value.preferred_downloader,
+    allow_fallback: formData.value.allow_fallback
   }
   emit('subscribe', params)
   emit('update:modelValue', false)
@@ -237,6 +283,48 @@ function unsubscribe() {
                 </v-list-item>
               </template>
             </v-select>
+          </div>
+
+          <div class="section-title">下载器设置</div>
+          <div class="input-group">
+            <div class="input-label">
+              <v-icon icon="mdi-download" color="primary" size="16" class="me-2" />
+              <span>指定下载器 (如果不指定则会根据优先级自动选择)</span>
+            </div>
+            <v-select
+              v-model="formData.preferred_downloader"
+              :items="downloaders"
+              item-title="name"
+              item-value="name"
+              density="compact"
+              variant="outlined"
+              hide-details
+              clearable
+              class="input-field"
+              :loading="loadingDownloaders"
+            >
+              <template v-slot:item="{ props, item }">
+                <v-list-item v-bind="props">
+                  <template v-slot:prepend>
+                    <v-icon icon="mdi-download-circle" size="small" />
+                  </template>
+                </v-list-item>
+              </template>
+            </v-select>
+          </div>
+
+          <div class="input-group">
+            <div class="input-label">
+              <v-icon icon="mdi-backup-restore" color="primary" size="16" class="me-2" />
+              <span>失败时候尝试其它下载器</span>
+            </div>
+            <v-switch
+              v-model="formData.allow_fallback"
+              color="primary"
+              hide-details
+              density="compact"
+              size="small"
+            ></v-switch>
           </div>
 
           <div class="section-title">高级设置</div>

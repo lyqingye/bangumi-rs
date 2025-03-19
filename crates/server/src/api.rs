@@ -859,6 +859,8 @@ pub async fn list_bangumi(
         .column(SubscriptionColumn::LanguageFilter)
         .column(SubscriptionColumn::ReleaseGroupFilter)
         .column(SubscriptionColumn::EnforceTorrentReleaseAfterBroadcast)
+        .column(SubscriptionColumn::PreferredDownloader)
+        .column(SubscriptionColumn::AllowFallback)
         // 联表查询
         .join_rev(
             JoinType::LeftJoin,

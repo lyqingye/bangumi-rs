@@ -63,7 +63,7 @@ pub struct Bangumi {
     #[sea_orm(column_type = "Boolean")]
     pub enforce_torrent_release_after_broadcast: Option<bool>,
     pub preferred_downloader: Option<String>,
-    pub allow_fallback: bool,
+    pub allow_fallback: Option<bool>,
 }
 
 #[derive(Debug, Serialize, Deserialize, FromQueryResult)]
