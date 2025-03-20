@@ -186,7 +186,7 @@ impl Scheduler {
         #[allow(clippy::collapsible_if)]
         if self
             .task_manager
-            .use_torrent_to_download(&subscribe, &torrent)
+            .use_torrent_to_download(&subscribe, &torrent, false)
         {
             if torrent.data.is_none() && torrent.download_url.is_some() {
                 match download_torrent(&self.client, &torrent.download_url.unwrap()).await {
@@ -206,10 +206,10 @@ impl Scheduler {
             .get_episode_task_by_bangumi_id_and_episode_number(bangumi_id, episode_number)
             .await?;
 
-        // 如果任务存在，则取消之前的任务
+        // 如果任务存在，则移除之前的任务
         if let Some(old_task) = task {
             if let Some(ref_info_hash) = old_task.ref_torrent_info_hash {
-                self.downloader.cancel_task(&ref_info_hash).await?;
+                self.downloader.remove_task(&ref_info_hash, false).await?;
             }
         } else {
             // 插入新的剧集下载任务
