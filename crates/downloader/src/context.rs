@@ -33,3 +33,30 @@ impl TryFrom<Pan115Context> for String {
         serde_json::to_string(&val)
     }
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TorrentFileInfo {
+    pub name: String,
+    pub size: usize,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct TorrentContext {
+    pub files: Vec<TorrentFileInfo>,
+}
+
+impl TryFrom<String> for TorrentContext {
+    type Error = anyhow::Error;
+
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        Ok(serde_json::from_str(&s)?)
+    }
+}
+
+impl TryFrom<TorrentContext> for String {
+    type Error = serde_json::Error;
+
+    fn try_from(val: TorrentContext) -> Result<Self, Self::Error> {
+        serde_json::to_string(&val)
+    }
+}
