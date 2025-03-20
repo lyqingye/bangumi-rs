@@ -168,14 +168,14 @@ impl TaskManager {
         &self,
         subscribe: &subscriptions::Model,
         torrent: &torrents::Model,
+        check_torrent_data: bool,
     ) -> bool {
         let mut using_torrent = false;
         let mut use_preferred_downloader = false;
         // 如果指定了下载器，则使用指定的下载器
         if let Some(ref preferred_downloader) = subscribe.preferred_downloader {
             if let Some(downloader) = self.downloader.get_downloader(preferred_downloader) {
-                using_torrent = downloader.recommended_resource_type() == ResourceType::Torrent
-                    && torrent.data.is_some();
+                using_torrent = downloader.recommended_resource_type() == ResourceType::Torrent;
                 use_preferred_downloader = true;
             } else {
                 warn!("指定的下载器 {} 不存在", preferred_downloader);
@@ -183,8 +183,10 @@ impl TaskManager {
         }
         if !use_preferred_downloader {
             // 如果没有指定下载器，则使用默认的下载器
-            using_torrent = self.downloader.recommended_resource_type() == ResourceType::Torrent
-                && torrent.data.is_some();
+            using_torrent = self.downloader.recommended_resource_type() == ResourceType::Torrent;
+        }
+        if using_torrent && check_torrent_data {
+            using_torrent = torrent.data.is_some();
         }
         using_torrent
     }
@@ -271,7 +273,7 @@ impl TaskManager {
                         .context("你需要先订阅番剧")?;
 
                     // 创建下载任务, 如果推荐资源类型为种子，则优先提供种子
-                    if self.use_torrent_to_download(&subscribe, &torrent) {
+                    if self.use_torrent_to_download(&subscribe, &torrent, true) {
                         self.downloader
                             .add_task(
                                 Resource::from_torrent_file_bytes(torrent.data.unwrap())?,
