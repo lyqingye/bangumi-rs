@@ -8,12 +8,15 @@ use std::{
 use tap::{Pipe, TapFallible};
 use tracing::{debug, trace, warn};
 
-use crate::model::Credential;
 use crate::{
     error::{ApiError, Error, Result},
     ext::{Cookie, ResponseExt},
     model::torrent::{AddTorrentArg, GetTorrentListArg, Hashes, HashesArg, Torrent, TorrentSource},
     LoginState,
+};
+use crate::{
+    ext::TORRENT_NOT_FOUND,
+    model::{torrent::TorrentContent, Credential, Sep},
 };
 const NONE: Option<&'static ()> = Option::None;
 
@@ -228,6 +231,32 @@ impl Client {
         .await?
         .end()
     }
+
+    pub async fn get_torrent_contents(
+        &self,
+        hash: impl AsRef<str> + Send + Sync,
+        indexes: impl Into<Option<Sep<String, '|'>>> + Send + Sync,
+    ) -> Result<Vec<TorrentContent>> {
+        #[derive(Serialize)]
+        struct Arg<'a> {
+            hash: &'a str,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            indexes: Option<String>,
+        }
+
+        self.get_with(
+            "torrents/files",
+            &Arg {
+                hash: hash.as_ref(),
+                indexes: indexes.into().map(|s| s.to_string()),
+            },
+        )
+        .await
+        .and_then(|r| r.map_status(TORRENT_NOT_FOUND))?
+        .json()
+        .await
+        .map_err(Into::into)
+    }
 }
 
 impl Client {
@@ -429,5 +458,18 @@ mod tests {
             ..Default::default()
         };
         client.add_torrent(arg).await.unwrap();
+    }
+
+    #[ignore]
+    #[tokio::test]
+    async fn test_get_torrent_contents() {
+        let client = create_client().await;
+        let contents = client
+            .get_torrent_contents("3eebfcc6839fefea06f0675958013659dfc6d80f", None)
+            .await
+            .unwrap();
+        for content in contents {
+            println!("content: {:?} {}", content.name, content.size);
+        }
     }
 }

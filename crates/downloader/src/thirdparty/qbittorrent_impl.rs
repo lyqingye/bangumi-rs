@@ -1,7 +1,16 @@
-use std::{collections::HashMap, path::PathBuf, sync::Arc};
+use std::{
+    collections::HashMap,
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
-use crate::{config, resource::Resource, FileInfo, RemoteTaskStatus, ThirdPartyDownloader};
-use anyhow::Result;
+use crate::{
+    config,
+    context::{TorrentContext, TorrentFileInfo},
+    resource::Resource,
+    FileInfo, RemoteTaskStatus, ThirdPartyDownloader,
+};
+use anyhow::{Context, Result};
 use async_trait::async_trait;
 use model::sea_orm_active_enums::{DownloadStatus, ResourceType};
 use pan_115::model::DownloadInfo;
@@ -99,13 +108,25 @@ impl ThirdPartyDownloader for QbittorrentDownloaderImpl {
         let torrents = self.cli.get_torrent_list(arg).await?;
         let mut result = HashMap::new();
         for torrent in torrents {
+            let hash = torrent.hash.clone().unwrap();
             let (status, err_msg) = map_task_status(&torrent);
+            let mut ctx = TorrentContext::default();
+            if status == DownloadStatus::Completed {
+                let contents = self.cli.get_torrent_contents(&hash, None).await?;
+                ctx.files = contents
+                    .into_iter()
+                    .map(|c| TorrentFileInfo {
+                        name: c.name,
+                        size: c.size as usize,
+                    })
+                    .collect();
+            }
             let remote_task_status = RemoteTaskStatus {
                 status,
                 err_msg,
-                result: None,
+                result: Some(ctx.try_into()?),
             };
-            result.insert(torrent.hash.unwrap(), remote_task_status);
+            result.insert(hash, remote_task_status);
         }
         Ok(result)
     }
@@ -141,8 +162,27 @@ impl ThirdPartyDownloader for QbittorrentDownloaderImpl {
         Ok(())
     }
 
-    async fn list_files(&self, _info_hash: &str, _result: Option<String>) -> Result<Vec<FileInfo>> {
-        return Err(anyhow::anyhow!("不支持获取下载文件列表"));
+    async fn list_files(&self, _info_hash: &str, result: Option<String>) -> Result<Vec<FileInfo>> {
+        let ctx = result.context("没有下载结果，请确保已经成功下载")?;
+        let ctx = TorrentContext::try_from(ctx)?;
+        let files = ctx
+            .files
+            .into_iter()
+            .map(|f| {
+                let path = Path::new(&f.name);
+                let file_name = path
+                    .file_name()
+                    .map(|name| name.to_string_lossy().into_owned())
+                    .unwrap_or(f.name.clone());
+                FileInfo {
+                    file_id: f.name,
+                    file_name,
+                    file_size: f.size,
+                    is_dir: false,
+                }
+            })
+            .collect();
+        Ok(files)
     }
 
     async fn download_file(&self, _file_id: &str, _ua: &str) -> Result<DownloadInfo> {
