@@ -173,7 +173,7 @@ impl ThirdPartyDownloader for QbittorrentDownloaderImpl {
                 let file_name = path
                     .file_name()
                     .map(|name| name.to_string_lossy().into_owned())
-                    .unwrap_or_default();
+                    .unwrap_or(f.name.clone());
                 FileInfo {
                     file_id: f.name,
                     file_name,
