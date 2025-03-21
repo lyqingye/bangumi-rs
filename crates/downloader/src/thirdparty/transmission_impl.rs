@@ -79,32 +79,14 @@ impl TransmissionDownloaderImpl {
     }
 
     #[cfg(test)]
-    pub fn new_from_env(config: Config) -> Self {
-        // 使用环境变量创建SharableTransClient
-        let url = match std::env::var("TRANSMISSION_URL") {
-            Ok(url) => url,
-            Err(_) => "http://127.0.0.1:9091/transmission/rpc".to_string(),
+    pub fn new_from_env() -> Result<Self> {
+        let config = Config {
+            url: std::env::var("TRANSMISSION_URL")?,
+            username: std::env::var("TRANSMISSION_USER")?,
+            password: std::env::var("TRANSMISSION_PASSWORD")?,
+            ..Default::default()
         };
-
-        // 支持环境变量配置用户名和密码
-        let sharable_client = match (
-            std::env::var("TRANSMISSION_USER"),
-            std::env::var("TRANSMISSION_PASSWORD"),
-        ) {
-            (Ok(user), Ok(password)) => {
-                let auth = transmission_rpc::types::BasicAuth { user, password };
-                SharableTransClient::with_auth(reqwest::Url::parse(&url).unwrap(), auth)
-            }
-            _ => SharableTransClient::new(reqwest::Url::parse(&url).unwrap()),
-        };
-
-        Self {
-            cli: Arc::new(sharable_client),
-            file_cache: Arc::new(Mutex::new(LruCache::new(
-                NonZero::new(config.file_list_cache_size).unwrap(),
-            ))),
-            config,
-        }
+        Ok(Self::new(config))
     }
 }
 
