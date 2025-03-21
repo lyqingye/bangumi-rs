@@ -27,13 +27,29 @@ url = "http://127.0.0.1:8080"
 username = "admin"
 password = "adminadmin"
 download_dir = "/downloads"
+mount_path = "/downloads"
 max_retry_count = 5
 download_timeout = "30m"
 retry_min_interval = "30s"
 retry_max_interval = "10m"
 delete_task_on_completion = false
 priority = 0
-mount_path = "/downloads"
+
+# transmission下载器配置
+[downloader.transmission]
+enabled = false
+url = "http://localhost:9091/transmission/rpc"
+username = "admin"
+password = "123456"
+download_dir = "/downloads/complete"
+mount_path = "/downloads/complete"
+max_requests_per_second = 1
+max_retry_count = 1
+retry_min_interval = "30s"
+retry_max_interval = "10m"
+download_timeout = "2h"
+delete_task_on_completion = false
+priority = 0
 ```
 
 ## 通用配置项说明
