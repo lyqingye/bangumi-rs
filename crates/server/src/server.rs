@@ -184,6 +184,7 @@ impl Server {
                     qbittorrent,
                     downloader::thirdparty::qbittorrent_impl::Config {
                         generic: config.downloader.qbittorrent.generic.to_downloader_config(),
+                        ..Default::default()
                     },
                 ),
             ) as Box<dyn ThirdPartyDownloader>));

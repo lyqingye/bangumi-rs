@@ -8,16 +8,13 @@ use std::{
 
 use lru::LruCache;
 use model::sea_orm_active_enums::DownloadStatus;
-use pan_115::{
-    errors::Pan115Error,
-    model::{DownloadInfo, OfflineTaskStatus},
-};
+use pan_115::{errors::Pan115Error, model::OfflineTaskStatus};
 use tokio::sync::Mutex;
 use tracing::{debug, info, warn};
 
 use crate::{
-    config, context::Pan115Context, FileInfo, RemoteTaskStatus, Resource, ResourceType,
-    ThirdPartyDownloader,
+    config, context::Pan115Context, AccessType, DownloadInfo, FileInfo, RemoteTaskStatus, Resource,
+    ResourceType, ThirdPartyDownloader,
 };
 use anyhow::Result;
 use anyhow::{anyhow, Context};
@@ -215,7 +212,12 @@ impl ThirdPartyDownloader for Pan115DownloaderImpl {
             .pan115
             .download_file(file_id, Some(ua))
             .await?
+            .map(|info| DownloadInfo {
+                url: info.url.url,
+                access_type: AccessType::Redirect,
+            })
             .context("下载文件失败")?;
+
         cache.put(cache_key, (download_info.clone(), now));
         Ok(download_info)
     }

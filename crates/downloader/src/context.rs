@@ -42,6 +42,7 @@ pub struct TorrentFileInfo {
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct TorrentContext {
+    pub dir: String,
     pub files: Vec<TorrentFileInfo>,
 }
 

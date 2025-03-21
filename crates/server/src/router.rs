@@ -4,6 +4,7 @@ use actix_web::web;
 use std::sync::Arc;
 
 pub const ASSETS_MOUNT_PATH: &str = "/api/assets";
+pub const QBITTORRENT_MOUNT_PATH: &str = "/api/fs/qbittorrent";
 
 pub fn configure_app(cfg: &mut web::ServiceConfig, state: Arc<AppState>) {
     cfg.app_data(web::Data::new(state.clone()))
@@ -39,4 +40,15 @@ pub fn configure_app(cfg: &mut web::ServiceConfig, state: Arc<AppState>) {
         .service(api::list_download_files)
         .service(api::list_downloaders)
         .route("/ws", web::get().to(ws_handler));
+
+    let config = state.config.read().unwrap();
+    if config.downloader.qbittorrent.enabled {
+        if let Some(mount_path) = &config.downloader.qbittorrent.mount_path {
+            cfg.service(
+                Files::new(QBITTORRENT_MOUNT_PATH, mount_path.clone())
+                    .show_files_listing()
+                    .prefer_utf8(true),
+            );
+        }
+    }
 }

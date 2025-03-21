@@ -215,6 +215,7 @@ pub struct QbittorrentConfig {
     pub password: String,
     #[serde(flatten)]
     pub generic: GenericDownloaderConfig,
+    pub mount_path: Option<String>,
 }
 
 impl Default for QbittorrentConfig {
@@ -225,6 +226,7 @@ impl Default for QbittorrentConfig {
             username: "admin".to_owned(),
             password: "adminadmin".to_owned(),
             generic: GenericDownloaderConfig::default(),
+            mount_path: Some("/downloads".to_owned()),
         }
     }
 }
@@ -239,6 +241,9 @@ impl QbittorrentConfig {
                 &self.generic.download_dir,
                 "downloader.qbittorrent.download_dir",
             )?;
+            if let Some(mount_path) = &self.mount_path {
+                validate_abs_path_format(mount_path, "downloader.qbittorrent.mount_path")?;
+            }
         }
         Ok(())
     }
