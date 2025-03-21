@@ -1,13 +1,12 @@
-use anyhow::{Context, Result};
+use anyhow::Result;
 use downloader::Downloader;
 use model::subscriptions;
 use sea_orm::DatabaseConnection;
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::Mutex;
-use tracing::{error, info, warn};
+use tracing::{error, info};
 
 use crate::db::Db;
-use crate::download_torrent;
 use crate::metrics::Metrics;
 use crate::tasks::TaskManager;
 use crate::worker::BangumiWorker;
@@ -182,36 +181,6 @@ impl Scheduler {
         episode_number: i32,
         info_hash: &str,
     ) -> Result<()> {
-        let torrent = self
-            .db
-            .get_torrent_by_info_hash(info_hash)
-            .await?
-            .context("未找到种子信息")?;
-        let subscribe = self
-            .db
-            .get_subscription(bangumi_id)
-            .await?
-            .context("你需要先订阅番剧")?;
-
-        // 如果推荐资源类型为种子，则尝试下载种子
-        #[allow(clippy::collapsible_if)]
-        if self
-            .task_manager
-            .use_torrent_to_download(&subscribe, &torrent, false)
-        {
-            if torrent.data.is_none() && torrent.download_url.is_some() {
-                match download_torrent(&self.client, &torrent.download_url.unwrap()).await {
-                    Ok(data) => {
-                        info!("下载种子成功: {}, 更新种子数据", info_hash);
-                        self.db.update_torrent_data(info_hash, data).await?;
-                    }
-                    Err(e) => {
-                        warn!("下载种子失败: {}, 尝试使用磁力链接下载", e);
-                    }
-                }
-            }
-        }
-
         let task = self
             .db
             .get_episode_task_by_bangumi_id_and_episode_number(bangumi_id, episode_number)

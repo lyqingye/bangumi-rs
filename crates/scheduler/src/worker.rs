@@ -120,16 +120,25 @@ impl BangumiWorker {
                 if first_best_torrent.is_none() {
                     first_best_torrent = Some(best.clone());
                 }
-                // 如果推荐资源类型为种子，则尝试获取种子数据
-                if self.recommended_resource_type == ResourceType::Torrent {
+                // 如果推荐资源类型为种子或者种子URL
+                if self.recommended_resource_type == ResourceType::Torrent
+                    || self.recommended_resource_type == ResourceType::TorrentURL
+                {
                     let torrent = self
                         .db
                         .get_torrent_by_info_hash(&best.info_hash)
                         .await?
                         .ok_or_else(|| anyhow::anyhow!("种子不存在"))?;
-                    if torrent.data.is_none() || torrent.data.unwrap().is_empty() {
-                        // 如果提供种子下载地址，则尝试
-                        if let Some(download_url) = &torrent.download_url {
+
+                    // 如果推荐的是种子，则尝试获取种子数据
+                    if self.recommended_resource_type == ResourceType::Torrent {
+                        if torrent.data.is_some() {
+                            return Ok(Some(best.clone()));
+                        }
+
+                        // 如果提供种子下载地址，则尝试下载种子
+                        if torrent.download_url.is_some() {
+                            let download_url = torrent.download_url.as_ref().unwrap();
                             match download_torrent(&self.client, download_url).await {
                                 Ok(data) => {
                                     // 下载成功，那么则选择该种子
@@ -141,12 +150,18 @@ impl BangumiWorker {
                                 }
                             }
                         }
-
-                        // 如果无法获取种子数据，那么则移除该种子
-                        episode_torrents.retain(|(torrent, _)| torrent.info_hash != best.info_hash);
-                        continue;
                     }
-                    return Ok(Some(best.clone()));
+
+                    // 如果推荐资源类型为种子URL，则直接返回
+                    if self.recommended_resource_type == ResourceType::TorrentURL
+                        && torrent.download_url.is_some()
+                    {
+                        return Ok(Some(best.clone()));
+                    }
+
+                    // 如果无法获取种子数据，那么则移除该种子
+                    episode_torrents.retain(|(torrent, _)| torrent.info_hash != best.info_hash);
+                    continue;
                 } else {
                     // 如果推荐资源类型为磁力链接，则直接返回
                     return Ok(Some(best.clone()));

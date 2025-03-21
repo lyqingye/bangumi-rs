@@ -165,6 +165,12 @@ impl Worker {
                 Resource::from_magnet_link(magnet)?
             }
             ResourceType::InfoHash => Resource::from_info_hash(task.info_hash.clone())?,
+            ResourceType::TorrentURL => {
+                let torrent_url = task.torrent_url.as_ref().ok_or_else(|| {
+                    anyhow::anyhow!("种子下载URL为空: info_hash={}", task.info_hash)
+                })?;
+                Resource::from_torrent_url(torrent_url, &task.info_hash)?
+            }
         })
     }
 
@@ -300,6 +306,7 @@ impl Worker {
             next_retry_at: now,
             resource_type: resource.get_type(),
             magnet: resource.magnet(),
+            torrent_url: resource.torrent_url(),
         };
 
         self.store.upsert(task).await?;
