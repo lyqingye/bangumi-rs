@@ -39,7 +39,12 @@ impl Db {
         )
         .on_conflict(
             OnConflict::column(Column::InfoHash)
-                .update_columns([Column::UpdatedAt])
+                .update_columns([
+                    Column::UpdatedAt,
+                    Column::DownloadStatus,
+                    Column::TorrentUrl,
+                    Column::ErrMsg,
+                ])
                 .to_owned(),
         )
         .exec(&*self.conn)
