@@ -1,19 +1,21 @@
 use std::{
     collections::HashMap,
+    hash::{DefaultHasher, Hash, Hasher},
+    num::NonZero,
     path::{Path, PathBuf},
-    sync::Arc,
+    sync::{Arc, Mutex},
 };
 
 use crate::{
     config,
     context::{TorrentContext, TorrentFileInfo},
     resource::Resource,
-    FileInfo, RemoteTaskStatus, ThirdPartyDownloader,
+    AccessType, DownloadInfo, FileInfo, RemoteTaskStatus, ThirdPartyDownloader,
 };
 use anyhow::{Context, Result};
 use async_trait::async_trait;
+use lru::LruCache;
 use model::sea_orm_active_enums::{DownloadStatus, ResourceType};
-use pan_115::model::DownloadInfo;
 use qbittorrent::model::{
     torrent::{
         AddTorrentArg, GetTorrentListArg, Hashes, State, Torrent, TorrentFile, TorrentSource,
@@ -25,6 +27,7 @@ use reqwest::Url;
 #[derive(Debug, Clone)]
 pub struct Config {
     pub generic: config::GenericConfig,
+    pub file_list_cache_size: usize,
 }
 
 impl Default for Config {
@@ -39,6 +42,7 @@ impl Default for Config {
                 priority: 0,
                 download_dir: PathBuf::from("/downloads"),
             },
+            file_list_cache_size: 16,
         }
     }
 }
@@ -47,12 +51,16 @@ impl Default for Config {
 pub struct QbittorrentDownloaderImpl {
     cli: Arc<qbittorrent::client::Client>,
     config: Config,
+    file_cache: Arc<Mutex<LruCache<String, String>>>,
 }
 
 impl QbittorrentDownloaderImpl {
     pub fn new(cli: qbittorrent::client::Client, config: Config) -> Self {
         Self {
             cli: Arc::new(cli),
+            file_cache: Arc::new(Mutex::new(LruCache::new(
+                NonZero::new(config.file_list_cache_size).unwrap(),
+            ))),
             config,
         }
     }
@@ -111,8 +119,18 @@ impl ThirdPartyDownloader for QbittorrentDownloaderImpl {
             let hash = torrent.hash.clone().unwrap();
             let (status, err_msg) = map_task_status(&torrent);
             let mut ctx = TorrentContext::default();
+
             if status == DownloadStatus::Completed {
                 let contents = self.cli.get_torrent_contents(&hash, None).await?;
+                if let Some(save_path) = torrent.save_path {
+                    let download_dir = self
+                        .config
+                        .generic
+                        .download_dir
+                        .to_string_lossy()
+                        .to_string();
+                    ctx.dir = save_path.replace(&download_dir, "");
+                }
                 ctx.files = contents
                     .into_iter()
                     .map(|c| TorrentFileInfo {
@@ -169,24 +187,41 @@ impl ThirdPartyDownloader for QbittorrentDownloaderImpl {
             .files
             .into_iter()
             .map(|f| {
-                let path = Path::new(&f.name);
+                let path = Path::new(&ctx.dir).join(&f.name);
                 let file_name = path
                     .file_name()
                     .map(|name| name.to_string_lossy().into_owned())
                     .unwrap_or(f.name.clone());
-                FileInfo {
-                    file_id: f.name,
+                let mut hasher = DefaultHasher::new();
+                path.hash(&mut hasher);
+                let file_id = hasher.finish().to_string();
+                let fi = FileInfo {
+                    file_id: file_id.clone(),
                     file_name,
                     file_size: f.size,
                     is_dir: false,
-                }
+                };
+                self.file_cache
+                    .lock()
+                    .unwrap()
+                    .put(file_id, path.to_string_lossy().to_string());
+                fi
             })
             .collect();
         Ok(files)
     }
 
-    async fn download_file(&self, _file_id: &str, _ua: &str) -> Result<DownloadInfo> {
-        return Err(anyhow::anyhow!("不支持下载文件"));
+    async fn download_file(&self, file_id: &str, _ua: &str) -> Result<DownloadInfo> {
+        let mut file_cache = self.file_cache.lock().unwrap();
+        let file_info = file_cache.get(file_id);
+        if let Some(file_path) = file_info {
+            Ok(DownloadInfo {
+                url: format!("{}/{}", self.name(), file_path),
+                access_type: AccessType::Forward,
+            })
+        } else {
+            Err(anyhow::anyhow!("文件不存在"))
+        }
     }
 
     fn supports_resource_type(&self, resource_type: ResourceType) -> bool {

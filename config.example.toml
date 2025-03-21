@@ -59,6 +59,8 @@ download_timeout = "2h"
 # 下载完成后是否删除任务, 不会删除文件，只会删除任务
 delete_task_on_completion = false
 priority = 10
+# 可选，如果你需要在线播放qb下载的文件，请设置此选项，该目录指向qbittorrent的下载目录
+mount_path = "/downloads"
 
 # Telegram 通知配置
 [notify.telegram]

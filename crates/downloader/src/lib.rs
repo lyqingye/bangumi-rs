@@ -12,7 +12,6 @@ pub mod worker;
 use anyhow::Result;
 use async_trait::async_trait;
 use chrono::NaiveDateTime;
-use pan_115::model::DownloadInfo;
 use resource::Resource;
 use std::{collections::HashMap, path::PathBuf};
 use tokio::sync::broadcast;
@@ -27,6 +26,18 @@ use model::{
 pub struct DownloaderInfo {
     pub name: String,
     pub priority: u8,
+}
+
+#[derive(Debug, Clone)]
+pub enum AccessType {
+    Redirect,
+    Forward,
+}
+
+#[derive(Debug, Clone)]
+pub struct DownloadInfo {
+    pub url: String,
+    pub access_type: AccessType,
 }
 
 #[async_trait]

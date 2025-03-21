@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{path::Path, sync::Arc};
 
 use actix_web::{
     get, post,
@@ -7,6 +7,7 @@ use actix_web::{
 };
 use anyhow::Context;
 use dict::DictCode;
+use downloader::AccessType;
 use model::sea_orm_active_enums::{BgmKind, State, SubscribeStatus};
 use parser::{Language, VideoResolution};
 use sea_orm::{prelude::Expr, Condition};
@@ -515,7 +516,15 @@ pub async fn online_watch(
         .download_file(&file_id, user_agent)
         .await?;
 
-    info!("在线播放成功: {}", download_info.file_name);
+    let location = match download_info.access_type {
+        AccessType::Redirect => download_info.url,
+        AccessType::Forward => Path::new("/api/fs/")
+            .join(download_info.url)
+            .to_string_lossy()
+            .to_string(),
+    };
+
+    info!("在线播放成功: {}", location);
 
     // 构建响应
     Ok(HttpResponse::Found()
@@ -525,11 +534,8 @@ pub async fn online_watch(
             "Cache-Control",
             "max-age=0, no-cache, no-store, must-revalidate",
         ))
-        .append_header(("Location", download_info.url.url.clone()))
-        .body(format!(
-            r#"<a href="{url}">Found</a>"#,
-            url = download_info.url.url
-        )))
+        .append_header(("Location", location.clone()))
+        .body(format!(r#"<a href="{url}">Found</a>"#, url = location)))
 }
 
 #[get("/api/bangumi/{bangumi_id}/{episode_number}/manual_select_torrent/{info_hash}")]
