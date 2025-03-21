@@ -156,3 +156,5 @@ sentry-tracing = "0.36.0"
 
 built = "0.7.7"
 tap = "1.0.1"
+
+transmission-rpc = "0.5.0"

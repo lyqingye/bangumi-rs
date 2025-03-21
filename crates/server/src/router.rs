@@ -5,6 +5,7 @@ use std::sync::Arc;
 
 pub const ASSETS_MOUNT_PATH: &str = "/api/assets";
 pub const QBITTORRENT_MOUNT_PATH: &str = "/api/fs/qbittorrent";
+pub const TRANSMISSION_MOUNT_PATH: &str = "/api/fs/transmission";
 
 pub fn configure_app(cfg: &mut web::ServiceConfig, state: Arc<AppState>) {
     cfg.app_data(web::Data::new(state.clone()))
@@ -46,6 +47,15 @@ pub fn configure_app(cfg: &mut web::ServiceConfig, state: Arc<AppState>) {
         if let Some(mount_path) = &config.downloader.qbittorrent.mount_path {
             cfg.service(
                 Files::new(QBITTORRENT_MOUNT_PATH, mount_path.clone())
+                    .show_files_listing()
+                    .prefer_utf8(true),
+            );
+        }
+    }
+    if config.downloader.transmission.enabled {
+        if let Some(mount_path) = &config.downloader.transmission.mount_path {
+            cfg.service(
+                Files::new(TRANSMISSION_MOUNT_PATH, mount_path.clone())
                     .show_files_listing()
                     .prefer_utf8(true),
             );

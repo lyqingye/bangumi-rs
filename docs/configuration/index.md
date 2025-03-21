@@ -98,6 +98,22 @@ delete_task_on_completion = false
 # 下载优先级
 priority = 0
 
+[downloader.transmission]
+enabled = false
+url = "http://localhost:9091/transmission/rpc"
+username = "admin"
+password = "123456"
+download_dir = "/downloads/complete"
+# 可选，如果你需要在线播放qb下载的文件，请设置此选项，该目录指向qbittorrent的下载目录
+mount_path = "/Users/lyqingye/Desktop/docker/ts-downloader/complete"
+max_requests_per_second = 1
+max_retry_count = 1
+retry_min_interval = "30s"
+retry_max_interval = "10m"
+download_timeout = "2h"
+delete_task_on_completion = false
+priority = 0
+
 # Telegram 通知配置 (可选)
 [notify.telegram]
 enabled = false

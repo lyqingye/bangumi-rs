@@ -1,10 +1,10 @@
 # 下载器配置
 
-下载器配置部分控制 Bangumi-rs 的下载行为，包括下载策略、重试机制、存储路径、115 网盘和 qBittorrent 集成等。
+下载器配置部分控制 Bangumi-rs 的下载行为，包括下载策略、重试机制、存储路径、115 网盘和 qBittorrent 和 transmission 集成等。
 
 ## 配置概述
 
-下载器配置位于配置文件的 `[downloader.pan115]` 和 `[downloader.qbittorrent]` 部分：
+下载器配置位于配置文件的 `[downloader.pan115]` 和 `[downloader.qbittorrent]` 和 `[downloader.transmission]` 部分：
 
 ```toml
 # 115网盘下载器配置
@@ -27,13 +27,29 @@ url = "http://127.0.0.1:8080"
 username = "admin"
 password = "adminadmin"
 download_dir = "/downloads"
+mount_path = "/downloads"
 max_retry_count = 5
 download_timeout = "30m"
 retry_min_interval = "30s"
 retry_max_interval = "10m"
 delete_task_on_completion = false
 priority = 0
-mount_path = "/downloads"
+
+# transmission下载器配置
+[downloader.transmission]
+enabled = false
+url = "http://localhost:9091/transmission/rpc"
+username = "admin"
+password = "123456"
+download_dir = "/downloads/complete"
+mount_path = "/downloads/complete"
+max_requests_per_second = 1
+max_retry_count = 1
+retry_min_interval = "30s"
+retry_max_interval = "10m"
+download_timeout = "2h"
+delete_task_on_completion = false
+priority = 0
 ```
 
 ## 通用配置项说明
@@ -157,7 +173,37 @@ Bangumi-rs 使用指数退避算法计算重试间隔，从最小间隔开始，
 
 ### 挂载路径 (mount_path)
 
-- **说明**: 可选，如果你需要在线播放qb下载的文件，请设置此选项，该目录指向你本地的qbittorrent的下载目录, 程序需要访问目录用于在线播放
+- **说明**: 可选，如果你需要在线播放qb下载的文件，请设置此选项，该目录指向你本地的qbittorrent的下载目录(可以去qbittorrent的web界面查看下载目录), 程序需要访问目录用于在线播放
 - **默认值**: `"/downloads"`
 - **格式**: 字符串
 - **示例**: `mount_path = "/downloads"`
+
+## Transmission 特有配置
+
+### API 地址 (url)
+
+- **说明**: Transmission RPC API 的地址
+- **默认值**: `"http://localhost:9091/transmission/rpc"`
+- **格式**: URL 字符串
+- **示例**: `url = "http://localhost:9091/transmission/rpc"`
+
+### 用户名 (username)
+
+- **说明**: Transmission RPC API 的登录用户名
+- **默认值**: `"admin"`
+- **格式**: 字符串
+- **示例**: `username = "admin"`
+
+### 密码 (password)
+
+- **说明**: Transmission RPC API 的登录密码
+- **默认值**: `"123456"`
+- **格式**: 字符串
+- **示例**: `password = "123456"`
+
+### 挂载路径 (mount_path)
+
+- **说明**: 可选，如果你需要在线播放qb下载的文件，请设置此选项，该目录指向你本地的transmission的下载目录(可以去transmission的web界面查看下载目录), 程序需要访问目录用于在线播放
+- **默认值**: `"/downloads/complete"`
+- **格式**: 字符串
+- **示例**: `mount_path = "/downloads/complete"`
