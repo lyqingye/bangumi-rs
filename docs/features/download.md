@@ -27,6 +27,14 @@ qBittorrent 下载器通过 WebUI API 实现资源下载。主要特点：
 - 默认不开启下载完成后删除任务
 - 支持 HTTP/HTTPS 代理配置
 
+### Transmission
+
+Transmission 下载器通过 RPC API 实现资源下载。主要特点：
+
+- 支持本地 BT 下载
+- 可配置下载目录和优先级
+- 需要配置 RPC API 访问信息（地址、用户名、密码）
+
 ## 下载管理界面
 
 ![下载管理](/screenshot/download.png)

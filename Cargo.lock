@@ -1252,6 +1252,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
+ "base64 0.22.1",
  "bytes",
  "chrono",
  "dotenv",
@@ -1273,6 +1274,7 @@ dependencies = [
  "torrent",
  "tracing",
  "tracing-subscriber",
+ "transmission-rpc",
 ]
 
 [[package]]
@@ -1321,6 +1323,26 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "75030f3c4f45dafd7586dd6780965a8c7e8e285a5ecb86713e63a79c5b2766f3"
 dependencies = [
  "cfg-if",
+]
+
+[[package]]
+name = "enum-iterator"
+version = "2.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c280b9e6b3ae19e152d8e31cf47f18389781e119d4013a2a2bb0180e5facc635"
+dependencies = [
+ "enum-iterator-derive",
+]
+
+[[package]]
+name = "enum-iterator-derive"
+version = "1.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a1ab991c1362ac86c61ab6f556cff143daa22e5a15e4e189df818b2fd19fe65b"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.96",
 ]
 
 [[package]]
@@ -5387,6 +5409,22 @@ dependencies = [
  "tracing",
  "tracing-core",
  "tracing-log",
+]
+
+[[package]]
+name = "transmission-rpc"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "05204060bd751037cbbfe488e22d4a47991aa583052e85adbf4e96ab834a41bf"
+dependencies = [
+ "base64 0.22.1",
+ "chrono",
+ "enum-iterator",
+ "log",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "serde_repr",
 ]
 
 [[package]]

@@ -189,6 +189,23 @@ impl Server {
                 ),
             ) as Box<dyn ThirdPartyDownloader>));
         }
+        if config.downloader.transmission.enabled {
+            downloaders.push(Arc::new(Box::new(
+                downloader::thirdparty::transmission_impl::TransmissionDownloaderImpl::new(
+                    downloader::thirdparty::transmission_impl::Config {
+                        generic: config
+                            .downloader
+                            .transmission
+                            .generic
+                            .to_downloader_config(),
+                        url: config.downloader.transmission.url.clone(),
+                        username: config.downloader.transmission.username.clone(),
+                        password: config.downloader.transmission.password.clone(),
+                        ..Default::default()
+                    },
+                ),
+            ) as Box<dyn ThirdPartyDownloader>));
+        }
         if downloaders.is_empty() {
             panic!("没有启用任何下载器");
         }

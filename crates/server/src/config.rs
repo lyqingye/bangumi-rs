@@ -164,6 +164,7 @@ impl GenericDownloaderConfig {
 pub struct DownloaderConfig {
     pub pan115: Pan115Config,
     pub qbittorrent: QbittorrentConfig,
+    pub transmission: TransmissionConfig,
 }
 
 impl DownloaderConfig {
@@ -171,6 +172,7 @@ impl DownloaderConfig {
         validate_not_empty(&self.pan115.cookies, "downloader.pan115.cookies")?;
         self.pan115.validate()?;
         self.qbittorrent.validate()?;
+        self.transmission.validate()?;
         Ok(())
     }
 }
@@ -248,6 +250,44 @@ impl QbittorrentConfig {
         Ok(())
     }
 }
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(default)]
+pub struct TransmissionConfig {
+    pub enabled: bool,
+    pub url: String,
+    pub username: String,
+    pub password: String,
+    pub mount_path: Option<String>,
+    #[serde(flatten)]
+    pub generic: GenericDownloaderConfig,
+}
+
+impl Default for TransmissionConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            url: "http://127.0.0.1:9091/transmission/rpc".to_owned(),
+            username: "admin".to_owned(),
+            password: "123456".to_owned(),
+            mount_path: Some("/downloads/complete".to_owned()),
+            generic: GenericDownloaderConfig::default(),
+        }
+    }
+}
+
+impl TransmissionConfig {
+    fn validate(&self) -> Result<()> {
+        validate_url(&self.url, "downloader.transmission.url")?;
+        validate_not_empty(&self.username, "downloader.transmission.username")?;
+        validate_not_empty(&self.password, "downloader.transmission.password")?;
+        if let Some(mount_path) = &self.mount_path {
+            validate_abs_path_format(mount_path, "downloader.transmission.mount_path")?;
+        }
+        Ok(())
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
 #[serde(default)]
 pub struct ParserConfig {
