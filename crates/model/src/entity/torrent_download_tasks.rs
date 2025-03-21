@@ -25,6 +25,8 @@ pub struct Model {
     pub resource_type: ResourceType,
     #[sea_orm(column_type = "Text", nullable)]
     pub magnet: Option<String>,
+    #[sea_orm(column_type = "Text", nullable)]
+    pub torrent_url: Option<String>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

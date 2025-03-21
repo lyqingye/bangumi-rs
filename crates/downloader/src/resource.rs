@@ -11,6 +11,8 @@ pub enum Resource {
     MagnetInfoHash(String),
     // 种子文件字节,InfoHash
     TorrentFileBytes(Bytes, String),
+    // 种子下载URL,InfoHash
+    TorrentURL(String, String),
 }
 
 impl Resource {
@@ -44,6 +46,12 @@ impl Resource {
         Err(anyhow::anyhow!("非法磁力链接，无法获取info_hash"))
     }
 
+    pub fn from_torrent_url<T: Into<String>>(torrent_url: T, info_hash: T) -> Result<Self> {
+        let torrent_url = torrent_url.into();
+        let info_hash = info_hash.into();
+        Ok(Resource::TorrentURL(torrent_url, info_hash))
+    }
+
     pub fn from_torrent_file_bytes<T: Into<Bytes>>(torrent_file_bytes: T) -> Result<Self> {
         let torrent_file_bytes = torrent_file_bytes.into();
         let torrent = torrent::Torrent::from_bytes(&torrent_file_bytes)?;
@@ -58,13 +66,16 @@ impl Resource {
             Resource::MagnetLink(_, _) => ResourceType::Magnet,
             Resource::MagnetInfoHash(_) => ResourceType::InfoHash,
             Resource::TorrentFileBytes(_, _) => ResourceType::Torrent,
+            Resource::TorrentURL(_, _) => ResourceType::TorrentURL,
         }
     }
 
     pub fn magnet(&self) -> Option<String> {
         match self {
             Resource::MagnetLink(magnet, _) => Some(magnet.clone()),
-            Resource::MagnetInfoHash(_) | Resource::TorrentFileBytes(_, _) => {
+            Resource::MagnetInfoHash(_)
+            | Resource::TorrentFileBytes(_, _)
+            | Resource::TorrentURL(_, _) => {
                 Some(format!("magnet:?xt=urn:btih:{}", self.info_hash()))
             }
         }
@@ -75,6 +86,14 @@ impl Resource {
             Resource::MagnetInfoHash(hash) => hash,
             Resource::TorrentFileBytes(_, hash) => hash,
             Resource::MagnetLink(_, hash) => hash,
+            Resource::TorrentURL(_, hash) => hash,
+        }
+    }
+
+    pub fn torrent_url(&self) -> Option<String> {
+        match self {
+            Resource::TorrentURL(url, _) => Some(url.clone()),
+            _ => None,
         }
     }
 }

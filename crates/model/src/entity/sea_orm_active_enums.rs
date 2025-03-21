@@ -60,6 +60,8 @@ pub enum ParserStatus {
 pub enum ResourceType {
     #[sea_orm(string_value = "torrent")]
     Torrent,
+    #[sea_orm(string_value = "torrent_url")]
+    TorrentURL,
     #[sea_orm(string_value = "magnet")]
     Magnet,
     #[sea_orm(string_value = "info_hash")]

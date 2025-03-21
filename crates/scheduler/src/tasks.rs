@@ -175,7 +175,10 @@ impl TaskManager {
         // 如果指定了下载器，则使用指定的下载器
         if let Some(ref preferred_downloader) = subscribe.preferred_downloader {
             if let Some(downloader) = self.downloader.get_downloader(preferred_downloader) {
-                using_torrent = downloader.recommended_resource_type() == ResourceType::Torrent;
+                using_torrent = matches!(
+                    downloader.recommended_resource_type(),
+                    ResourceType::Torrent | ResourceType::TorrentURL
+                );
                 use_preferred_downloader = true;
             } else {
                 warn!("指定的下载器 {} 不存在", preferred_downloader);
@@ -183,7 +186,10 @@ impl TaskManager {
         }
         if !use_preferred_downloader {
             // 如果没有指定下载器，则使用默认的下载器
-            using_torrent = self.downloader.recommended_resource_type() == ResourceType::Torrent;
+            using_torrent = matches!(
+                self.downloader.recommended_resource_type(),
+                ResourceType::Torrent | ResourceType::TorrentURL
+            );
         }
         if using_torrent && check_torrent_data {
             using_torrent = torrent.data.is_some();
@@ -273,15 +279,33 @@ impl TaskManager {
                         .context("你需要先订阅番剧")?;
 
                     // 创建下载任务, 如果推荐资源类型为种子，则优先提供种子
-                    if self.use_torrent_to_download(&subscribe, &torrent, true) {
-                        self.downloader
-                            .add_task(
-                                Resource::from_torrent_file_bytes(torrent.data.unwrap())?,
-                                PathBuf::from(bangumi.name),
-                                subscribe.preferred_downloader,
-                                subscribe.allow_fallback,
-                            )
-                            .await?;
+                    if self.use_torrent_to_download(&subscribe, &torrent, false) {
+                        if let Some(data) = torrent.data {
+                            self.downloader
+                                .add_task(
+                                    Resource::from_torrent_file_bytes(data)?,
+                                    PathBuf::from(bangumi.name),
+                                    subscribe.preferred_downloader,
+                                    subscribe.allow_fallback,
+                                )
+                                .await?;
+                        } else if let Some(download_url) = torrent.download_url {
+                            self.downloader
+                                .add_task(
+                                    Resource::from_torrent_url(&download_url, &torrent.info_hash)?,
+                                    PathBuf::from(bangumi.name),
+                                    subscribe.preferred_downloader,
+                                    subscribe.allow_fallback,
+                                )
+                                .await?;
+                        } else {
+                            return Err(anyhow::anyhow!(
+                                "选择的种子，既没有种子数据，也没有下载地址: info_hash: {}, bangumi: {}, episode: {}",
+                                torrent.info_hash,
+                                bangumi.name,
+                                task.episode_number
+                            ));
+                        }
                     } else {
                         self.downloader
                             .add_task(

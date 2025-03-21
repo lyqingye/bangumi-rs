@@ -94,6 +94,12 @@ impl ThirdPartyDownloader for QbittorrentDownloaderImpl {
                     torrents: vec![torrent],
                 }
             }
+            Resource::TorrentURL(url, _info_hash) => {
+                let url = url.parse::<Url>()?;
+                TorrentSource::Urls {
+                    urls: Sep::from(vec![url]),
+                }
+            }
         };
         let arg = AddTorrentArg {
             source,
@@ -227,12 +233,15 @@ impl ThirdPartyDownloader for QbittorrentDownloaderImpl {
     fn supports_resource_type(&self, resource_type: ResourceType) -> bool {
         matches!(
             resource_type,
-            ResourceType::Magnet | ResourceType::InfoHash | ResourceType::Torrent
+            ResourceType::Magnet
+                | ResourceType::InfoHash
+                | ResourceType::Torrent
+                | ResourceType::TorrentURL
         )
     }
 
     fn recommended_resource_type(&self) -> ResourceType {
-        ResourceType::Torrent
+        ResourceType::TorrentURL
     }
 
     fn config(&self) -> &config::GenericConfig {
