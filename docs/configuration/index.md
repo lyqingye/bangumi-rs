@@ -84,6 +84,8 @@ url = "http://127.0.0.1:8080"
 username = "admin"
 password = "adminadmin"
 download_dir = "/downloads"
+# 可选，如果你需要在线播放qb下载的文件，请设置此选项，该目录指向你本地的qbittorrent的下载目录, 程序需要访问目录用于在线播放
+mount_path = "/downloads"
 # 下载最大重试次数
 max_retry_count = 5
 # 下载超时，避免由于死种导致一直在下载

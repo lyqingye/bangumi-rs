@@ -33,6 +33,7 @@ retry_min_interval = "30s"
 retry_max_interval = "10m"
 delete_task_on_completion = false
 priority = 0
+mount_path = "/downloads"
 ```
 
 ## 通用配置项说明
@@ -154,3 +155,9 @@ Bangumi-rs 使用指数退避算法计算重试间隔，从最小间隔开始，
 - **格式**: 字符串
 - **示例**: `password = "adminadmin"`
 
+### 挂载路径 (mount_path)
+
+- **说明**: 可选，如果你需要在线播放qb下载的文件，请设置此选项，该目录指向你本地的qbittorrent的下载目录, 程序需要访问目录用于在线播放
+- **默认值**: `"/downloads"`
+- **格式**: 字符串
+- **示例**: `mount_path = "/downloads"`
