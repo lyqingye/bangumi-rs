@@ -82,6 +82,17 @@ impl Scheduler {
         }
         let bangumi = bangumi.unwrap();
 
+        let mut recommended_resource_type = self.downloader.recommended_resource_type();
+        if let Some(preferred_downloader) = &sub.preferred_downloader {
+            match self.downloader.get_downloader(preferred_downloader) {
+                Some(downloader) => {
+                    recommended_resource_type = downloader.recommended_resource_type();
+                }
+                None => {
+                    return Err(anyhow::anyhow!("找不到下载器: {}", preferred_downloader));
+                }
+            }
+        }
         let worker = BangumiWorker::new(
             sub,
             bangumi,
@@ -89,7 +100,7 @@ impl Scheduler {
             self.parser.clone(),
             self.metadata.clone(),
             self.task_manager.clone(),
-            self.downloader.recommended_resource_type(),
+            recommended_resource_type,
             self.client.clone(),
         );
         let worker_clone = worker.clone();
