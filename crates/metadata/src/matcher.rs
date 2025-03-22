@@ -65,6 +65,7 @@ impl Matcher {
         let mut movies = movies.into_iter().filter(|m| m.genre_ids.contains(&16));
         let movie = movies.next();
         if movie.is_none() {
+            warn!("找不到对应的TMDB电影: {}", bgm.name);
             return Ok(None);
         }
         let movie = movie.unwrap();
