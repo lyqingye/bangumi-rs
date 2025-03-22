@@ -17,7 +17,7 @@ chrono = { workspace = true }
 thiserror = { workspace = true }
 anyhow = { workspace = true }
 tracing = { workspace = true }
-reqwest = { workspace = true ,features = ["rustls-tls"]}
+reqwest = { workspace = true ,features = ["rustls-tls"], default-features = false}
 model = { path = "../../crates/model" }
 metadata = { path = "../../crates/metadata" }
 parser = { path = "../../crates/parser" }
