@@ -63,7 +63,7 @@ mkdir data
 # 服务器配置
 [server]
 listen_addr = "0.0.0.0:3001"
-database_url = "mysql://user:pass@mysql:3306/bangumi"
+database_url = "mysql://root:123456@mysql:3306/bangumi"
 # 该目录用来存放下载的番剧封面
 assets_path = "/app/assets"
 
@@ -122,6 +122,8 @@ retry_max_interval = "10m"
 enabled = false
 # qbittorrent 下载目录
 download_dir = "/downloads"
+# 可选，如果你需要在线播放qb下载的文件，请设置此选项，该目录指向qbittorrent的下载目录
+mount_path = "/Users/lyqingye/Desktop/docker/ts-downloader/complete"
 # qbittorrent 用户名
 username = "admin"
 # qbittorrent 密码
@@ -168,7 +170,13 @@ enabled = true
 
 ```
 
-**前端服务 Nginx 配置文件 (nginx.conf):**
+**下载数据库初始化文件，并且放在当前目录下**
+
+```bash
+curl -o schema.sql https://raw.githubusercontent.com/lyqingye/bangumi-rs/refs/heads/master/develop/schema.sql
+```
+
+**在当前目录下创建前端服务 Nginx 配置文件 (nginx.conf):**
 
 ```txt
 server {
@@ -214,7 +222,7 @@ services:
       - "3306:3306"
     volumes:
       - ./data:/var/lib/mysql
-      - ./develop/schema.sql:/docker-entrypoint-initdb.d/schema.sql
+      - ./schema.sql:/docker-entrypoint-initdb.d/schema.sql
     healthcheck:
       test:
         [

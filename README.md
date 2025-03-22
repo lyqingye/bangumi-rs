@@ -21,6 +21,9 @@
 <a href="https://github.com/lyqingye/bangumi-rs/issues">
   <img src="https://img.shields.io/badge/问题反馈-EA4335?style=for-the-badge&logo=github&logoColor=white">
 </a>
+<a href="https://t.me/+M7aYDn15NMkxZTg1">
+  <img src="https://img.shields.io/badge/交流群组 -26A5E4?style=for-the-badge&logo=telegram&logoColor=white">
+</a>
 
 </div>
 
