@@ -79,7 +79,7 @@ enabled = false
 # qbittorrent 下载目录
 download_dir = "/downloads"
 # 可选，如果你需要在线播放qb下载的文件，请设置此选项，该目录指向qbittorrent的下载目录
-mount_path = "/downloads"
+mount_path = "/qb-downloads"
 # qbittorrent 用户名
 username = "admin"
 # qbittorrent 密码
@@ -102,8 +102,8 @@ url = "http://localhost:9091/transmission/rpc"
 username = "admin"
 password = "123456"
 download_dir = "/downloads/complete"
-# 可选，如果你需要在线播放qb下载的文件，请设置此选项，该目录指向qbittorrent的下载目录
-mount_path = "/downloads/complete"
+# 可选，如果你需要在线播放下载的文件，请设置此选项，该目录指向transmission的下载目录
+mount_path = "/ts-downloads/complete"
 max_requests_per_second = 1
 max_retry_count = 1
 retry_min_interval = "30s"
@@ -111,7 +111,6 @@ retry_max_interval = "10m"
 download_timeout = "2h"
 delete_task_on_completion = false
 priority = 0
-
 
 # Telegram 通知配置 (可选)
 [notify.telegram]
@@ -132,7 +131,7 @@ enabled = true
 curl -o schema.sql https://raw.githubusercontent.com/lyqingye/bangumi-rs/refs/heads/master/develop/schema.sql
 ```
 
-## 下载Nginx配置文件
+## 下载 Nginx 配置文件
 
 ```bash
 curl -o nginx.conf https://raw.githubusercontent.com/lyqingye/bangumi-rs/refs/heads/master/nginx.conf
@@ -182,6 +181,10 @@ services:
       - ./assets:/app/assets
       - ./config.toml:/app/config.toml
       - ./animes:/animes
+      # 可选，如果你需要使用qbittorrent下载器，请设置此选项, 用于在线播放
+      - ./qb-downloads:/qb-downloads
+      # 可选，如果你需要使用transmission下载器，请设置此选项, 用于在线播放
+      - ./ts-downloads:/ts-downloads
     command: ["/app/bangumi", "start"]
     depends_on:
       mysql:
@@ -214,6 +217,51 @@ services:
 networks:
   bangumi-network:
     driver: bridge
+```
+
+## 部署 Qbittorrent (可选)
+
+```yaml
+qbittorrent:
+  image: lscr.io/linuxserver/qbittorrent:latest
+  container_name: qbittorrent
+  environment:
+    - PUID=1000 # 更改为你的用户 ID
+    - PGID=1000 # 更改为你的组 ID
+    - TZ=Asia/Shanghai # 更改为你所在的时区
+    - WEBUI_PORT=8080
+  volumes:
+    - ./qb-config:/config # 更改为你的配置目录
+    - ./qb-downloads:/downloads # 更改为你的下载目录
+  ports:
+    - 6881:6881
+    - 6881:6881/udp
+    - 8080:8080 # Web UI 端口，可以根据需要更改
+  restart: unless-stopped
+```
+
+## 部署 Transmission (可选)
+
+```yaml
+transmission:
+  image: lscr.io/linuxserver/transmission:latest
+  container_name: transmission
+  environment:
+    - PUID=1000
+    - PGID=1000
+    - TZ=Etc/UTC
+    - USER=admin
+    - PASS=123456
+  volumes:
+    - ./ts-data:/config
+    - ./ts-downloader:/downloads
+    - ./ts-watch:/watch #optional
+  ports:
+    # WEB UI 端口
+    - 9091:9091
+    - 51413:51413
+    - 51413:51413/udp
+  restart: unless-stopped
 ```
 
 ## 启动服务
@@ -269,6 +317,8 @@ watchtower:
 https://github.com/lyqingye/bangumi-rs/blob/master/docker-compose.yml
 
 本教程相关文件:
+
 - [docker-compose.yml](https://github.com/lyqingye/bangumi-rs/blob/master/docker-compose.yml)
 - [nginx.conf](https://github.com/lyqingye/bangumi-rs/blob/master/nginx.conf)
 - [schema.sql](https://github.com/lyqingye/bangumi-rs/blob/master/develop/schema.sql)
+
