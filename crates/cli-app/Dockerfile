@@ -1,22 +1,28 @@
-# 简单的多阶段构建，仅用于复制预编译的二进制文件
+FROM --platform=$BUILDPLATFORM messense/rust-musl-cross:x86_64-musl AS builder-amd64
+WORKDIR /app
+COPY . .
+RUN cargo build --release -p cli-app
+
+FROM --platform=$BUILDPLATFORM messense/rust-musl-cross:aarch64-musl AS builder-arm64
+WORKDIR /app
+COPY . .
+RUN cargo build --release -p cli-app
+
 FROM alpine:3.19
 WORKDIR /app
-
-# 安装基本工具和调试工具
-RUN apk add --no-cache \
-    ca-certificates \
-    curl \
-    file \
-    strace
+RUN apk add --no-cache ca-certificates curl
 
 EXPOSE 3001
 
-# 这个ARG将从外部传入
 ARG TARGETARCH
+COPY --from=builder-amd64 /app/target/x86_64-unknown-linux-musl/release/bangumi /app/bangumi-amd64
+COPY --from=builder-arm64 /app/target/aarch64-unknown-linux-musl/release/bangumi /app/bangumi-arm64
+RUN if [ "$TARGETARCH" = "amd64" ]; then \
+        cp /app/bangumi-amd64 /app/bangumi; \
+    elif [ "$TARGETARCH" = "arm64" ]; then \
+        cp /app/bangumi-arm64 /app/bangumi; \
+    fi && \
+    chmod +x /app/bangumi && \
+    rm -f /app/bangumi-amd64 /app/bangumi-arm64
 
-# 根据目标架构选择正确的预编译二进制文件
-COPY ./target/${TARGETARCH}/release/bangumi /app/
-
-# 使用ENTRYPOINT和CMD组合以便于调试
-ENTRYPOINT ["/bin/sh", "-c"]
-CMD ["file /app/bangumi && /app/bangumi"] 
+CMD ["/app/bangumi"] 
