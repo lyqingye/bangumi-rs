@@ -87,7 +87,7 @@ jobs:
           file: crates/cli-app/Dockerfile
           platforms: ${{ matrix.platform }}
           labels: ${{ steps.meta-backend.outputs.labels }}
-          outputs: type=image,push-by-digest=true,name-canonical=true,push=true
+          outputs: type=image,push-by-digest=true,name=${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE_NAME }},name-canonical=true,push=true
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -164,7 +164,7 @@ jobs:
           file: web/Dockerfile
           platforms: ${{ matrix.platform }}
           labels: ${{ steps.meta-frontend.outputs.labels }}
-          outputs: type=image,push-by-digest=true,name-canonical=true,push=true
+          outputs: type=image,push-by-digest=true,name=${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE_NAME }},name-canonical=true,push=true
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
