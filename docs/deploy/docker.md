@@ -267,7 +267,8 @@ watchtower:
 
 完整的`docker-compose.yml`可以参考:
 https://github.com/lyqingye/bangumi-rs/blob/master/docker-compose.yml
-相关文件:
+
+本教程相关文件:
 - [docker-compose.yml](https://github.com/lyqingye/bangumi-rs/blob/master/docker-compose.yml)
 - [nginx.conf](https://github.com/lyqingye/bangumi-rs/blob/master/nginx.conf)
 - [schema.sql](https://github.com/lyqingye/bangumi-rs/blob/master/develop/schema.sql)
