@@ -2,7 +2,6 @@ name: Docker
 
 on:
   push:
-    branches: ["master"]
     tags:
       - "v*.*.*"
     paths:
@@ -20,7 +19,7 @@ on:
         description: "版本号 (例如: v1.0.0)"
         required: false
         type: string
-        default: "test"
+        default: "latest"
 
 env:
   REGISTRY: ghcr.io
@@ -29,7 +28,7 @@ env:
 
 jobs:
   build-and-push:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
