@@ -37,12 +37,12 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
-          sudo apt-get install -y pkg-config libssl-dev make gcc g++ protobuf-compiler
+          sudo apt-get install -y pkg-config make gcc g++ protobuf-compiler
 
       - name: Install system dependencies (macOS)
         if: matrix.os == 'macos-latest'
         run: |
-          brew install openssl pkg-config
+          brew install pkg-config
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -64,9 +64,6 @@ jobs:
           # 显示构建结果
           ls -la target/${{ matrix.target }}/release/
         env:
-          OPENSSL_DIR: ${{ matrix.os == 'macos-latest' && '/usr/local/opt/openssl@3' || '/usr' }}
-          OPENSSL_LIB_DIR: ${{ matrix.os == 'ubuntu-latest' && '/usr/lib/x86_64-linux-gnu' || '' }}
-          OPENSSL_INCLUDE_DIR: ${{ matrix.os == 'ubuntu-latest' && '/usr/include' || '' }}
           MACOSX_DEPLOYMENT_TARGET: "10.15"
 
       - name: Upload Artifact

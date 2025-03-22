@@ -9,9 +9,9 @@ thiserror = {workspace = true}
 anyhow ={ workspace = true}
 tracing = { workspace = true }
 async-trait = { workspace = true }
-teloxide = { workspace = true, features = ["macros"] }
+teloxide = { workspace = true, features = ["macros", "rustls"] ,default-features = false}
 tokio = { workspace = true, features = ["full"] }
-reqwest = { workspace = true, features = ["json", "multipart"] }
+reqwest = { workspace = true, features = ["json", "multipart", "rustls-tls"] , default-features = false}
 lru = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
