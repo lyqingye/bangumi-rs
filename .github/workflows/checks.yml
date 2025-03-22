@@ -1,13 +1,6 @@
 name: Lint
 
 on:
-  push:
-    branches: [main, master]
-    paths:
-      - "**.rs"
-      - "**/Cargo.toml"
-      - "**/Cargo.lock"
-      - ".github/workflows/checks.yml"
   pull_request:
     branches: [main, master]
     paths:
