@@ -5116,8 +5116,7 @@ dependencies = [
 [[package]]
 name = "tmdb-api"
 version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8fd982ca0ae2e0460721dccaf36ef8144fb48b914522aecde24b6af822211549"
+source = "git+https://github.com/lyqingye/tmdb-api.git?rev=ab729e9a81cf67668f282205ad2306ef3232e49a#ab729e9a81cf67668f282205ad2306ef3232e49a"
 dependencies = [
  "async-trait",
  "chrono",

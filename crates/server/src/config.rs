@@ -456,7 +456,7 @@ pub struct ServerConfig {
 impl Default for ServerConfig {
     fn default() -> Self {
         Self {
-            assets_path: "./assets".to_owned(),
+            assets_path: "/assets".to_owned(),
             listen_addr: "0.0.0.0:3001".to_owned(),
             database_url: "mysql://root:123456@localhost:3306/bangumi".to_owned(),
         }
@@ -467,7 +467,7 @@ impl ServerConfig {
     fn validate(&self) -> Result<()> {
         validate_listen_addr(&self.listen_addr, "server.listen_addr")?;
         validate_url(&self.database_url, "server.database_url")?;
-        validate_not_empty(&self.assets_path, "server.assets_path")?;
+        validate_abs_path_format(&self.assets_path, "server.assets_path")?;
         Ok(())
     }
 }

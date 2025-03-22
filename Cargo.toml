@@ -110,7 +110,7 @@ serde_repr = "0.1"
 serde_with = "3.12.0"
 
 # TMDB API
-tmdb-api = "0.8.0"
+tmdb-api = {git = "https://github.com/lyqingye/tmdb-api.git", rev = "ab729e9a81cf67668f282205ad2306ef3232e49a"}
 
 walkdir = "2.4.0"
 
