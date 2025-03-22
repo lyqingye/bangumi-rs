@@ -86,7 +86,9 @@ clap = { version = "4.5.27" }
 toml = "0.8.19"
 
 # 网络请求
-reqwest = { version = "0.12.7" }
+reqwest = { version = "0.12.7", default-features = false, features = [
+    "rustls-tls",
+] }
 url = { version = "2.5.4" }
 
 # 爬虫
@@ -108,9 +110,10 @@ serde = { version = "1.0.217" }
 serde_json = "1.0.137"
 serde_repr = "0.1"
 serde_with = "3.12.0"
+serde_bytes = "0.11.12"
+humantime-serde = "1.1.1"
+serde_bencode = { version = "0.2.4" }
 
-# TMDB API
-tmdb-api = {git = "https://github.com/lyqingye/tmdb-api.git", rev = "ab729e9a81cf67668f282205ad2306ef3232e49a"}
 
 walkdir = "2.4.0"
 
@@ -130,7 +133,8 @@ tracing-actix-web = "0.7.15"
 console-subscriber = "0.4.1"
 huby = "0.2.0"
 
-teloxide = { git = "https://github.com/teloxide/teloxide.git", rev = "e6c0e2cb7f1ff44742bb9a8606cb936b55852d4d" }
+tmdb-api = { git = "https://github.com/lyqingye/tmdb-api.git", rev = "ab729e9a81cf67668f282205ad2306ef3232e49a" }
+teloxide = { git = "https://github.com/teloxide/teloxide.git", rev = "e6c0e2cb7f1ff44742bb9a8606cb936b55852d4d", default-features = false }
 
 regex = "1.11.0"
 lru = "0.13.0"
@@ -141,20 +145,14 @@ governor = { version = "0.8", features = ["jitter", "std"] }
 jemallocator = "0.5.4"
 sysinfo = "0.33.1"
 
-
 quick-xml = { version = "0.37.2" }
-serde_bytes = "0.11.12"
 sha1 = "0.10.6"
 urlencoding = "2.1.3"
-serde_bencode = { version = "0.2.4" }
 mockall = "0.13.1"
-
-# 静态哈希表
 phf = { version = "0.11", features = ["macros"] }
-sentry = "0.36.0"
-sentry-tracing = "0.36.0"
-
 built = "0.7.7"
 tap = "1.0.1"
-
 transmission-rpc = "0.5.0"
+
+sentry = { version = "0.36.0",default-features = false }
+sentry-tracing = { version = "0.36.0" }

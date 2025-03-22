@@ -18,7 +18,7 @@ chrono = { workspace = true }
 thiserror = { workspace = true }
 anyhow = { workspace = true }
 tracing = { workspace = true }
-reqwest = { workspace = true }
+reqwest = { workspace = true, features = ["rustls-tls"], default-features = false }
 lru = { workspace = true }
 async-trait = { workspace = true }
 qbittorrent = { path = "../../libs/qbittorrent" }

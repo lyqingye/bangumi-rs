@@ -20,10 +20,9 @@ console-subscriber = { workspace = true, optional = true }
 tokio = { workspace = true, features = ["full"] }
 tokio-stream = { workspace = true }
 tokio_schedule = { workspace = true }
-reqwest = { workspace = true }
+reqwest = { workspace = true, features = ["rustls-tls"] , default-features = false}
 chrono = { workspace = true }
 tmdb-api = { workspace = true }
-# services = { path = "../services" }
 tmdb = { path = "../../libs/tmdb" }
 bangumi-tv = { path = "../../libs/bangumi-tv" }
 parser = { path = "../parser" }
@@ -47,9 +46,9 @@ sea-orm-migration = { workspace = true, features = [
 notify = { path = "../notify" }
 dict = { path = "../dict" }
 sysinfo = { workspace = true }
-humantime-serde = "1.1.1"
+humantime-serde = { workspace = true }
 sentry-tracing = { workspace = true }
-sentry = { workspace = true }
+sentry = { workspace = true, features = ["rustls"],default-features = false }
 [dev-dependencies]
 dotenv = { workspace = true }
 tracing-subscriber = { workspace = true }
