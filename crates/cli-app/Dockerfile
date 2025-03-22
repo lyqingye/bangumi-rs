@@ -1,36 +1,28 @@
-FROM rust:1.84-slim as builder
-
-WORKDIR /usr/src/app
-
-# 安装构建依赖
-RUN apt-get update && apt-get install -y \
-    pkg-config \
-    make \
-    gcc \
-    g++ \
-    wget \
-    xz-utils \
-    ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
-
-# 只复制必要的构建文件
-COPY Cargo.toml Cargo.lock ./
-COPY crates ./crates
-COPY libs ./libs
-COPY develop/migrations ./develop/migrations
-
-# 构建项目
+FROM --platform=$BUILDPLATFORM messense/rust-musl-cross:x86_64-musl AS builder-amd64
+WORKDIR /app
+COPY . .
 RUN cargo build --release -p cli-app
 
-FROM debian:bookworm-slim
+FROM --platform=$BUILDPLATFORM messense/rust-musl-cross:aarch64-musl AS builder-arm64
 WORKDIR /app
+COPY . .
+RUN cargo build --release -p cli-app
 
-COPY --from=builder /usr/src/app/target/release/bangumi /app/
-
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
+FROM alpine:3.19
+WORKDIR /app
+RUN apk add --no-cache ca-certificates curl
 
 EXPOSE 3001
+
+ARG TARGETARCH
+COPY --from=builder-amd64 /app/target/x86_64-unknown-linux-musl/release/bangumi /app/bangumi-amd64
+COPY --from=builder-arm64 /app/target/aarch64-unknown-linux-musl/release/bangumi /app/bangumi-arm64
+RUN if [ "$TARGETARCH" = "amd64" ]; then \
+        cp /app/bangumi-amd64 /app/bangumi; \
+    elif [ "$TARGETARCH" = "arm64" ]; then \
+        cp /app/bangumi-arm64 /app/bangumi; \
+    fi && \
+    chmod +x /app/bangumi && \
+    rm -f /app/bangumi-amd64 /app/bangumi-arm64
+
 CMD ["/app/bangumi"] 
