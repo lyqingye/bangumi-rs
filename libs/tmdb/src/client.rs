@@ -98,9 +98,7 @@ impl Client {
             }
             if let Some(first_air_date) = result.inner.first_air_date {
                 // 检查年月是否完全匹配
-                if first_air_date.year() == air_date.year()
-                    && first_air_date.month() == air_date.month()
-                {
+                if first_air_date.year() == air_date.year() {
                     tv_candidates.push(result.clone());
                     debug!(
                         tv_name = %result.inner.name,
@@ -124,9 +122,7 @@ impl Client {
                 season_air_date = %season.inner.air_date.unwrap_or_default()
             );
             if let Some(season_air_date) = season.inner.air_date {
-                if season_air_date.year() == air_date.year()
-                    && season_air_date.month() == air_date.month()
-                {
+                if season_air_date.year() == air_date.year() {
                     return Ok(Some(season.clone()));
                 }
             }
@@ -210,6 +206,7 @@ impl Client {
         let search_results = TVShowSearch::new(clean_name)
             .with_language(Some(self.language.clone()))
             .with_include_adult(true)
+            .with_year(air_date.map(|dt| dt.year() as u16))
             .execute(&self.client)
             .await
             .map_err(|e| anyhow::anyhow!("TMDB搜索失败: {}", e))?;
@@ -254,6 +251,9 @@ impl Client {
         debug!("尝试匹配Season: {}", air_date);
         let mut tv_details_cache = Vec::new();
         for tv in tv_shows {
+            if !tv.genre_ids.contains(&16) {
+                continue;
+            }
             let details = TVShowDetails::new(tv.inner.id)
                 .with_language(Some(self.language.clone()))
                 .execute(&self.client)
@@ -272,6 +272,10 @@ impl Client {
         debug!("尝试匹配Episode: {}", air_date);
         for tv in tv_details_cache {
             for season in tv.seasons.iter() {
+                // 如果季集数大于25，则跳过，否则太耗费资源，留着让用户手动匹配
+                if season.episode_count > 25 {
+                    continue;
+                }
                 for i in 1..=season.episode_count {
                     let episode =
                         TVShowEpisodeDetails::new(tv.inner.id, season.inner.season_number, i)

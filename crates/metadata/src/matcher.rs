@@ -62,12 +62,10 @@ impl Matcher {
         let air_date = bgm.air_date.map(|dt| dt.and_utc().date_naive());
         info!("尝试匹配 TMDB 电影: {} {:?}", bgm.name, air_date);
         let movies = self.tmdb.seach_movie(&bgm.name, air_date).await?;
-        if movies.is_empty() {
-            warn!("找不到对应的TMDB电影: {}", bgm.name);
-            return Ok(None);
-        }
-        let movie = movies.first();
+        let mut movies = movies.into_iter().filter(|m| m.genre_ids.contains(&16));
+        let movie = movies.next();
         if movie.is_none() {
+            warn!("找不到对应的TMDB电影: {}", bgm.name);
             return Ok(None);
         }
         let movie = movie.unwrap();
