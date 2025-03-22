@@ -36,7 +36,7 @@ debug = true
 # 禁用增量编译
 incremental = false
 # 启用优化过的调试信息
-strip = "none"
+strip = "debuginfo"
 # 消除溢出检查，提高性能
 overflow-checks = false
 
