@@ -29,7 +29,7 @@ Bangumi-rs 需要访问以下网站，请确保你的网络环境能够正常连
 - **TMDB**: https://themoviedb.org
   > TMDB 需要申请对应的 APIKey, 请你注册并登陆后跳转到 https://www.themoviedb.org/settings/api 生成对应的 APIkey
 
-- **115网盘**
+- **115网盘 (可选)**
 > 你需要参考该文档生成对应的115网盘Cookies: https://alist.nn.ci/zh/guide/drivers/115.html#cookie%E8%8E%B7%E5%8F%96%E6%96%B9%E5%BC%8F
 
 - **Telegram 通知（可选）**

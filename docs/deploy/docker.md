@@ -2,55 +2,11 @@
 
 Docker 是部署 Bangumi-rs 最简单、最推荐的方式。本指南将详细介绍如何使用 Docker 和 Docker Compose 部署 Bangumi-rs。
 
-## 前提条件
-
-在开始之前，请确保你的系统已安装以下软件：
-
-- Docker 20.10.0 或更高版本
-- Docker Compose v2.0.0 或更高版本（可选，但推荐）
-
-### 安装 Docker
-
-如果你尚未安装 Docker，可以参考以下指南：
-
-- [Docker 官方安装指南](https://docs.docker.com/get-docker/)
-
-#### Linux 快速安装
-
-```bash
-curl -fsSL https://get.docker.com | sh
-sudo systemctl enable --now docker
-```
-
-#### 验证 Docker 安装
-
-```bash
-docker --version
-```
-
-### 安装 Docker Compose
-
-Docker Compose 可以简化多容器应用的部署和管理。
-
-#### Linux 安装 Docker Compose
-
-```bash
-sudo curl -L "https://github.com/docker/compose/releases/download/v2.23.0/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-sudo chmod +x /usr/local/bin/docker-compose
-```
-
-#### 验证 Docker Compose 安装
-
-```bash
-docker-compose --version
-```
-
 ## **创建配置文件以及缓存目录**
 
 ```bash
 # 配置文件
 touch config.toml
-touch nginx.conf
 # 缓存目录
 mkdir assets
 # 数据库目录
@@ -123,7 +79,7 @@ enabled = false
 # qbittorrent 下载目录
 download_dir = "/downloads"
 # 可选，如果你需要在线播放qb下载的文件，请设置此选项，该目录指向qbittorrent的下载目录
-mount_path = "/Users/lyqingye/Desktop/docker/ts-downloader/complete"
+mount_path = "/downloads"
 # qbittorrent 用户名
 username = "admin"
 # qbittorrent 密码
@@ -147,7 +103,7 @@ username = "admin"
 password = "123456"
 download_dir = "/downloads/complete"
 # 可选，如果你需要在线播放qb下载的文件，请设置此选项，该目录指向qbittorrent的下载目录
-mount_path = "/Users/lyqingye/Desktop/docker/ts-downloader/complete"
+mount_path = "/downloads/complete"
 max_requests_per_second = 1
 max_retry_count = 1
 retry_min_interval = "30s"
@@ -170,43 +126,19 @@ enabled = true
 
 ```
 
-**下载数据库初始化文件，并且放在当前目录下**
+## 下载数据库初始化文件
 
 ```bash
 curl -o schema.sql https://raw.githubusercontent.com/lyqingye/bangumi-rs/refs/heads/master/develop/schema.sql
 ```
 
-**在当前目录下创建前端服务 Nginx 配置文件 (nginx.conf):**
+## 下载Nginx配置文件
 
-```txt
-server {
-    listen 80;
-    server_name localhost;
-
-    root /usr/share/nginx/html;
-    index index.html;
-
-    location / {
-        try_files $uri $uri/ /index.html;
-    }
-
-    location /api {
-        proxy_pass http://backend:3001;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-    }
-
-    location /ws {
-        proxy_pass http://backend:3001;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-        proxy_set_header Host $host;
-    }
-}
+```bash
+curl -o nginx.conf https://raw.githubusercontent.com/lyqingye/bangumi-rs/refs/heads/master/nginx.conf
 ```
 
-## 创建 docker-compose.yml 配置文件
+## 填写 docker-compose.yml 配置文件
 
 ```yaml
 version: "3.8"
@@ -335,3 +267,7 @@ watchtower:
 
 完整的`docker-compose.yml`可以参考:
 https://github.com/lyqingye/bangumi-rs/blob/master/docker-compose.yml
+相关文件:
+- [docker-compose.yml](https://github.com/lyqingye/bangumi-rs/blob/master/docker-compose.yml)
+- [nginx.conf](https://github.com/lyqingye/bangumi-rs/blob/master/nginx.conf)
+- [schema.sql](https://github.com/lyqingye/bangumi-rs/blob/master/develop/schema.sql)
