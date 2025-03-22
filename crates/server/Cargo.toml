@@ -48,7 +48,7 @@ dict = { path = "../dict" }
 sysinfo = { workspace = true }
 humantime-serde = { workspace = true }
 sentry-tracing = { workspace = true }
-sentry = { workspace = true, features = ["rustls"],default-features = false }
+sentry = { workspace = true, features = ["rustls", "reqwest"],default-features = false }
 [dev-dependencies]
 dotenv = { workspace = true }
 tracing-subscriber = { workspace = true }
