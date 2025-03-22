@@ -32,6 +32,12 @@ level = "info" # debug, info, warn, error
 enabled = false
 http = "http://127.0.0.1:7890"
 https = "http://127.0.0.1:7890"
+no_proxy = [
+    "localhost",
+    "127.0.0.1",
+    "qbittorrent",
+    "transmission",
+]
 
 # TMDB API 配置
 [tmdb]
