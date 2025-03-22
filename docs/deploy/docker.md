@@ -44,7 +44,7 @@ no_proxy = [
 # 这里需要填写你的TMDB APIkey
 api_key = "your_tmdb_api_key"
 base_url = "https://api.themoviedb.org/3"
-image_base_url = "https://image.tmdb.org/t/p"
+image_base_url = "https://image.tmdb.org/t/p/original"
 language = "zh-CN"
 
 # Bangumi.tv API 配置
