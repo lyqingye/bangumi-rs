@@ -46,6 +46,7 @@ pub struct ProxyConfig {
     pub enabled: bool,
     pub http: String,
     pub https: String,
+    pub no_proxy: Vec<String>,
 }
 
 impl Default for ProxyConfig {
@@ -54,6 +55,7 @@ impl Default for ProxyConfig {
             enabled: false,
             http: "http://127.0.0.1:7890".to_owned(),
             https: "http://127.0.0.1:7890".to_owned(),
+            no_proxy: vec![],
         }
     }
 }

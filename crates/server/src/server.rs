@@ -88,9 +88,11 @@ impl Server {
 
         // HTTP Client
         let client = if config.proxy.enabled {
+            let no_proxy_list = config.proxy.no_proxy.join(",");
+            let no_proxy = reqwest::NoProxy::from_string(no_proxy_list.as_str());
             reqwest::Client::builder()
-                .proxy(reqwest::Proxy::http(&config.proxy.http)?)
-                .proxy(reqwest::Proxy::https(&config.proxy.https)?)
+                .proxy(reqwest::Proxy::http(&config.proxy.http)?.no_proxy(no_proxy.clone()))
+                .proxy(reqwest::Proxy::https(&config.proxy.https)?.no_proxy(no_proxy))
                 .build()?
         } else {
             reqwest::Client::new()
