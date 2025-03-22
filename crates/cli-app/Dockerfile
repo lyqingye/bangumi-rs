@@ -15,7 +15,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # 下载并安装 UPX
-RUN wget --no-check-certificate https://github.com/upx/upx/releases/download/v5.0.0/upx-5.0.0-amd64_linux.tar.xz \
+RUN wget https://github.com/upx/upx/releases/download/v5.0.0/upx-5.0.0-amd64_linux.tar.xz \
     && tar -xf upx-5.0.0-amd64_linux.tar.xz \
     && cp upx-5.0.0-amd64_linux/upx /usr/local/bin/ \
     && rm -rf upx-5.0.0-amd64_linux*
