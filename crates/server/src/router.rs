@@ -40,6 +40,7 @@ pub fn configure_app(cfg: &mut web::ServiceConfig, state: Arc<AppState>) {
         .service(api::get_version)
         .service(api::list_download_files)
         .service(api::list_downloaders)
+        .service(api::get_bangumi_release_groups)
         .route("/ws", web::get().to(ws_handler));
 
     let config = state.config.read().unwrap();

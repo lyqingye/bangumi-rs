@@ -83,6 +83,7 @@
                         size="small"
                         class="action-btn"
                         @click.stop="toggleSubscribe"
+                        :loading="isLoadingReleaseGroups"
                       >
                         <v-icon
                           :icon="anime.subscribe_status === SubscribeStatus.Subscribed ? 'mdi-heart' : 'mdi-heart-outline'"
@@ -457,7 +458,7 @@
       v-model="showSubscribeDialog"
       :bangumi-id="anime.id"
       :current-status="anime.subscribe_status || SubscribeStatus.None"
-      :release-groups="releaseGroups"
+      :release-groups="fetchedReleaseGroups"
       :current-subscribe-settings="currentSubscribeSettings"
       @subscribe="handleSubscribe"
     />
@@ -1493,7 +1494,8 @@ import {
   getOnlineWatchUrl,
   deleteBangumiDownloadTasks,
   manualSelectTorrent,
-  listDownloadFiles
+  listDownloadFiles,
+  getBangumiReleaseGroups
 } from '@/api/api'
 import {
   DownloadStatus,
@@ -1520,9 +1522,51 @@ const { showSnackbar } = useSnackbar()
 // 评分转换为5分制
 const ratingValue = computed(() => (anime.value?.rating ? anime.value.rating / 2 : 0))
 
+// 存储获取的发布组数据
+const fetchedReleaseGroups = ref<string[]>([])
+// 添加发布组数据加载状态
+const isLoadingReleaseGroups = ref(false)
+
 // 切换订阅状态的方法
-const toggleSubscribe = () => {
+const toggleSubscribe = async () => {
   if (!anime.value) return
+
+  // 如果发布组数据为空，则从API获取
+  if (fetchedReleaseGroups.value.length === 0) { 
+    try {
+      // 设置加载状态为true
+      isLoadingReleaseGroups.value = true
+      // 显示加载提示
+      showSnackbar({
+        text: '正在获取字幕组数据...',
+        color: 'info',
+        location: 'bottom',
+        timeout: -1
+      })
+      
+      const result = await getBangumiReleaseGroups(anime.value.id)
+      fetchedReleaseGroups.value = Array.from(result)
+      
+      // 关闭提示
+      showSnackbar({
+        text: '',
+        color: 'info',
+        location: 'bottom',
+        timeout: 1
+      })
+    } catch (error) {
+      console.error('获取发布组数据失败:', error)
+      showSnackbar({
+        text: '获取字幕组数据失败',
+        color: 'error',
+        location: 'top right',
+        timeout: 3000
+      })
+    } finally {
+      // 无论成功失败，都设置加载状态为false
+      isLoadingReleaseGroups.value = false
+    }
+  }
   showSubscribeDialog.value = true
 }
 
@@ -1533,7 +1577,6 @@ const fetchAnimeDetail = async () => {
     if (!id) return
 
     anime.value = await getBangumiById(id)
-    await refreshBangumi(id, false)
   } catch (error) {
     console.error('获取番剧详情失败:', error)
     // TODO: 添加错误提示

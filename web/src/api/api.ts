@@ -139,6 +139,14 @@ export async function refreshBangumi(id: number, force: boolean): Promise<void> 
   }
 }
 
+export async function getBangumiReleaseGroups(id: number): Promise<string[]> {
+  try {
+    const response = await api.get<ApiResponse<string[]>>(`/bangumi/${id}/release_groups`)
+    return handleResponse(response, '获取发布组列表失败')
+  } catch (error) {
+    return handleError(error, '获取发布组列表失败')
+  }
+}
 // 删除番剧下载任务
 export async function deleteBangumiDownloadTasks(id: number): Promise<void> {
   try {
