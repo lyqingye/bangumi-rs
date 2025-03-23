@@ -297,7 +297,7 @@ function initializeSelection() {
   }
   
   // 只有在Infuse模式下才自动选择字幕
-  if (props.playerType === 'infuse' || props.playerType === 'mpv' && subtitleFiles.value.length === 1 && !currentSubtitleSelection.value) {
+  if ((props.playerType === 'infuse' || props.playerType === 'mpv') && subtitleFiles.value.length === 1 && !currentSubtitleSelection.value) {
     const firstSubtitle = JSON.parse(JSON.stringify(subtitleFiles.value[0]))
     handleSubtitleSelection(firstSubtitle)
   }
