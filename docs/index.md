@@ -32,7 +32,7 @@ features:
 
   - icon: 🎬
     title: 在线播放
-    details: 支持 IINA、Infuse 等播放器在线播放，享受流畅观影体验
+    details: 支持 IINA、Infuse、Mpv 等播放器在线播放，享受流畅观影体验
 
   - icon: 📚
     title: 元数据管理
