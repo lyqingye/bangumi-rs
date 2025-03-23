@@ -15,39 +15,10 @@ Bangumi-rs 提供了便捷的在线播放功能，离线秒下后即可观看番
 Bangumi-rs 目前支持以下播放器：
 
 ### IINA (macOS)
-
-[IINA](https://iina.io/) 是 macOS 上的现代化开源媒体播放器，具有美观的界面和强大的功能。
-
-特点：
-
-- 美观的原生 macOS 界面
-- 强大的播放控制
-- 支持多种字幕格式
-- 硬件加速解码
-
 ### Infuse (iOS/macOS)
+### MPV (macOS/Linux/Windows)
 
-[Infuse](https://firecore.com/infuse) 是一款高品质的视频播放器，适用于 iOS 和 macOS 设备。
 
-特点：
-
-- 精美的界面设计
-- 强大的格式支持
-- 出色的字幕处理
-- 跨设备同步
-
-### VLC Player (macOS)
-
-[VLC](https://www.videolan.org/vlc/) 是一款开源的跨平台媒体播放器，支持多种视频和音频格式。
-
-特点：
-
-- 跨平台支持
-- 强大的格式支持
-
-### 其他播放器
-
-Bangumi-rs 也支持通过 URL 方式与其他播放器集成，只要播放器支持通过 URL 打开视频即可。
 
 ## 播放单集
 

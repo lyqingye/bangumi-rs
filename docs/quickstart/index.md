@@ -45,6 +45,9 @@ Bangumi-rs 需要访问以下网站，请确保你的网络环境能够正常连
 
 - **IINA** (macOS): [下载地址](https://iina.io/)
 - **Infuse** (iOS/macOS): [App Store](https://apps.apple.com/app/infuse-video-player/id1136220934)
+- **Mpv** (macOS/Linux/Windows): [下载地址](https://mpv.io/)
+> [!WARNING] 
+> 注意，如果你使用MPV播放器,那么你需要安装 [MPV-handler](https://github.com/mpv-player/mpv-handler)
 
 ## 下一步
 
