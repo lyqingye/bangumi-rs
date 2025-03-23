@@ -411,8 +411,16 @@ pub async fn refresh_bangumi(
     params: web::Path<(i32, bool)>,
 ) -> Result<Json<Resp<()>>, ServerError> {
     let (id, force) = params.into_inner();
-    state.scheduler.trigger_collection(id).await?;
     state.metadata.request_refresh_metadata(id, force)?;
+    if let Some(subscription) = state.db.get_subscription_by_bangumi_id(id).await? {
+        if subscription.subscribe_status == SubscribeStatus::Subscribed {
+            state.scheduler.trigger_collection(id).await?;
+        } else {
+            state.scheduler.collect_torrents_and_parse(id).await?;
+        }
+    } else {
+        state.scheduler.collect_torrents_and_parse(id).await?;
+    }
     Ok(Json(Resp::ok(())))
 }
 

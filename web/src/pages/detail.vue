@@ -1533,6 +1533,7 @@ const fetchAnimeDetail = async () => {
     if (!id) return
 
     anime.value = await getBangumiById(id)
+    await refreshBangumi(id, false)
   } catch (error) {
     console.error('获取番剧详情失败:', error)
     // TODO: 添加错误提示

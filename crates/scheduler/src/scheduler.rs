@@ -218,4 +218,15 @@ impl Scheduler {
         }
         Ok(())
     }
+
+    pub async fn collect_torrents_and_parse(&self, bangumi_id: i32) -> Result<()> {
+        self.metadata
+            .request_refresh_torrents_and_wait(bangumi_id)
+            .await?;
+        let torrents_file_names = self.db.get_bangumi_torrents_file_names(bangumi_id).await?;
+        if !torrents_file_names.is_empty() {
+            self.parser.parse_file_names(torrents_file_names).await?;
+        }
+        Ok(())
+    }
 }
