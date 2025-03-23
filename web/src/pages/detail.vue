@@ -239,6 +239,23 @@
                                   在 IINA 中播放
                                 </v-tooltip>
                               </v-btn>
+                              <!-- MPV播放按钮 -->
+                              <v-btn
+                                variant="text"
+                                size="small"
+                                class="play-btn"
+                                @click.stop="playWithMPV(episode)"
+                              >
+                                <v-img
+                                  src="@/assets/mpv.png"
+                                  width="24"
+                                  height="24"
+                                  class="player-icon"
+                                />
+                                <v-tooltip activator="parent" location="top">
+                                  在 MPV 中播放
+                                </v-tooltip>
+                              </v-btn>
                               <!-- Infuse播放按钮 -->
                               <v-btn
                                 variant="text"
@@ -1559,7 +1576,7 @@ const showFileSelectionDialog = ref(false)
 const downloadedFiles = ref<DownloadedFile[]>([])
 const currentPlaybackInfo = reactive({
   episode: null as Episode | null,
-  player: '' as 'iina' | 'infuse'
+  player: '' as 'iina' | 'infuse' | 'mpv'
 })
 
 // 处理刷新操作
@@ -1826,8 +1843,31 @@ const playWithInfuse = async (episode: Episode) => {
   await handlePlayback(episode, 'infuse')
 }
 
+const playWithMPV = async (episode: Episode) => {
+  if (!anime.value) return
+  await handlePlayback(episode, 'mpv')
+}
+
+// 添加 URL-safe base64 编码函数
+const urlSafeBase64Encode = (url: string): string => {
+  // 处理包含Unicode字符的字符串
+  const rawData = new TextEncoder().encode(url);
+  
+  // 将Uint8Array转换为二进制字符串
+  let binaryString = '';
+  for (let i = 0; i < rawData.length; i++) {
+    binaryString += String.fromCharCode(rawData[i]);
+  }
+  
+  // 标准 base64 编码
+  const base64 = btoa(binaryString);
+  
+  // 替换特殊字符：/ 替换为 _，+ 替换为 -，移除填充的 =
+  return base64.replace(/\//g, "_").replace(/\+/g, "-").replace(/=/g, "");
+};
+
 // 处理播放逻辑 - 分离请求和UI逻辑
-const handlePlayback = async (episode: Episode, player: 'iina' | 'infuse') => {
+const handlePlayback = async (episode: Episode, player: 'iina' | 'infuse' | 'mpv') => {
   if (!anime.value) return
   
   // 先设置当前播放信息
@@ -1912,7 +1952,7 @@ const handlePlayback = async (episode: Episode, player: 'iina' | 'infuse') => {
 }
 
 // 使用选定文件播放 - 错误处理更完善
-const playWithSelectedFiles = async (videoFile: DownloadedFile, subtitleFile: DownloadedFile | undefined, player: 'iina' | 'infuse') => {
+const playWithSelectedFiles = async (videoFile: DownloadedFile, subtitleFile: DownloadedFile | undefined, player: 'iina' | 'infuse' | 'mpv') => {
   if (!anime.value || !currentPlaybackInfo.episode) return
   
   try {
@@ -1924,7 +1964,7 @@ const playWithSelectedFiles = async (videoFile: DownloadedFile, subtitleFile: Do
     if (player === 'iina') {
       playUrl = `iina://weblink?url=${encodeURIComponent(videoUrl)}`
       // IINA不支持外挂字幕，注释掉相关代码
-    } else {
+    } else if (player === 'infuse') {
       // infuse播放器
       playUrl = `infuse://x-callback-url/play?url=${encodeURIComponent(videoUrl)}`
       
@@ -1932,6 +1972,26 @@ const playWithSelectedFiles = async (videoFile: DownloadedFile, subtitleFile: Do
       if (subtitleFile) {
         const subtitleUrl = await getOnlineWatchUrl(subtitleFile.file_id, subtitleFile.file_name)
         playUrl += `&sub=${encodeURIComponent(subtitleUrl)}`
+      }
+    } else if (player === 'mpv') {
+      // 使用 mpv-handler 协议格式
+      // 基本 URL 格式: mpv://play/{encoded_url}
+      const encodedVideoUrl = urlSafeBase64Encode(videoUrl);
+      playUrl = `mpv://play/${encodedVideoUrl}/`;
+      
+      // 如果有标题，添加标题参数
+      if (anime.value.name && currentPlaybackInfo.episode) {
+        const title = `${anime.value.name}-EP${currentPlaybackInfo.episode.number}`;
+        const encodedTitle = urlSafeBase64Encode(title);
+        playUrl += `?v_title=${encodedTitle}`;
+      }
+      
+      // 如果有字幕文件，添加字幕参数
+      if (subtitleFile) {
+        const subtitleUrl = await getOnlineWatchUrl(subtitleFile.file_id, subtitleFile.file_name);
+        const encodedSubUrl = urlSafeBase64Encode(subtitleUrl);
+        // 使用 & 或 ? 连接参数，取决于之前是否已有参数
+        playUrl += playUrl.includes('?') ? `&subfile=${encodedSubUrl}` : `?subfile=${encodedSubUrl}`;
       }
     }
     
