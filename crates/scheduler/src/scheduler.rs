@@ -1,6 +1,7 @@
 use anyhow::Result;
 use downloader::Downloader;
 use model::subscriptions;
+use parser::ParseResult;
 use sea_orm::DatabaseConnection;
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::Mutex;
@@ -217,5 +218,17 @@ impl Scheduler {
             worker.trigger_collection();
         }
         Ok(())
+    }
+
+    pub async fn collect_torrents_and_parse(&self, bangumi_id: i32) -> Result<Vec<ParseResult>> {
+        self.metadata
+            .request_refresh_torrents_and_wait(bangumi_id)
+            .await?;
+        let torrents_file_names = self.db.get_bangumi_torrents_file_names(bangumi_id).await?;
+        if !torrents_file_names.is_empty() {
+            self.parser.parse_file_names(torrents_file_names).await
+        } else {
+            Ok(vec![])
+        }
     }
 }

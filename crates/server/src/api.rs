@@ -1,4 +1,4 @@
-use std::{path::Path, sync::Arc};
+use std::{collections::HashSet, path::Path, sync::Arc};
 
 use actix_web::{
     get, post,
@@ -411,9 +411,26 @@ pub async fn refresh_bangumi(
     params: web::Path<(i32, bool)>,
 ) -> Result<Json<Resp<()>>, ServerError> {
     let (id, force) = params.into_inner();
-    state.scheduler.trigger_collection(id).await?;
     state.metadata.request_refresh_metadata(id, force)?;
+    state.scheduler.trigger_collection(id).await?;
     Ok(Json(Resp::ok(())))
+}
+
+#[get("/api/bangumi/{id}/release_groups")]
+pub async fn get_bangumi_release_groups(
+    state: web::Data<Arc<AppState>>,
+    id: web::Path<i32>,
+) -> Result<Json<Resp<HashSet<String>>>, ServerError> {
+    let bangumi_id = id.into_inner();
+    let parse_results = state
+        .scheduler
+        .collect_torrents_and_parse(bangumi_id)
+        .await?;
+    let release_groups = parse_results
+        .into_iter()
+        .filter_map(|result| result.release_group)
+        .collect::<HashSet<_>>();
+    Ok(Json(Resp::ok(release_groups)))
 }
 
 #[get("/api/bangumi/{id}/{episode_number}/downloaded_files")]

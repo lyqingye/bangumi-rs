@@ -1,8 +1,8 @@
 use crate::model::DownloadTask;
 use anyhow::Result;
 use model::{
-    bangumi, episode_download_tasks, sea_orm_active_enums::DownloadStatus, torrent_download_tasks,
-    torrents,
+    bangumi, episode_download_tasks, sea_orm_active_enums::DownloadStatus, subscriptions,
+    torrent_download_tasks, torrents,
 };
 use sea_orm::{
     ColumnTrait, ConnectOptions, Database, DatabaseConnection, EntityTrait, QueryFilter,
@@ -82,6 +82,18 @@ impl Db {
             .one(db)
             .await?;
         Ok(bangumi)
+    }
+
+    pub async fn get_subscription_by_bangumi_id(
+        &self,
+        bangumi_id: i32,
+    ) -> Result<Option<subscriptions::Model>> {
+        let db = self.conn();
+        let subscription = subscriptions::Entity::find()
+            .filter(subscriptions::Column::BangumiId.eq(bangumi_id))
+            .one(db)
+            .await?;
+        Ok(subscription)
     }
 
     pub async fn query_downloads_info(
