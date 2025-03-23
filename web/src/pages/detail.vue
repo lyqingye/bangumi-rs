@@ -1845,17 +1845,6 @@ const groupedTorrents = (episode: Episode) => {
   }))
 }
 
-// 添加计算属性获取所有字幕组
-const releaseGroups = computed(() => {
-  const groups = new Set<string>()
-  torrents.value.forEach(torrent => {
-    if (torrent.release_group) {
-      groups.add(torrent.release_group)
-    }
-  })
-  return Array.from(groups)
-})
-
 async function handleSubscribe(params: SubscribeParams) {
   if (!anime.value) return
   console.log('订阅参数:', params)
