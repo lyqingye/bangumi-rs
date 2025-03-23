@@ -102,9 +102,9 @@
                   :key="`subtitle-${file.file_id}-${isSubtitleSelected(file)}`"
                   class="file-item"
                   rounded="lg"
-                  :class="{ 'selected-item': playerType === 'infuse' && isSubtitleSelected(file) }"
+                  :class="{ 'selected-item': (playerType === 'infuse' || playerType === 'mpv') && isSubtitleSelected(file) }"
                   lines="two"
-                  @click="playerType === 'infuse' ? handleSubtitleSelect(file) : null"
+                  @click="(playerType === 'infuse' || playerType === 'mpv') ? handleSubtitleSelect(file) : null"
                 >
                   <template #prepend>
                     <v-avatar color="info" variant="tonal" size="36" class="file-icon">
@@ -175,7 +175,7 @@
             {{ currentVideoSelection ? `已选择: ${formatFileName(currentVideoSelection.file_name)}` : '请选择视频文件' }}
           </span>
           
-          <template v-if="playerType === 'infuse' && subtitleFiles.length > 0">
+          <template v-if="(playerType === 'infuse' || playerType === 'mpv') && subtitleFiles.length > 0">
             <v-divider vertical class="mx-3" />
             <v-icon 
               :icon="currentSubtitleSelection ? 'mdi-check-circle' : 'mdi-information-outline'" 
@@ -216,7 +216,7 @@ import type { DownloadedFile } from '../api/model'
 const props = defineProps<{
   modelValue: boolean
   files: DownloadedFile[]
-  playerType: 'iina' | 'infuse'
+  playerType: 'iina' | 'infuse' | 'mpv'
 }>()
 
 const emit = defineEmits<{
@@ -297,7 +297,7 @@ function initializeSelection() {
   }
   
   // 只有在Infuse模式下才自动选择字幕
-  if (props.playerType === 'infuse' && subtitleFiles.value.length === 1 && !currentSubtitleSelection.value) {
+  if ((props.playerType === 'infuse' || props.playerType === 'mpv') && subtitleFiles.value.length === 1 && !currentSubtitleSelection.value) {
     const firstSubtitle = JSON.parse(JSON.stringify(subtitleFiles.value[0]))
     handleSubtitleSelection(firstSubtitle)
   }
@@ -340,7 +340,7 @@ function handleVideoSelection(file: DownloadedFile) {
 
 // 处理字幕文件选择 (与UI交互)
 function handleSubtitleSelect(file: DownloadedFile) {
-  if (processingSelection.value || props.playerType !== 'infuse') return
+  if (processingSelection.value || (props.playerType !== 'infuse' && props.playerType !== 'mpv')) return
   
   processingSelection.value = true
   const fileClone = JSON.parse(JSON.stringify(file))
@@ -422,7 +422,7 @@ function handleConfirm() {
   const videoFile = JSON.parse(JSON.stringify(currentVideoSelection.value))
   let subtitleFile = undefined
   
-  if (props.playerType === 'infuse' && currentSubtitleSelection.value) {
+  if ((props.playerType === 'infuse' || props.playerType === 'mpv') && currentSubtitleSelection.value) {
     subtitleFile = JSON.parse(JSON.stringify(currentSubtitleSelection.value))
   }
   
