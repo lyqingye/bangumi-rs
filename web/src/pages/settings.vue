@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { getConfig, updateConfig } from '@/api/api'
 import type { Config, ParserConfig } from '@/api/model'
 import { LogLevel } from '@/api/model'
@@ -10,6 +10,18 @@ const loading = ref(false)
 const config = ref<Config>()
 const currentTab = ref(0)
 const expandedPanels = ref<number[]>([]) // 控制面板展开状态
+
+// 计算属性：处理no_proxy数组与字符串的转换
+const noProxyStr = computed({
+  get() {
+    if (!config.value?.proxy.no_proxy) return ''
+    return config.value.proxy.no_proxy.join(',')
+  },
+  set(val: string) {
+    if (!config.value) return
+    config.value.proxy.no_proxy = val ? val.split(',').map(s => s.trim()) : []
+  }
+})
 
 // 配置分组
 const tabs = [
@@ -234,6 +246,49 @@ onMounted(() => {
                 />
               </v-col>
             </v-row>
+            <v-row>
+              <v-col cols="12">
+                <v-text-field
+                  v-model="noProxyStr"
+                  label="不使用代理的地址（多个地址以逗号分隔）"
+                  variant="outlined"
+                  density="comfortable"
+                  class="mb-4"
+                  :disabled="!config.proxy.enabled"
+                  prepend-inner-icon="mdi-block-helper"
+                  hint="例如: localhost,127.0.0.1"
+                  persistent-hint
+                />
+              </v-col>
+            </v-row>
+            
+            <v-divider class="my-4" />
+            
+            <!-- Sentry配置 -->
+            <v-row>
+              <v-col cols="12">
+                <v-switch
+                  v-model="config.sentry.enabled"
+                  label="启用 Sentry 错误监控"
+                  color="primary"
+                  class="mb-4"
+                  inset
+                />
+              </v-col>
+            </v-row>
+            <v-row>
+              <v-col cols="12">
+                <v-text-field
+                  v-model="config.sentry.dsn"
+                  label="Sentry DSN"
+                  variant="outlined"
+                  density="comfortable"
+                  class="mb-4"
+                  :disabled="!config.sentry.enabled"
+                  prepend-inner-icon="mdi-bug"
+                />
+              </v-col>
+            </v-row>
           </template>
 
           <!-- 下载器配置 -->
@@ -407,6 +462,21 @@ onMounted(() => {
                 <v-row>
                   <v-col cols="12">
                     <v-text-field
+                      v-model="config.downloader.qbittorrent.mount_path"
+                      label="挂载路径（可选）"
+                      variant="outlined"
+                      density="comfortable"
+                      class="mb-4"
+                      :disabled="!config.downloader.qbittorrent.enabled"
+                      prepend-inner-icon="mdi-harddisk"
+                      hint="容器内的挂载路径，该路径指向下载目录，用于在线播放"
+                      persistent-hint
+                    />
+                  </v-col>
+                </v-row>
+                <v-row>
+                  <v-col cols="12">
+                    <v-text-field
                       v-model="config.downloader.qbittorrent.url"
                       label="服务器地址"
                       variant="outlined"
@@ -511,6 +581,166 @@ onMounted(() => {
                       color="primary"
                       class="mb-4"
                       :disabled="!config.downloader.qbittorrent.enabled"
+                      inset
+                    />
+                  </v-col>
+                </v-row>
+              </v-card-text>
+            </v-card>
+
+            <!-- Transmission配置 -->
+            <v-card variant="outlined" class="mb-6">
+              <v-card-item>
+                <v-card-title>Transmission</v-card-title>
+                <v-card-subtitle>配置Transmission下载器</v-card-subtitle>
+              </v-card-item>
+              <v-card-text>
+                <v-row>
+                  <v-col cols="12">
+                    <v-switch
+                      v-model="config.downloader.transmission.enabled"
+                      label="启用"
+                      color="primary"
+                      class="mb-4"
+                      inset
+                    />
+                  </v-col>
+                </v-row>
+                <v-row>
+                  <v-col cols="12">
+                    <v-text-field
+                      v-model="config.downloader.transmission.download_dir"
+                      label="下载目录"
+                      variant="outlined"
+                      density="comfortable"
+                      class="mb-4"
+                      :disabled="!config.downloader.transmission.enabled"
+                      prepend-inner-icon="mdi-folder"
+                    />
+                  </v-col>
+                </v-row>
+                <v-row>
+                  <v-col cols="12">
+                    <v-text-field
+                      v-model="config.downloader.transmission.mount_path"
+                      label="挂载路径（可选）"
+                      variant="outlined"
+                      density="comfortable"
+                      class="mb-4"
+                      :disabled="!config.downloader.transmission.enabled"
+                      prepend-inner-icon="mdi-harddisk"
+                      hint="容器内的挂载路径，该路径指向下载目录，用于在线播放"
+                      persistent-hint
+                    />
+                  </v-col>
+                </v-row>
+                <v-row>
+                  <v-col cols="12">
+                    <v-text-field
+                      v-model="config.downloader.transmission.url"
+                      label="服务器地址"
+                      variant="outlined"
+                      density="comfortable"
+                      class="mb-4"
+                      :disabled="!config.downloader.transmission.enabled"
+                      prepend-inner-icon="mdi-web"
+                    />
+                  </v-col>
+                </v-row>
+                <v-row>
+                  <v-col cols="12" md="6">
+                    <v-text-field
+                      v-model="config.downloader.transmission.username"
+                      label="用户名"
+                      variant="outlined"
+                      density="comfortable"
+                      class="mb-4"
+                      :disabled="!config.downloader.transmission.enabled"
+                      prepend-inner-icon="mdi-account"
+                    />
+                  </v-col>
+                  <v-col cols="12" md="6">
+                    <v-text-field
+                      v-model="config.downloader.transmission.password"
+                      label="密码"
+                      variant="outlined"
+                      density="comfortable"
+                      class="mb-4"
+                      type="password"
+                      :disabled="!config.downloader.transmission.enabled"
+                      prepend-inner-icon="mdi-key"
+                    />
+                  </v-col>
+                </v-row>
+                <v-row>
+                  <v-col cols="12" md="6">
+                    <v-text-field
+                      v-model.number="config.downloader.transmission.max_retry_count"
+                      label="最大重试次数"
+                      type="number"
+                      variant="outlined"
+                      density="comfortable"
+                      class="mb-4"
+                      :disabled="!config.downloader.transmission.enabled"
+                      prepend-inner-icon="mdi-refresh"
+                    />
+                  </v-col>
+                  <v-col cols="12" md="6">
+                    <v-text-field
+                      v-model="config.downloader.transmission.download_timeout"
+                      label="下载超时"
+                      variant="outlined"
+                      density="comfortable"
+                      class="mb-4"
+                      :disabled="!config.downloader.transmission.enabled"
+                      prepend-inner-icon="mdi-timer-sand"
+                    />
+                  </v-col>
+                </v-row>
+                <v-row>
+                  <v-col cols="12" md="6">
+                    <v-text-field
+                      v-model="config.downloader.transmission.retry_min_interval"
+                      label="最小重试间隔"
+                      variant="outlined"
+                      density="comfortable"
+                      class="mb-4"
+                      :disabled="!config.downloader.transmission.enabled"
+                      prepend-inner-icon="mdi-timer-outline"
+                    />
+                  </v-col>
+                  <v-col cols="12" md="6">
+                    <v-text-field
+                      v-model="config.downloader.transmission.retry_max_interval"
+                      label="最大重试间隔"
+                      variant="outlined"
+                      density="comfortable"
+                      class="mb-4"
+                      :disabled="!config.downloader.transmission.enabled"
+                      prepend-inner-icon="mdi-timer"
+                    />
+                  </v-col>
+                </v-row>
+                <v-row>
+                  <v-col cols="12" md="6">
+                    <v-text-field
+                      v-model.number="config.downloader.transmission.priority"
+                      label="优先级"
+                      type="number"
+                      variant="outlined"
+                      density="comfortable"
+                      class="mb-4"
+                      :disabled="!config.downloader.transmission.enabled"
+                      prepend-inner-icon="mdi-priority-high"
+                    />
+                  </v-col>
+                  <v-col cols="12" md="6">
+                    <v-switch
+                      v-model="config.downloader.transmission.delete_task_on_completion"
+                      label="完成后删除任务（不会删除文件）"
+                      color="primary"
+                      class="mb-4"
+                      :disabled="!config.downloader.transmission.enabled"
                       inset
                     />
                   </v-col>

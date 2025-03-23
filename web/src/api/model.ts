@@ -245,6 +245,12 @@ export interface ProxyConfig {
   enabled: boolean
   http: string
   https: string
+  no_proxy: string[]
+}
+
+export interface SentryConfig {
+  enabled: boolean
+  dsn: string
 }
 
 export interface TelegramConfig {
@@ -295,12 +301,30 @@ export interface QbittorrentConfig {
   download_timeout: string
   delete_task_on_completion: boolean
   priority: number
+  mount_path?: string
+}
+
+// Transmission下载器配置
+export interface TransmissionConfig {
+  enabled: boolean
+  url: string
+  username: string
+  password: string
+  download_dir: string
+  max_retry_count: number
+  retry_min_interval: string
+  retry_max_interval: string
+  download_timeout: string
+  delete_task_on_completion: boolean
+  priority: number
+  mount_path?: string
 }
 
 // 下载器配置
 export interface DownloaderConfig {
   pan115: Pan115Config
   qbittorrent: QbittorrentConfig
+  transmission: TransmissionConfig
 }
 
 export interface SiliconflowConfig {
@@ -380,6 +404,7 @@ export interface Config {
   downloader: DownloaderConfig
   notify: NotifyConfig
   proxy: ProxyConfig
+  sentry: SentryConfig
 }
 
 // 番剧查询参数
