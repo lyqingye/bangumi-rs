@@ -422,8 +422,14 @@ pub async fn get_bangumi_release_groups(
     id: web::Path<i32>,
 ) -> Result<Json<Resp<HashSet<String>>>, ServerError> {
     let bangumi_id = id.into_inner();
-    let parse_results = state.scheduler.collect_torrents_and_parse(bangumi_id).await?;
-    let release_groups = parse_results.into_iter().filter_map(|result| result.release_group).collect::<HashSet<_>>();
+    let parse_results = state
+        .scheduler
+        .collect_torrents_and_parse(bangumi_id)
+        .await?;
+    let release_groups = parse_results
+        .into_iter()
+        .filter_map(|result| result.release_group)
+        .collect::<HashSet<_>>();
     Ok(Json(Resp::ok(release_groups)))
 }
 
