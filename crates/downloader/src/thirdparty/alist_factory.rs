@@ -228,12 +228,18 @@ impl ThirdPartyDownloader for AlistDownloaderImpl {
                 let mut hasher = DefaultHasher::new();
                 file.full_path.hash(&mut hasher);
                 let file_id = hasher.finish().to_string();
-                FileInfo {
+                let fi = FileInfo {
                     file_id: file_id.clone(),
                     file_name: file.file.name.clone(),
                     file_size: file.file.size as usize,
                     is_dir: false,
+                };
+
+                {
+                    let mut file_cache = self.file_cache.lock().unwrap();
+                    file_cache.put(file_id.clone(), file.full_path.clone());
                 }
+                fi
             })
             .collect();
         Ok(files)
@@ -255,6 +261,7 @@ impl ThirdPartyDownloader for AlistDownloaderImpl {
                 url: file.raw_url.clone(),
                 access_type: AccessType::Redirect,
             };
+
             Ok(download_info)
         } else {
             anyhow::bail!("文件不存在");
