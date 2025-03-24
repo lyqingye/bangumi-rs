@@ -7,25 +7,30 @@ use reqwest::{header, Client};
 use serde::de::DeserializeOwned;
 use tracing::{debug, instrument};
 
-/// AList API任务管理客户端
 #[derive(Debug, Clone)]
 pub struct AListClient {
     client: Client,
     pub(crate) base_url: String,
-    token: String,
+    pub(crate) token: String,
+    pub(crate) user_name: String,
+    pub(crate) user_password: String,
 }
 
 impl AListClient {
-    /// 创建新的AList API客户端
-    pub fn new(base_url: impl Into<String>, token: impl Into<String>) -> Self {
+    pub fn new(
+        base_url: impl Into<String>,
+        user_name: impl Into<String>,
+        user_password: impl Into<String>,
+    ) -> Self {
         Self {
             client: Client::new(),
             base_url: base_url.into(),
-            token: token.into(),
+            token: String::new(),
+            user_name: user_name.into(),
+            user_password: user_password.into(),
         }
     }
 
-    /// 构建任务API的URL
     fn build_task_url(&self, task_type: TaskType, action: &str) -> String {
         format!(
             "{}/api/task/{}/{}",
@@ -35,7 +40,6 @@ impl AListClient {
         )
     }
 
-    /// 创建带认证信息的请求头
     fn create_auth_headers(&self) -> header::HeaderMap {
         let mut headers = header::HeaderMap::new();
         headers.insert(
@@ -46,7 +50,6 @@ impl AListClient {
         headers
     }
 
-    /// 发送GET请求
     #[instrument(skip(self), err)]
     pub(crate) async fn get<T>(&self, url: &str) -> Result<T>
     where
@@ -63,7 +66,6 @@ impl AListClient {
         self.handle_response(response).await
     }
 
-    /// 发送POST请求
     #[instrument(skip(self), err)]
     async fn post<T>(&self, url: &str, query: &[(&str, &str)]) -> Result<T>
     where
@@ -81,7 +83,6 @@ impl AListClient {
         self.handle_response(response).await
     }
 
-    /// 发送带请求体的POST请求
     #[instrument(skip(self, body), err)]
     pub(crate) async fn post_json<T, B>(&self, url: &str, body: &B) -> Result<T>
     where
@@ -100,7 +101,6 @@ impl AListClient {
         self.handle_response(response).await
     }
 
-    /// 处理API响应
     async fn handle_response<T>(&self, response: reqwest::Response) -> Result<T>
     where
         T: DeserializeOwned + Default,
@@ -141,7 +141,6 @@ impl AListClient {
         Ok(response.data.unwrap_or_default())
     }
 
-    /// 获取任务信息
     #[instrument(skip(self), err)]
     pub async fn get_task_info(
         &self,
@@ -155,7 +154,6 @@ impl AListClient {
         self.post(&url, &query).await
     }
 
-    /// 删除任务
     #[instrument(skip(self), err)]
     pub async fn delete_task(&self, task_type: TaskType, task_id: &str) -> Result<()> {
         let url = self.build_task_url(task_type, "delete");
@@ -163,7 +161,6 @@ impl AListClient {
         map_result_allow_404(self.post(&url, &query).await)
     }
 
-    /// 取消任务
     #[instrument(skip(self), err)]
     pub async fn cancel_task(&self, task_type: TaskType, task_id: &str) -> Result<()> {
         let url = self.build_task_url(task_type, "cancel");
@@ -171,7 +168,6 @@ impl AListClient {
         map_result_allow_404(self.post(&url, &query).await)
     }
 
-    /// 重试任务
     #[instrument(skip(self), err)]
     pub async fn retry_task(&self, task_type: TaskType, task_id: &str) -> Result<()> {
         let url = self.build_task_url(task_type, "retry");
@@ -179,7 +175,6 @@ impl AListClient {
         map_result_allow_404(self.post(&url, &query).await)
     }
 
-    /// 添加离线下载任务
     #[instrument(skip(self), err)]
     pub async fn add_offline_download_task(
         &self,
@@ -210,12 +205,8 @@ mod tests {
             .with_max_level(tracing::Level::DEBUG)
             .with_target(true) // 不显示目标模块
             .init();
-        let mut client = AListClient::new("http://localhost:5244", "");
-        let result = client
-            .login("admin", "123456", None::<String>)
-            .await
-            .unwrap();
-        client.token = result.token;
+        let mut client = AListClient::new("http://localhost:5244", "admin", "123456");
+        client.login().await.unwrap();
         client
     }
 

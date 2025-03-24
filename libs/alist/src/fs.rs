@@ -8,40 +8,6 @@ use std::fmt::Debug;
 use tracing::{debug, info, instrument};
 
 impl AListClient {
-    /// 获取文件列表
-    ///
-    /// 根据给定路径获取文件和目录列表。
-    ///
-    /// # 参数
-    ///
-    /// * `path` - 要获取列表的目录路径
-    /// * `password` - 可选的文件夹密码
-    /// * `page` - 分页页码，从1开始
-    /// * `per_page` - 每页数量
-    /// * `refresh` - 是否刷新缓存
-    ///
-    /// # 返回
-    ///
-    /// 成功时返回包含文件列表的响应
-    ///
-    /// # 示例
-    ///
-    /// ```rust,no_run
-    /// # use alist::AListClient;
-    /// # use anyhow::Result;
-    /// #
-    /// # async fn example() -> Result<()> {
-    /// let client = AListClient::new("https://alist.example.com", "your_token_here");
-    ///
-    /// // 获取根目录文件列表
-    /// let files = client.list_files("/", None, 1, 100, false).await?;
-    /// for file in &files.content {
-    ///     println!("文件名: {}, 大小: {}, 是否文件夹: {}",
-    ///         file.name, file.size, file.is_dir);
-    /// }
-    /// # Ok(())
-    /// # }
-    /// ```
     #[instrument(skip(self, path, password), err)]
     pub async fn list_files(
         &self,
@@ -64,38 +30,6 @@ impl AListClient {
         self.post_json(&url, &request).await
     }
 
-    /// 获取目录下所有文件（递归遍历所有页）
-    ///
-    /// 获取指定路径下的所有文件，通过多次分页请求获取全部内容。
-    ///
-    /// # 参数
-    ///
-    /// * `path` - 要获取列表的目录路径
-    /// * `password` - 可选的文件夹密码
-    /// * `refresh` - 是否刷新缓存
-    ///
-    /// # 返回
-    ///
-    /// 成功时返回包含所有文件列表的响应
-    ///
-    /// # 示例
-    ///
-    /// ```rust,no_run
-    /// # use alist::AListClient;
-    /// # use anyhow::Result;
-    /// #
-    /// # async fn example() -> Result<()> {
-    /// let client = AListClient::new("https://alist.example.com", "your_token_here");
-    ///
-    /// // 获取根目录下所有文件
-    /// let all_files = client.list_all_files("/", None, false).await?;
-    /// println!("总文件数: {}, 总大小: {}", all_files.total_count, all_files.total_size);
-    /// for file in &all_files.files {
-    ///     println!("文件名: {}, 大小: {}", file.name, file.size);
-    /// }
-    /// # Ok(())
-    /// # }
-    /// ```
     #[instrument(skip(self, path, password), err)]
     pub async fn list_all_files(
         &self,
@@ -147,34 +81,6 @@ impl AListClient {
         })
     }
 
-    /// 获取文件下载链接
-    ///
-    /// 获取指定文件的下载链接。
-    ///
-    /// # 参数
-    ///
-    /// * `path` - 文件路径
-    /// * `password` - 可选的文件夹密码
-    ///
-    /// # 返回
-    ///
-    /// 成功时返回包含下载URL的响应
-    ///
-    /// # 示例
-    ///
-    /// ```rust,no_run
-    /// # use alist::AListClient;
-    /// # use anyhow::Result;
-    /// #
-    /// # async fn example() -> Result<()> {
-    /// let client = AListClient::new("https://alist.example.com", "your_token_here");
-    ///
-    /// // 获取文件下载链接
-    /// let file = client.get_file("/path/to/file.mp4", None).await?;
-    /// println!("下载URL: {}", file.raw_url);
-    /// # Ok(())
-    /// # }
-    /// ```
     #[instrument(skip(self, path, password), err)]
     pub async fn get_file(
         &self,
@@ -191,47 +97,6 @@ impl AListClient {
         self.post_json(&url, &request).await
     }
 
-    /// 递归获取目录下所有文件
-    ///
-    /// 递归遍历指定路径及其所有子目录，获取所有文件。
-    ///
-    /// # 参数
-    ///
-    /// * `path` - 要遍历的目录路径
-    /// * `password` - 可选的文件夹密码
-    /// * `refresh` - 是否刷新缓存
-    /// * `max_depth` - 最大递归深度，None表示无限制
-    ///
-    /// # 返回
-    ///
-    /// 成功时返回包含所有文件的递归结果
-    ///
-    /// # 示例
-    ///
-    /// ```rust,no_run
-    /// # use alist::AListClient;
-    /// # use anyhow::Result;
-    /// #
-    /// # async fn example() -> Result<()> {
-    /// let client = AListClient::new("https://alist.example.com", "your_token_here");
-    ///
-    /// // 递归获取根目录下所有文件
-    /// let all_files = client.list_recursive_files("/", None, false, Some(3)).await?;
-    /// println!("总文件数: {}, 文件夹数: {}, 总大小: {}",
-    ///     all_files.total_count, all_files.total_dirs, all_files.total_size);
-    ///
-    /// // 输出所有文件夹
-    /// for dir in &all_files.directories {
-    ///     println!("文件夹: {}", dir);
-    /// }
-    ///
-    /// // 输出所有文件
-    /// for file in &all_files.files {
-    ///     println!("文件: {}, 大小: {}", file.name, file.size);
-    /// }
-    /// # Ok(())
-    /// # }
-    /// ```
     #[instrument(skip(self, path, password), err)]
     pub async fn list_recursive_files(
         &self,
@@ -355,13 +220,9 @@ mod tests {
             .with_max_level(tracing::Level::DEBUG)
             .with_target(true)
             .init();
-        let client = AListClient::new("http://localhost:5244", "");
-        let result = client
-            .login("admin", "123456", None::<String>)
-            .await
-            .unwrap();
-        // 创建新客户端，使用获取到的token
-        AListClient::new("http://localhost:5244", result.token)
+        let mut client = AListClient::new("http://localhost:5244", "admin", "123456");
+        client.login().await.unwrap();
+        client
     }
 
     #[ignore]
