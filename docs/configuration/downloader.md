@@ -216,7 +216,7 @@ Bangumi-rs 使用指数退避算法计算重试间隔，从最小间隔开始，
 ```toml
 [[downloader.alist]]
 enabled = true
-url = "http://192.168.1.10:5244"
+url = "http://127.0.0.1:5244"
 username = "admin"
 password = "123456"
 tool = "115 Cloud"
