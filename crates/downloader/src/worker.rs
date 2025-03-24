@@ -243,7 +243,7 @@ impl Worker {
         );
 
         let mut ctx = Context {
-            tid: Tid::from(task.tid().to_string()),
+            tid: Tid::from(task.tid()),
             ref_task: task.clone(),
             downloader: self.take_downloader(&task.downloader)?,
         };
@@ -357,7 +357,7 @@ impl Worker {
             .first()
             .cloned()
             .context("任务不存在")?;
-        let tid = Tid::from(task.tid().to_string());
+        let tid = Tid::from(task.tid());
         let downloader = self.take_downloader(&task.downloader)?;
         let mut result = downloader.list_files(&tid, task.context.clone()).await?;
         for file in result.iter_mut() {
