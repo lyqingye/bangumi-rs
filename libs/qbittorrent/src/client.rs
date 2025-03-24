@@ -1,4 +1,4 @@
-use reqwest::{header, Body, Method, Response, StatusCode, Url};
+use reqwest::{Body, Method, Response, StatusCode, Url, header};
 use serde::Serialize;
 use serde_with::skip_serializing_none;
 use std::{
@@ -9,14 +9,14 @@ use tap::{Pipe, TapFallible};
 use tracing::{debug, trace, warn};
 
 use crate::{
+    LoginState,
     error::{ApiError, Error, Result},
     ext::{Cookie, ResponseExt},
     model::torrent::{AddTorrentArg, GetTorrentListArg, Hashes, HashesArg, Torrent, TorrentSource},
-    LoginState,
 };
 use crate::{
     ext::TORRENT_NOT_FOUND,
-    model::{torrent::TorrentContent, Credential, Sep},
+    model::{Credential, Sep, torrent::TorrentContent},
 };
 const NONE: Option<&'static ()> = Option::None;
 
@@ -140,15 +140,19 @@ impl Client {
                             form
                         },
                     );
+
+                    let cookie = {
+                        self.state()
+                            .as_cookie()
+                            .expect("Cookie should be set after login")
+                            .to_owned()
+                    };
+
                     let req = self
                         .cli
                         .request(Method::POST, self.url("torrents/add"))
                         .multipart(form)
-                        .header(header::COOKIE, {
-                            self.state()
-                                .as_cookie()
-                                .expect("Cookie should be set after login")
-                        });
+                        .header(header::COOKIE, cookie);
 
                     trace!(request = ?req, "Sending request");
                     let res = req
@@ -434,7 +438,7 @@ mod tests {
         client
             .delete_torrents(
                 Hashes::Hashes(Sep::from(vec![
-                    "3eebfcc6839fefea06f0675958013659dfc6d80f".to_string()
+                    "3eebfcc6839fefea06f0675958013659dfc6d80f".to_string(),
                 ])),
                 true,
             )

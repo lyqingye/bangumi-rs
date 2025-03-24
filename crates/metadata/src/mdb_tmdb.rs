@@ -6,8 +6,8 @@ use tracing::{debug, info, warn};
 use model::{bangumi, sea_orm_active_enums::BgmKind};
 
 use crate::{
-    format_backdrop_image_file_name, format_poster_image_file_name, MetadataAttr, MetadataAttrSet,
-    MetadataDb,
+    MetadataAttr, MetadataAttrSet, MetadataDb, format_backdrop_image_file_name,
+    format_poster_image_file_name,
 };
 
 #[derive(Clone)]
@@ -58,14 +58,11 @@ impl MetadataDb for MdbTmdb {
         let overview;
         match bgm.bgm_kind {
             Some(BgmKind::Anime) => {
-                let metadata = self
+                let (tv, season) = self
                     .tmdb
                     .get_bangumi_and_season(tmdb_id, bgm.season_number.unwrap())
-                    .await?;
-                if metadata.is_none() {
-                    return Err(anyhow::anyhow!("[TMDB] 更新元数据失败，未找到元数据信息"));
-                }
-                let (tv, season) = metadata.unwrap();
+                    .await?
+                    .context("[TMDB] 更新元数据失败，未找到元数据信息")?;
                 if attrs.is_required(MetadataAttr::SeasonNumber)
                     && (bgm.season_number.is_none() || force)
                 {
@@ -92,37 +89,39 @@ impl MetadataDb for MdbTmdb {
             }
         };
 
-        if attrs.is_required(MetadataAttr::Poster) && (bgm.poster_image_url.is_none() || force) {
-            if let Some(poster_path) = poster_path {
-                bgm.poster_image_url = Some(
-                    self.download_image_from_tmdb(
-                        &poster_path,
-                        format_poster_image_file_name(bgm).as_str(),
-                    )
-                    .await
-                    .context("下载海报失败")?,
-                );
-            }
-        }
-
-        if attrs.is_required(MetadataAttr::Backdrop) && (bgm.backdrop_image_url.is_none() || force)
+        if attrs.is_required(MetadataAttr::Poster)
+            && (bgm.poster_image_url.is_none() || force)
+            && let Some(poster_path) = poster_path
         {
-            if let Some(backdrop_path) = backdrop_path {
-                bgm.backdrop_image_url = Some(
-                    self.download_image_from_tmdb(
-                        &backdrop_path,
-                        format_backdrop_image_file_name(bgm).as_str(),
-                    )
-                    .await
-                    .context("下载背景图失败")?,
-                );
-            }
+            bgm.poster_image_url = Some(
+                self.download_image_from_tmdb(
+                    &poster_path,
+                    format_poster_image_file_name(bgm).as_str(),
+                )
+                .await
+                .context("下载海报失败")?,
+            );
         }
 
-        if attrs.is_required(MetadataAttr::Description) && (bgm.description.is_none() || force) {
-            if let Some(overview) = overview {
-                bgm.description = Some(overview);
-            }
+        if attrs.is_required(MetadataAttr::Backdrop)
+            && (bgm.backdrop_image_url.is_none() || force)
+            && backdrop_path.is_some()
+        {
+            bgm.backdrop_image_url = Some(
+                self.download_image_from_tmdb(
+                    &backdrop_path.unwrap(),
+                    format_backdrop_image_file_name(bgm).as_str(),
+                )
+                .await
+                .context("下载背景图失败")?,
+            );
+        }
+
+        if attrs.is_required(MetadataAttr::Description)
+            && (bgm.description.is_none() || force)
+            && overview.is_some()
+        {
+            bgm.description = overview;
         }
 
         info!("[TMDB] 元数据更新完成");

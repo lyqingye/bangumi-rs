@@ -1,6 +1,6 @@
 use crate::{
-    worker::{Tx, Worker},
     ThirdPartyDownloader, Tid,
+    worker::{Tx, Worker},
 };
 use anyhow::Result;
 use chrono::Local;
@@ -112,13 +112,16 @@ impl Worker {
                     }
 
                     _ => {
-                        warn!("未处理的任务状态: info_hash={}, local_status={:?}, remote_status={:?}, err_msg={:?}", info_hash, local_task.download_status  , status, err_msg);
+                        warn!(
+                            "未处理的任务状态: info_hash={}, local_status={:?}, remote_status={:?}, err_msg={:?}",
+                            info_hash, local_task.download_status, status, err_msg
+                        );
                     }
                 }
-            } else if local_task.download_status == DownloadStatus::Pending
-                || local_task.download_status == DownloadStatus::Downloading
-                || local_task.download_status == DownloadStatus::Paused
-            {
+            } else if matches!(
+                local_task.download_status,
+                DownloadStatus::Pending | DownloadStatus::Downloading | DownloadStatus::Paused
+            ) {
                 let now = Local::now().naive_utc();
                 let elapsed = now - local_task.updated_at;
                 if elapsed > downloader.config().download_timeout {

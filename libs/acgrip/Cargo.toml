@@ -1,12 +1,15 @@
 [package]
 name = "acgrip"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 
 [dependencies]
 anyhow = { workspace = true }
 thiserror = { workspace = true }
-reqwest = { workspace = true, features = ["json", "rustls-tls"], default-features = false }
+reqwest = { workspace = true, features = [
+    "json",
+    "rustls-tls",
+], default-features = false }
 tokio = { workspace = true, features = ["full"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }

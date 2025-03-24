@@ -4,8 +4,8 @@ use std::time::Duration;
 use anyhow::Result;
 use chrono::NaiveDateTime;
 use sea_orm::{
-    sea_query::OnConflict, ColumnTrait, ConnectOptions, Database, DatabaseConnection, EntityTrait,
-    IntoActiveModel, QueryFilter, Set,
+    ColumnTrait, ConnectOptions, Database, DatabaseConnection, EntityTrait, IntoActiveModel,
+    QueryFilter, Set, sea_query::OnConflict,
 };
 
 use bangumi_tv::model::EpisodeList;

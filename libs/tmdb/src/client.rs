@@ -6,11 +6,11 @@ use reqwest::Url;
 use std::{path::Path, sync::Arc};
 use tmdb_api::{
     client::reqwest::ReqwestExecutor,
-    movie::{details::MovieDetails, search::MovieSearch, Movie, MovieShort},
+    movie::{Movie, MovieShort, details::MovieDetails, search::MovieSearch},
     prelude::Command,
     tvshow::{
-        details::TVShowDetails, episode::details::TVShowEpisodeDetails, search::TVShowSearch,
-        SeasonShort, TVShow, TVShowShort,
+        SeasonShort, TVShow, TVShowShort, details::TVShowDetails,
+        episode::details::TVShowEpisodeDetails, search::TVShowSearch,
     },
 };
 use tracing::{debug, instrument};

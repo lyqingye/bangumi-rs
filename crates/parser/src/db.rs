@@ -5,8 +5,8 @@ use model::{
     sea_orm_active_enums::ParserStatus,
 };
 use sea_orm::{
-    sea_query::OnConflict, ColumnTrait, ConnectOptions, Database, DatabaseConnection, EntityTrait,
-    IntoActiveModel, QueryFilter,
+    ColumnTrait, ConnectOptions, Database, DatabaseConnection, EntityTrait, IntoActiveModel,
+    QueryFilter, sea_query::OnConflict,
 };
 use std::{sync::Arc, time::Duration};
 

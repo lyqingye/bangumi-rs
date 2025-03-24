@@ -5,7 +5,7 @@ use tracing::{error, info, warn};
 
 use model::bangumi;
 
-use crate::{format_poster_image_file_name, MetadataAttr, MetadataAttrSet, MetadataDb};
+use crate::{MetadataAttr, MetadataAttrSet, MetadataDb, format_poster_image_file_name};
 
 pub struct MdbMikan {
     pub mikan: mikan::client::Client,
@@ -42,22 +42,28 @@ impl MetadataDb for MdbMikan {
             cache = Some(info);
         }
 
-        if attrs.is_required(MetadataAttr::Poster) && (bgm.poster_image_url.is_none() || force) {
-            let info = match cache {
-                Some(info) => info,
-                None => self.mikan.get_bangumi_info(bgm.mikan_id.unwrap()).await?,
-            };
-
-            if let Some(image_url) = info.image_url {
-                match self
-                    .download_image(&image_url, format_poster_image_file_name(bgm).as_str())
-                    .await
-                {
-                    Ok(filename) => bgm.poster_image_url = Some(filename),
-                    Err(err) => error!("下载图片失败 {} 错误: {}", image_url, err),
-                }
-            }
+        if !(attrs.is_required(MetadataAttr::Poster) && (bgm.poster_image_url.is_none() || force)) {
+            return Ok(());
         }
+
+        let info = match cache {
+            Some(info) => info,
+            None => self.mikan.get_bangumi_info(bgm.mikan_id.unwrap()).await?,
+        };
+
+        let Some(image_url) = info.image_url else {
+            return Ok(());
+        };
+
+        let filename = self
+            .download_image(&image_url, format_poster_image_file_name(bgm).as_str())
+            .await
+            .map_err(|err| {
+                error!("下载图片失败 {} 错误: {}", image_url, err);
+                err
+            })?;
+
+        bgm.poster_image_url = Some(filename);
         Ok(())
     }
 

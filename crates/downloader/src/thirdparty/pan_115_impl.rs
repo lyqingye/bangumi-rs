@@ -13,11 +13,11 @@ use tokio::sync::Mutex;
 use tracing::{debug, info, warn};
 
 use crate::{
-    config, context::Pan115Context, AccessType, DownloadInfo, FileInfo, RemoteTaskStatus, Resource,
-    ResourceType, ThirdPartyDownloader, Tid,
+    AccessType, DownloadInfo, FileInfo, RemoteTaskStatus, Resource, ResourceType,
+    ThirdPartyDownloader, Tid, config, context::Pan115Context,
 };
 use anyhow::Result;
-use anyhow::{anyhow, Context};
+use anyhow::{Context, anyhow};
 use async_trait::async_trait;
 
 #[derive(Debug, Clone)]

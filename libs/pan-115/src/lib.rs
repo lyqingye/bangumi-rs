@@ -10,7 +10,7 @@ mod offline;
 mod rsa;
 mod xor;
 
-use base64::{engine::general_purpose, Engine as _};
+use base64::{Engine as _, engine::general_purpose};
 use errors::Pan115Error;
 use rand::Rng;
 

@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::{error::ServerError, server::AppState};
-use actix_web::{web, HttpRequest, Responder};
+use actix_web::{HttpRequest, Responder, web};
 use actix_ws::Message;
 use anyhow::Result;
 use tokio_stream::StreamExt;

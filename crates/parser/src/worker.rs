@@ -7,7 +7,7 @@ use std::{collections::HashSet, sync::Arc};
 use tokio::sync::{mpsc, oneshot};
 use tracing::{error, info};
 
-use crate::{db::Db, ParseResult, Parser};
+use crate::{ParseResult, Parser, db::Db};
 
 lazy_static! {
     // 匹配以下格式：
@@ -267,7 +267,7 @@ mod tests {
             "[喵萌奶茶屋&LoliHouse] 无职转生 01-11 合集 [WebRip 1080p HEVC-10bit AAC][简繁内封字幕]",
             "[桜都字幕组] 无职转生 01-23 [BDrip][1080P][HEVC_FLACx2]",
             "[桜都字幕组] 想要成为影之实力者！ / Kage no Jitsuryokusha ni Naritakute! [01-20Fin][1080p][简体内嵌]",
-            "[月语][末日时在做什麽？有没有空？可以来拯救吗？/Shuumatsu Nani Shitemasuka？ Isogashii Desuka？ Sukutte Moratte Ii Desuka？][01~03][繁体][1080P][MP4]"
+            "[月语][末日时在做什麽？有没有空？可以来拯救吗？/Shuumatsu Nani Shitemasuka？ Isogashii Desuka？ Sukutte Moratte Ii Desuka？][01~03][繁体][1080P][MP4]",
         ];
 
         // 测试应该通过的文件名

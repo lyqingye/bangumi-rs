@@ -41,9 +41,6 @@ fn main() {
 
                         // 组合所有参数
                         rustflags = rustc_flags_vec.join(" ");
-
-                        // 打印使用的标志，便于调试
-                        println!("cargo:warning=从Cargo.toml读取编译标志: {}", rustflags);
                     }
                 }
             }
@@ -71,7 +68,6 @@ fn main() {
     // 设置最终的RUSTFLAGS（只设置一次）
     if !rustflags.is_empty() {
         println!("cargo:rustc-env=RUSTFLAGS={}", rustflags);
-        println!("cargo:warning=最终使用的编译标志: {}", rustflags);
     }
 }
 
@@ -90,7 +86,9 @@ fn attempt_pgo_optimization() -> Option<String> {
 
             // 返回PGO标志而不是直接设置RUSTFLAGS
             let pgo_flags = "-Cprofile-generate=./pgo-data";
-            println!("cargo:warning=已配置PGO生成模式。编译并运行程序以生成性能分析数据，然后重新编译以使用这些数据。");
+            println!(
+                "cargo:warning=已配置PGO生成模式。编译并运行程序以生成性能分析数据，然后重新编译以使用这些数据。"
+            );
 
             return Some(pgo_flags.to_string());
         } else {

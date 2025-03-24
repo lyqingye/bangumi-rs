@@ -2,10 +2,10 @@ use anyhow::{Context, Result};
 use lru::LruCache;
 use serde::Serialize;
 use std::{collections::HashMap, num::NonZeroUsize, sync::Arc, time::Duration};
-use tokio::sync::{mpsc, oneshot, Mutex};
+use tokio::sync::{Mutex, mpsc, oneshot};
 use tracing::{error, info, warn};
 
-use crate::{telegram, Notifier};
+use crate::{Notifier, telegram};
 
 // 主题定义
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]

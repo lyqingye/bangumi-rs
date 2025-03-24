@@ -24,7 +24,9 @@ pub enum Pan115Error {
     #[error("user not login")]
     NotLogin,
 
-    #[error("offline download quota has been used up, you can purchase a VIP experience or upgrade to VIP service to get more quota")]
+    #[error(
+        "offline download quota has been used up, you can purchase a VIP experience or upgrade to VIP service to get more quota"
+    )]
     OfflineNoTimes,
 
     #[error("invalid download link")]

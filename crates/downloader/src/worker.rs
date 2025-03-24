@@ -9,9 +9,9 @@ use tokio::sync::{broadcast, mpsc, oneshot};
 use tracing::{debug, error, info, warn};
 
 use crate::{
-    config::Config, db::Db, metrics, thirdparty::pan_115_impl::Pan115DownloaderImpl, DownloadInfo,
-    Downloader, DownloaderInfo, Event, FileInfo, Resource, ResourceType, Store,
-    ThirdPartyDownloader, Tid,
+    DownloadInfo, Downloader, DownloaderInfo, Event, FileInfo, Resource, ResourceType, Store,
+    ThirdPartyDownloader, Tid, config::Config, db::Db, metrics,
+    thirdparty::pan_115_impl::Pan115DownloaderImpl,
 };
 
 type State = DownloadStatus;

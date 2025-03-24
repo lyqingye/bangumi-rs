@@ -1,9 +1,9 @@
 use crate::{
-    model::{Response, TaskInfo, TaskType},
     AddOfflineDownloadTaskRequest, AddOfflineDownloadTaskResult,
+    model::{Response, TaskInfo, TaskType},
 };
 use crate::{Error, Result};
-use reqwest::{header, Client};
+use reqwest::{Client, header};
 use serde::de::DeserializeOwned;
 use tracing::{debug, instrument};
 

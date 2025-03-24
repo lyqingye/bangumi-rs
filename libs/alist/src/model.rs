@@ -182,11 +182,7 @@ mod none_if_empty {
         D: Deserializer<'de>,
     {
         let s = String::deserialize(deserializer)?;
-        if s.is_empty() {
-            Ok(None)
-        } else {
-            Ok(Some(s))
-        }
+        if s.is_empty() { Ok(None) } else { Ok(Some(s)) }
     }
 
     pub fn serialize<S>(value: &Option<String>, serializer: S) -> Result<S::Ok, S::Error>
