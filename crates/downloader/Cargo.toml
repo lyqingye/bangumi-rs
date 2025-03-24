@@ -24,6 +24,7 @@ async-trait = { workspace = true }
 qbittorrent = { path = "../../libs/qbittorrent" }
 torrent = { path = "../../libs/torrent" }
 pan-115 = { path = "../../libs/pan-115" }
+alist = { path = "../../libs/alist" }
 model = { path = "../../crates/model" }
 notify = { path = "../notify" }
 mockall = { workspace = true }

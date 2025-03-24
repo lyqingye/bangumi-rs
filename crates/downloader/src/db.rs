@@ -8,7 +8,7 @@ use model::{
 };
 use sea_orm::{
     sea_query::{OnConflict, SimpleExpr},
-    ColumnTrait, DatabaseConnection, EntityTrait, IntoActiveModel, QueryFilter,
+    ColumnTrait, DatabaseConnection, EntityTrait, IntoActiveModel, QueryFilter, QueryTrait,
 };
 use std::sync::Arc;
 
@@ -65,7 +65,9 @@ impl Db {
             .col_expr(Column::DownloadStatus, SimpleExpr::from(status))
             .col_expr(Column::UpdatedAt, SimpleExpr::from(now))
             .col_expr(Column::ErrMsg, SimpleExpr::from(err_msg))
-            .col_expr(Column::Context, SimpleExpr::from(context))
+            .apply_if(context, |q, c| {
+                q.col_expr(Column::Context, SimpleExpr::from(Some(c)))
+            })
             .filter(Column::InfoHash.eq(info_hash))
             .exec(&*self.conn)
             .await?;

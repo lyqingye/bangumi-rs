@@ -1,3 +1,4 @@
+use alist::Tools;
 use anyhow::Result;
 use chrono::Duration as ChronoDuration;
 use downloader::config::GenericConfig;
@@ -167,6 +168,7 @@ pub struct DownloaderConfig {
     pub pan115: Pan115Config,
     pub qbittorrent: QbittorrentConfig,
     pub transmission: TransmissionConfig,
+    pub alist: Vec<AlistConfig>,
 }
 
 impl DownloaderConfig {
@@ -175,6 +177,9 @@ impl DownloaderConfig {
         self.pan115.validate()?;
         self.qbittorrent.validate()?;
         self.transmission.validate()?;
+        for alist in &self.alist {
+            alist.validate()?;
+        }
         Ok(())
     }
 }
@@ -285,6 +290,42 @@ impl TransmissionConfig {
         validate_not_empty(&self.password, "downloader.transmission.password")?;
         if let Some(mount_path) = &self.mount_path {
             validate_abs_path_format(mount_path, "downloader.transmission.mount_path")?;
+        }
+        Ok(())
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(default)]
+pub struct AlistConfig {
+    pub enabled: bool,
+    pub url: String,
+    pub username: String,
+    pub password: String,
+    pub tool: Tools,
+    #[serde(flatten)]
+    pub generic: GenericDownloaderConfig,
+}
+
+impl Default for AlistConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            url: "http://127.0.0.1:5244".to_owned(),
+            username: "admin".to_owned(),
+            password: "123456".to_owned(),
+            tool: Tools::Qbittorrent,
+            generic: GenericDownloaderConfig::default(),
+        }
+    }
+}
+
+impl AlistConfig {
+    fn validate(&self) -> Result<()> {
+        if self.enabled {
+            validate_url(&self.url, "downloader.alist.url")?;
+            validate_not_empty(&self.username, "downloader.alist.username")?;
+            validate_not_empty(&self.password, "downloader.alist.password")?;
         }
         Ok(())
     }

@@ -96,7 +96,11 @@ impl ThirdPartyDownloader for TransmissionDownloaderImpl {
         "transmission"
     }
 
-    async fn add_task(&self, resource: Resource, dir: PathBuf) -> Result<Option<Tid>> {
+    async fn add_task(
+        &self,
+        resource: Resource,
+        dir: PathBuf,
+    ) -> Result<(Option<Tid>, Option<String>)> {
         if dir.is_absolute() {
             return Err(anyhow::anyhow!("保存路径必须为相对路径"));
         }
@@ -135,7 +139,7 @@ impl ThirdPartyDownloader for TransmissionDownloaderImpl {
             return Err(anyhow::anyhow!("添加种子任务失败: {}", resp.result));
         }
 
-        Ok(None)
+        Ok((None, None))
     }
 
     async fn list_tasks(&self, tids: &[Tid]) -> Result<HashMap<Tid, RemoteTaskStatus>> {

@@ -500,14 +500,14 @@ impl Worker {
             .add_task(resource, ctx.ref_task.dir.clone().into())
             .await
         {
-            Ok(tid) => {
+            Ok((tid, result)) => {
                 info!(
                     "处理任务成功(StartTask): info_hash={} state={:?}, 结果: {:?}",
                     info_hash,
                     DownloadStatus::Downloading,
-                    info_hash
+                    result
                 );
-                self.update_task_status(&info_hash, DownloadStatus::Downloading, None, None)
+                self.update_task_status(&info_hash, DownloadStatus::Downloading, None, result)
                     .await?;
 
                 if let Some(tid) = tid {

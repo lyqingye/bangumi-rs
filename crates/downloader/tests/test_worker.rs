@@ -40,7 +40,9 @@ fn create_test_resource() -> Resource {
 // 创建模拟下载器，可自定义任务状态
 fn create_mock_downloader(config: GenericConfig) -> MockThirdPartyDownloader {
     let mut mock_downloader = MockThirdPartyDownloader::new();
-    mock_downloader.expect_add_task().returning(|_, _| Ok(None));
+    mock_downloader
+        .expect_add_task()
+        .returning(|_, _| Ok((None, None)));
     mock_downloader
         .expect_name()
         .returning(|| "mock_downloader");
@@ -664,7 +666,7 @@ async fn test_worker_fallback_task() {
     let mut success_downloader = MockThirdPartyDownloader::new();
     success_downloader
         .expect_add_task()
-        .returning(|_, _| Ok(Some(Tid::from("success".to_string()))));
+        .returning(|_, _| Ok((Some(Tid::from("success".to_string())), None)));
     success_downloader.expect_name().returning(|| "success");
     success_downloader.expect_list_tasks().returning(|_| {
         let mut tasks = HashMap::new();
@@ -773,7 +775,7 @@ async fn test_worker_fallback_task_with_allow_fallback_false() {
     let mut success_downloader = MockThirdPartyDownloader::new();
     success_downloader
         .expect_add_task()
-        .returning(|_, _| Ok(Some(Tid::from("success".to_string()))));
+        .returning(|_, _| Ok((Some(Tid::from("success".to_string())), None)));
     success_downloader.expect_name().returning(|| "success");
     success_downloader.expect_list_tasks().returning(|_| {
         let mut tasks = HashMap::new();

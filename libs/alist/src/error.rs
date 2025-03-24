@@ -20,6 +20,9 @@ pub enum Error {
 
     #[error("请求参数有误: {0}")]
     BadRequest(String),
+
+    #[error("不支持的工具: {0}")]
+    UnsupportedTool(String),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;

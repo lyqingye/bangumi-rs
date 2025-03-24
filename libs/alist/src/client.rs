@@ -50,7 +50,6 @@ impl AListClient {
         headers
     }
 
-    #[instrument(skip(self), err)]
     pub(crate) async fn get<T>(&self, url: &str) -> Result<T>
     where
         T: DeserializeOwned + Default,
@@ -66,7 +65,6 @@ impl AListClient {
         self.handle_response(response).await
     }
 
-    #[instrument(skip(self), err)]
     async fn post<T>(&self, url: &str, query: &[(&str, &str)]) -> Result<T>
     where
         T: DeserializeOwned + Default,
@@ -83,7 +81,6 @@ impl AListClient {
         self.handle_response(response).await
     }
 
-    #[instrument(skip(self, body), err)]
     pub(crate) async fn post_json<T, B>(&self, url: &str, body: &B) -> Result<T>
     where
         T: DeserializeOwned + Default,
@@ -141,7 +138,6 @@ impl AListClient {
         Ok(response.data.unwrap_or_default())
     }
 
-    #[instrument(skip(self), err)]
     pub async fn get_task_info(
         &self,
         task_type: TaskType,
@@ -154,21 +150,18 @@ impl AListClient {
         self.post(&url, &query).await
     }
 
-    #[instrument(skip(self), err)]
     pub async fn delete_task(&self, task_type: TaskType, task_id: &str) -> Result<()> {
         let url = self.build_task_url(task_type, "delete");
         let query = [("tid", task_id)];
         map_result_allow_404(self.post(&url, &query).await)
     }
 
-    #[instrument(skip(self), err)]
     pub async fn cancel_task(&self, task_type: TaskType, task_id: &str) -> Result<()> {
         let url = self.build_task_url(task_type, "cancel");
         let query = [("tid", task_id)];
         map_result_allow_404(self.post(&url, &query).await)
     }
 
-    #[instrument(skip(self), err)]
     pub async fn retry_task(&self, task_type: TaskType, task_id: &str) -> Result<()> {
         let url = self.build_task_url(task_type, "retry");
         let query = [("tid", task_id)];
@@ -198,6 +191,8 @@ fn map_result_allow_404(result: Result<()>) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
+    use crate::Tools;
+
     use super::*;
 
     async fn create_client() -> AListClient {
@@ -222,9 +217,9 @@ mod tests {
     async fn test_add_offline_download_task() {
         let client = create_client().await;
         let request = AddOfflineDownloadTaskRequest {
-            urls: vec!["https://mikanani.me/Download/20250317/eaa87c191b19ca6e167a7b3539ce8ea7132ab635.torrent".to_string()],
+            urls: vec!["magnet:?xt=urn:btih:7bf4dd0167461357087620cce33fecc1e0d2932b".to_string()],
             path: "/downloads".to_string(),
-            tool: "qBittorrent".to_string(),
+            tool: Tools::Pan115,
             delete_policy: "delete_always".to_string(),
         };
         let result = client.add_offline_download_task(request).await;
@@ -236,7 +231,7 @@ mod tests {
     async fn test_get_task_info() {
         let client = create_client().await;
         let result = client
-            .get_task_info(TaskType::OfflineDownload, "E1KG7CMJnzH-phcR-xbjp")
+            .get_task_info(TaskType::OfflineDownload, "10qBec17CKlmyGRYTbylM")
             .await
             .unwrap();
         println!("{:?}", result);
@@ -266,9 +261,9 @@ mod tests {
     #[tokio::test]
     async fn test_delete_task() {
         let client = create_client().await;
-        let result = client
+        client
             .delete_task(TaskType::OfflineDownload, "WQEK-I_VIiMBf7LwGO1iL")
-            .await;
-        println!("{:?}", result);
+            .await
+            .unwrap();
     }
 }
