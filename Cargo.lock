@@ -4141,6 +4141,7 @@ dependencies = [
  "actix-files",
  "actix-web",
  "actix-ws",
+ "alist",
  "anyhow",
  "bangumi-tv",
  "built",

@@ -30,6 +30,7 @@ metadata = { path = "../metadata" }
 downloader = { path = "../downloader" }
 mikan = { path = "../../libs/mikan" }
 pan-115 = { path = "../../libs/pan-115" }
+alist = { path = "../../libs/alist" }
 qbittorrent = { path = "../../libs/qbittorrent" }
 model = { path = "../model" }
 scheduler = { path = "../scheduler" }

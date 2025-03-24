@@ -44,27 +44,46 @@ impl Default for Config {
     }
 }
 
-pub fn create_downloader(config: Config, tool: alist::Tools) -> impl ThirdPartyDownloader {
-    match tool {
+pub async fn create_downloader(
+    config: config::GenericConfig,
+    url: String,
+    username: String,
+    password: String,
+    tool: alist::Tools,
+) -> Result<impl ThirdPartyDownloader> {
+    let config = Config {
+        generic: config,
+        file_list_cache_size: 16,
+        url: url.clone(),
+        username: username.clone(),
+        password: password.clone(),
+    };
+    let mut client = alist::AListClient::new(url, username, password);
+    client.login().await?;
+
+    Ok(match tool {
         alist::Tools::Qbittorrent => AlistDownloaderImpl::new(
             config,
+            client,
             tool,
             ResourceType::TorrentURL,
             vec![ResourceType::TorrentURL, ResourceType::Magnet],
         ),
         alist::Tools::Transmission => AlistDownloaderImpl::new(
             config,
+            client.clone(),
             tool,
             ResourceType::TorrentURL,
             vec![ResourceType::TorrentURL, ResourceType::Magnet],
         ),
         alist::Tools::Pan115 | alist::Tools::PikPak => AlistDownloaderImpl::new(
             config,
+            client.clone(),
             tool,
             ResourceType::Magnet,
             vec![ResourceType::Magnet],
         ),
-    }
+    })
 }
 
 #[derive(Clone)]
@@ -80,15 +99,11 @@ pub struct AlistDownloaderImpl {
 impl AlistDownloaderImpl {
     pub fn new(
         config: Config,
+        client: alist::AListClient,
         tool: alist::Tools,
         recommended_resource_type: ResourceType,
         supports_resource_type: Vec<ResourceType>,
     ) -> Self {
-        let client = alist::AListClient::new(
-            config.url.clone(),
-            config.username.clone(),
-            config.password.clone(),
-        );
         let cache = LruCache::new(NonZero::new(config.file_list_cache_size).unwrap());
         Self {
             config,

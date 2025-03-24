@@ -208,6 +208,21 @@ impl Server {
                 ),
             ) as Box<dyn ThirdPartyDownloader>));
         }
+
+        for config in &config.downloader.alist {
+            if config.enabled {
+                let alist = downloader::thirdparty::alist_factory::create_downloader(
+                    config.generic.to_downloader_config(),
+                    config.url.clone(),
+                    config.username.clone(),
+                    config.password.clone(),
+                    config.tool,
+                )
+                .await?;
+                downloaders.push(Arc::new(Box::new(alist)));
+            }
+        }
+
         if downloaders.is_empty() {
             panic!("没有启用任何下载器");
         }
