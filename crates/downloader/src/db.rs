@@ -12,7 +12,7 @@ use sea_orm::{
 };
 use std::sync::Arc;
 
-use crate::Store;
+use crate::{Store, Tid};
 
 #[derive(Clone)]
 pub struct Db {
@@ -199,8 +199,8 @@ impl Store for Db {
             .await
     }
 
-    async fn update_tid(&self, info_hash: &str, tid: String) -> Result<()> {
-        self.update_tid(info_hash, tid).await
+    async fn update_tid(&self, info_hash: &str, tid: &Tid) -> Result<()> {
+        self.update_tid(info_hash, tid.to_string()).await
     }
 
     async fn get_torrent_by_info_hash(&self, info_hash: &str) -> Result<Option<TorrentModel>> {

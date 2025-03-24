@@ -4,6 +4,7 @@ use std::{collections::HashMap, path::PathBuf, time::Duration};
 mod mock_store;
 use chrono::{Local, TimeDelta};
 use downloader::config::GenericConfig;
+use downloader::Tid;
 use downloader::{config::Config, worker::Worker, MockThirdPartyDownloader, RemoteTaskStatus};
 use downloader::{resource::Resource, Store};
 use mock_store::MockStore;
@@ -71,11 +72,11 @@ fn create_test_worker(mock_store: MockStore, mock_downloader: MockThirdPartyDown
 }
 
 // 创建失败状态的任务集合
-fn create_failed_tasks() -> HashMap<String, RemoteTaskStatus> {
+fn create_failed_tasks() -> HashMap<Tid, RemoteTaskStatus> {
     let mut tasks = HashMap::new();
     let resource = create_test_resource();
     tasks.insert(
-        resource.info_hash().to_string(),
+        Tid::from(resource.info_hash().to_string()),
         RemoteTaskStatus {
             status: DownloadStatus::Failed,
             err_msg: Some("error msg".to_string()),
@@ -142,7 +143,7 @@ async fn test_download_timeout_no_retry() {
     let resource = create_test_resource();
     let mut pending_tasks = create_failed_tasks();
     pending_tasks.insert(
-        resource.info_hash().to_string(),
+        Tid::from(resource.info_hash().to_string()),
         RemoteTaskStatus {
             status: DownloadStatus::Downloading,
             err_msg: None,
@@ -199,7 +200,7 @@ async fn test_worker_retry_success() {
     let mut failed_remote_tasks = HashMap::new();
     let resource = create_test_resource();
     failed_remote_tasks.insert(
-        resource.info_hash().to_string(),
+        Tid::from(resource.info_hash()),
         RemoteTaskStatus {
             status: DownloadStatus::Failed,
             err_msg: None,
@@ -209,7 +210,7 @@ async fn test_worker_retry_success() {
 
     let mut success_remote_tasks = HashMap::new();
     success_remote_tasks.insert(
-        resource.info_hash().to_string(),
+        Tid::from(resource.info_hash()),
         RemoteTaskStatus {
             status: DownloadStatus::Completed,
             err_msg: None,
@@ -262,7 +263,7 @@ async fn test_worker_add_task_success() {
     let resource = create_test_resource();
     let mut pending_remote_task = HashMap::new();
     pending_remote_task.insert(
-        resource.info_hash().to_string(),
+        Tid::from(resource.info_hash()),
         RemoteTaskStatus {
             status: DownloadStatus::Downloading,
             err_msg: None,
@@ -310,7 +311,7 @@ async fn test_worker_add_cancel_downloading_task() {
     let mut pending_remote_task = HashMap::new();
     let resource = create_test_resource();
     pending_remote_task.insert(
-        resource.info_hash().to_string(),
+        Tid::from(resource.info_hash()),
         RemoteTaskStatus {
             status: DownloadStatus::Downloading,
             err_msg: None,
@@ -359,7 +360,7 @@ async fn test_worker_add_retry_failed_task() {
     let resource = create_test_resource();
     let mut failed_remote_task = HashMap::new();
     failed_remote_task.insert(
-        resource.info_hash().to_string(),
+        Tid::from(resource.info_hash()),
         RemoteTaskStatus {
             status: DownloadStatus::Failed,
             err_msg: None,
@@ -369,7 +370,7 @@ async fn test_worker_add_retry_failed_task() {
 
     let mut pending_remote_task = HashMap::new();
     pending_remote_task.insert(
-        resource.info_hash().to_string(),
+        Tid::from(resource.info_hash()),
         RemoteTaskStatus {
             status: DownloadStatus::Downloading,
             err_msg: None,
@@ -425,7 +426,7 @@ async fn test_worker_recover_pending_tasks() {
     let resource = create_test_resource();
     let mut pending_remote_task = HashMap::new();
     pending_remote_task.insert(
-        resource.info_hash().to_string(),
+        Tid::from(resource.info_hash()),
         RemoteTaskStatus {
             status: DownloadStatus::Downloading,
             err_msg: None,
@@ -487,7 +488,7 @@ async fn test_worker_pause_task() {
     let resource = create_test_resource();
     let mut pending_remote_task = HashMap::new();
     pending_remote_task.insert(
-        resource.info_hash().to_string(),
+        Tid::from(resource.info_hash()),
         RemoteTaskStatus {
             status: DownloadStatus::Downloading,
             err_msg: None,
@@ -536,7 +537,7 @@ async fn test_worker_resume_task() {
     let resource = create_test_resource();
     let mut pending_remote_task = HashMap::new();
     pending_remote_task.insert(
-        resource.info_hash().to_string(),
+        Tid::from(resource.info_hash()),
         RemoteTaskStatus {
             status: DownloadStatus::Paused,
             err_msg: None,
@@ -585,7 +586,7 @@ async fn test_worker_user_manual_pause_task() {
     let resource = create_test_resource();
     let mut pending_remote_task = HashMap::new();
     pending_remote_task.insert(
-        resource.info_hash().to_string(),
+        Tid::from(resource.info_hash()),
         RemoteTaskStatus {
             status: DownloadStatus::Paused,
             err_msg: None,
@@ -641,7 +642,7 @@ async fn test_worker_fallback_task() {
     failed_downloader.expect_list_tasks().returning(|_| {
         let mut tasks = HashMap::new();
         tasks.insert(
-            "f6ebf8a1f26d01f317c8e94ec40ebb3dd1a75d40".to_string(),
+            Tid::from("f6ebf8a1f26d01f317c8e94ec40ebb3dd1a75d40"),
             RemoteTaskStatus {
                 status: DownloadStatus::Failed,
                 err_msg: Some("模拟下载失败".to_string()),
@@ -663,12 +664,12 @@ async fn test_worker_fallback_task() {
     let mut success_downloader = MockThirdPartyDownloader::new();
     success_downloader
         .expect_add_task()
-        .returning(|_, _| Ok(Some("success".to_string())));
+        .returning(|_, _| Ok(Some(Tid::from("success".to_string()))));
     success_downloader.expect_name().returning(|| "success");
     success_downloader.expect_list_tasks().returning(|_| {
         let mut tasks = HashMap::new();
         tasks.insert(
-            "f6ebf8a1f26d01f317c8e94ec40ebb3dd1a75d40".to_string(),
+            Tid::from("f6ebf8a1f26d01f317c8e94ec40ebb3dd1a75d40"),
             RemoteTaskStatus {
                 status: DownloadStatus::Downloading,
                 err_msg: None,
@@ -750,7 +751,7 @@ async fn test_worker_fallback_task_with_allow_fallback_false() {
     failed_downloader.expect_list_tasks().returning(|_| {
         let mut tasks = HashMap::new();
         tasks.insert(
-            "f6ebf8a1f26d01f317c8e94ec40ebb3dd1a75d40".to_string(),
+            Tid::from("f6ebf8a1f26d01f317c8e94ec40ebb3dd1a75d40"),
             RemoteTaskStatus {
                 status: DownloadStatus::Failed,
                 err_msg: Some("模拟下载失败".to_string()),
@@ -772,12 +773,12 @@ async fn test_worker_fallback_task_with_allow_fallback_false() {
     let mut success_downloader = MockThirdPartyDownloader::new();
     success_downloader
         .expect_add_task()
-        .returning(|_, _| Ok(Some("success".to_string())));
+        .returning(|_, _| Ok(Some(Tid::from("success".to_string()))));
     success_downloader.expect_name().returning(|| "success");
     success_downloader.expect_list_tasks().returning(|_| {
         let mut tasks = HashMap::new();
         tasks.insert(
-            "f6ebf8a1f26d01f317c8e94ec40ebb3dd1a75d40".to_string(),
+            Tid::from("f6ebf8a1f26d01f317c8e94ec40ebb3dd1a75d40"),
             RemoteTaskStatus {
                 status: DownloadStatus::Downloading,
                 err_msg: None,

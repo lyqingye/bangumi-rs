@@ -11,7 +11,7 @@ use tracing::{debug, error, info, warn};
 use crate::{
     config::Config, db::Db, metrics, thirdparty::pan_115_impl::Pan115DownloaderImpl, DownloadInfo,
     Downloader, DownloaderInfo, Event, FileInfo, Resource, ResourceType, Store,
-    ThirdPartyDownloader,
+    ThirdPartyDownloader, Tid,
 };
 
 type State = DownloadStatus;
@@ -78,16 +78,14 @@ impl Tx {
 }
 
 pub struct Context<'a> {
+    tid: Tid,
     ref_task: Model,
     downloader: &'a dyn ThirdPartyDownloader,
 }
 
 impl Context<'_> {
-    pub fn tid(&self) -> &str {
-        self.ref_task
-            .tid
-            .as_ref()
-            .unwrap_or(&self.ref_task.info_hash)
+    pub fn tid(&self) -> &Tid {
+        &self.tid
     }
 
     pub fn info_hash(&self) -> &str {
@@ -245,6 +243,7 @@ impl Worker {
         );
 
         let mut ctx = Context {
+            tid: Tid::from(task.tid().to_string()),
             ref_task: task.clone(),
             downloader: self.take_downloader(&task.downloader)?,
         };
@@ -261,6 +260,7 @@ impl Worker {
             if let Some(event) = next_event.as_ref() {
                 ctx.ref_task = event.get_ref_task(&**self.store).await?;
                 ctx.downloader = self.take_downloader(&ctx.ref_task.downloader)?;
+                ctx.tid = Tid::from(ctx.ref_task.tid().to_string());
             }
             event = next_event;
             state = next_state;
@@ -357,10 +357,9 @@ impl Worker {
             .first()
             .cloned()
             .context("任务不存在")?;
+        let tid = Tid::from(task.tid().to_string());
         let downloader = self.take_downloader(&task.downloader)?;
-        let mut result = downloader
-            .list_files(task.tid(), task.context.clone())
-            .await?;
+        let mut result = downloader.list_files(&tid, task.context.clone()).await?;
         for file in result.iter_mut() {
             file.file_id = format!("{}-{}", downloader.name(), file.file_id);
         }
@@ -512,7 +511,7 @@ impl Worker {
                     .await?;
 
                 if let Some(tid) = tid {
-                    self.store.update_tid(&info_hash, tid).await?;
+                    self.store.update_tid(&info_hash, &tid).await?;
                 }
 
                 Ok((None, Some(State::Downloading)))

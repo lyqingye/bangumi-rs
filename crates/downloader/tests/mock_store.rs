@@ -1,7 +1,7 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use chrono::NaiveDateTime;
-use downloader::Store;
+use downloader::{Store, Tid};
 use model::sea_orm_active_enums::DownloadStatus;
 use model::torrent_download_tasks::Model;
 use model::torrents::Model as TorrentModel;
@@ -125,10 +125,10 @@ impl Store for MockStore {
         Ok(())
     }
 
-    async fn update_tid(&self, info_hash: &str, tid: String) -> Result<()> {
+    async fn update_tid(&self, info_hash: &str, tid: &Tid) -> Result<()> {
         let mut tasks = self.tasks.write().await;
         if let Some(task) = tasks.get_mut(info_hash) {
-            task.tid = Some(tid);
+            task.tid = Some(tid.to_string());
         }
         Ok(())
     }

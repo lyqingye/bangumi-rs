@@ -13,7 +13,11 @@ use anyhow::Result;
 use async_trait::async_trait;
 use chrono::NaiveDateTime;
 use resource::Resource;
-use std::{collections::HashMap, path::PathBuf};
+use std::{
+    collections::HashMap,
+    fmt::{self, Display},
+    path::PathBuf,
+};
 use tokio::sync::broadcast;
 
 use model::{
@@ -86,19 +90,52 @@ pub struct FileInfo {
     pub is_dir: bool,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Tid(String);
+
+impl From<String> for Tid {
+    fn from(tid: String) -> Self {
+        Self(tid)
+    }
+}
+
+impl From<Tid> for String {
+    fn from(tid: Tid) -> Self {
+        tid.0
+    }
+}
+
+impl From<&str> for Tid {
+    fn from(tid: &str) -> Self {
+        Self(tid.to_string())
+    }
+}
+
+impl Tid {
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl Display for Tid {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
 #[mockall::automock]
 #[async_trait]
 pub trait ThirdPartyDownloader: Send + Sync {
     fn name(&self) -> &'static str;
-    async fn add_task(&self, resource: Resource, dir: PathBuf) -> Result<Option<String>>;
-    async fn list_tasks(&self, tid: &[String]) -> Result<HashMap<String, RemoteTaskStatus>>;
+    async fn add_task(&self, resource: Resource, dir: PathBuf) -> Result<Option<Tid>>;
+    async fn list_tasks(&self, tid: &[Tid]) -> Result<HashMap<Tid, RemoteTaskStatus>>;
 
-    async fn list_files(&self, tid: &str, result: Option<String>) -> Result<Vec<FileInfo>>;
+    async fn list_files(&self, tid: &Tid, result: Option<String>) -> Result<Vec<FileInfo>>;
     async fn download_file(&self, file_id: &str, ua: &str) -> Result<DownloadInfo>;
-    async fn cancel_task(&self, tid: &str) -> Result<()>;
-    async fn remove_task(&self, tid: &str, remove_files: bool) -> Result<()>;
-    async fn pause_task(&self, tid: &str) -> Result<()>;
-    async fn resume_task(&self, tid: &str) -> Result<()>;
+    async fn cancel_task(&self, tid: &Tid) -> Result<()>;
+    async fn remove_task(&self, tid: &Tid, remove_files: bool) -> Result<()>;
+    async fn pause_task(&self, tid: &Tid) -> Result<()>;
+    async fn resume_task(&self, tid: &Tid) -> Result<()>;
     // 支持的资源类型
     fn supports_resource_type(&self, resource_type: ResourceType) -> bool;
     // 推荐的资源类型
@@ -122,7 +159,7 @@ pub trait Store: Send + Sync {
         err_msg: Option<String>,
         result: Option<String>,
     ) -> Result<()>;
-    async fn update_tid(&self, info_hash: &str, tid: String) -> Result<()>;
+    async fn update_tid(&self, info_hash: &str, tid: &Tid) -> Result<()>;
     async fn update_retry_status(
         &self,
         info_hash: &str,

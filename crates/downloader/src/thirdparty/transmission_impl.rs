@@ -19,7 +19,7 @@ use crate::{
     config,
     context::{TorrentContext, TorrentFileInfo},
     resource::Resource,
-    AccessType, DownloadInfo, FileInfo, RemoteTaskStatus, ThirdPartyDownloader,
+    AccessType, DownloadInfo, FileInfo, RemoteTaskStatus, ThirdPartyDownloader, Tid,
 };
 
 use base64::{engine::general_purpose::STANDARD, Engine};
@@ -96,7 +96,7 @@ impl ThirdPartyDownloader for TransmissionDownloaderImpl {
         "transmission"
     }
 
-    async fn add_task(&self, resource: Resource, dir: PathBuf) -> Result<Option<String>> {
+    async fn add_task(&self, resource: Resource, dir: PathBuf) -> Result<Option<Tid>> {
         if dir.is_absolute() {
             return Err(anyhow::anyhow!("保存路径必须为相对路径"));
         }
@@ -138,13 +138,16 @@ impl ThirdPartyDownloader for TransmissionDownloaderImpl {
         Ok(None)
     }
 
-    async fn list_tasks(&self, tids: &[String]) -> Result<HashMap<String, RemoteTaskStatus>> {
+    async fn list_tasks(&self, tids: &[Tid]) -> Result<HashMap<Tid, RemoteTaskStatus>> {
         if tids.is_empty() {
             return Ok(HashMap::new());
         }
 
         // 使用 hash_string 字段过滤任务
-        let ids: Vec<Id> = tids.iter().map(|tid| Id::Hash(tid.clone())).collect();
+        let ids: Vec<Id> = tids
+            .iter()
+            .map(|tid| Id::Hash(tid.clone().into()))
+            .collect();
         let fields = vec![
             TorrentGetField::HashString,
             TorrentGetField::Status,
@@ -202,13 +205,13 @@ impl ThirdPartyDownloader for TransmissionDownloaderImpl {
                 result: Some(ctx.try_into()?),
             };
 
-            result.insert(hash, remote_task_status);
+            result.insert(Tid::from(hash), remote_task_status);
         }
 
         Ok(result)
     }
 
-    async fn cancel_task(&self, tid: &str) -> Result<()> {
+    async fn cancel_task(&self, tid: &Tid) -> Result<()> {
         let ids = vec![Id::Hash(tid.to_string())];
         // 直接使用Arc里的引用
         self.cli
@@ -218,7 +221,7 @@ impl ThirdPartyDownloader for TransmissionDownloaderImpl {
         Ok(())
     }
 
-    async fn remove_task(&self, tid: &str, remove_files: bool) -> Result<()> {
+    async fn remove_task(&self, tid: &Tid, remove_files: bool) -> Result<()> {
         let ids = vec![Id::Hash(tid.to_string())];
         // 直接使用Arc里的引用
         self.cli
@@ -228,7 +231,7 @@ impl ThirdPartyDownloader for TransmissionDownloaderImpl {
         Ok(())
     }
 
-    async fn pause_task(&self, tid: &str) -> Result<()> {
+    async fn pause_task(&self, tid: &Tid) -> Result<()> {
         let ids = vec![Id::Hash(tid.to_string())];
         // 直接使用Arc里的引用
         self.cli
@@ -238,7 +241,7 @@ impl ThirdPartyDownloader for TransmissionDownloaderImpl {
         Ok(())
     }
 
-    async fn resume_task(&self, tid: &str) -> Result<()> {
+    async fn resume_task(&self, tid: &Tid) -> Result<()> {
         let ids = vec![Id::Hash(tid.to_string())];
         // 直接使用Arc里的引用
         self.cli
@@ -248,7 +251,7 @@ impl ThirdPartyDownloader for TransmissionDownloaderImpl {
         Ok(())
     }
 
-    async fn list_files(&self, _tid: &str, result: Option<String>) -> Result<Vec<FileInfo>> {
+    async fn list_files(&self, _tid: &Tid, result: Option<String>) -> Result<Vec<FileInfo>> {
         let ctx = result.context("没有下载结果，请确保已经成功下载")?;
         let ctx = TorrentContext::try_from(ctx)?;
 
