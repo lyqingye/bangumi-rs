@@ -244,33 +244,46 @@ impl AListClient {
         let password_opt = password.map(|p| p.into());
         let mut result = RecursiveFilesList::default();
 
-        // 递归辅助函数
-        async fn traverse_dir(
-            client: &AListClient,
-            path: String,
+        // 递归上下文结构体
+        struct TraverseContext<'a> {
+            client: &'a AListClient,
             password: Option<String>,
             refresh: bool,
             max_depth: Option<usize>,
+            result: &'a mut RecursiveFilesList,
+            visited_paths: std::collections::HashSet<String>,
+        }
+
+        // 递归辅助函数
+        async fn traverse_dir(
+            ctx: &mut TraverseContext<'_>,
+            path: String,
             current_depth: usize,
-            result: &mut RecursiveFilesList,
         ) -> Result<()> {
             // 检查递归深度
-            if let Some(max) = max_depth {
+            if let Some(max) = ctx.max_depth {
                 if current_depth > max {
                     debug!("达到最大递归深度 {}, 不再继续遍历路径: {}", max, path);
                     return Ok(());
                 }
             }
 
+            // 检查路径是否已被访问（防止符号链接导致的循环）
+            if !ctx.visited_paths.insert(path.clone()) {
+                info!("检测到可能的循环引用，路径已被访问过: {}", path);
+                return Ok(());
+            }
+
             // 获取当前目录的所有文件和子目录
-            let resp = client
-                .list_all_files(&path, password.clone(), refresh)
+            let resp = ctx
+                .client
+                .list_all_files(&path, ctx.password.clone(), ctx.refresh)
                 .await?;
 
             // 记录当前目录
             if !path.eq("/") {
-                result.directories.push(path.clone());
-                result.total_dirs += 1;
+                ctx.result.directories.push(path.clone());
+                ctx.result.total_dirs += 1;
             }
 
             debug!("正在处理目录: {}, 包含 {} 个项目", path, resp.files.len());
@@ -287,15 +300,7 @@ impl AListClient {
 
                     // 递归处理子目录
                     // 使用Box::pin包装异步递归调用
-                    let future = Box::pin(traverse_dir(
-                        client,
-                        sub_path,
-                        password.clone(),
-                        refresh,
-                        max_depth,
-                        current_depth + 1,
-                        result,
-                    ));
+                    let future = Box::pin(traverse_dir(ctx, sub_path, current_depth + 1));
                     future.await?;
                 } else {
                     // 构建完整文件路径
@@ -306,30 +311,31 @@ impl AListClient {
                     };
 
                     // 记录文件与完整路径
-                    result.files.push(RecursiveFileItem {
+                    ctx.result.files.push(RecursiveFileItem {
                         file: item.clone(),
                         full_path,
                     });
-                    result.total_count += 1;
-                    result.total_size += item.size;
+                    ctx.result.total_count += 1;
+                    ctx.result.total_size += item.size;
                 }
             }
 
             Ok(())
         }
 
-        // 开始递归
-        info!("开始递归遍历目录: {}", root_path);
-        traverse_dir(
-            self,
-            root_path,
-            password_opt,
+        // 创建上下文
+        let mut ctx = TraverseContext {
+            client: self,
+            password: password_opt,
             refresh,
             max_depth,
-            0,
-            &mut result,
-        )
-        .await?;
+            result: &mut result,
+            visited_paths: std::collections::HashSet::new(),
+        };
+
+        // 开始递归
+        info!("开始递归遍历目录: {}", root_path);
+        traverse_dir(&mut ctx, root_path, 0).await?;
 
         info!(
             "递归遍历完成, 找到 {} 个文件, {} 个目录, 总大小: {}字节",
