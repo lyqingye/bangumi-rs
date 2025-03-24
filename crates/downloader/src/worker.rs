@@ -505,7 +505,7 @@ impl Worker {
                     "处理任务成功(StartTask): info_hash={} state={:?}, 结果: {:?}",
                     info_hash,
                     DownloadStatus::Downloading,
-                    info_hash
+                    result
                 );
                 self.update_task_status(&info_hash, DownloadStatus::Downloading, None, result)
                     .await?;

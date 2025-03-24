@@ -120,10 +120,10 @@ impl AlistDownloaderImpl {
 impl ThirdPartyDownloader for AlistDownloaderImpl {
     fn name(&self) -> &'static str {
         match self.tool {
-            alist::Tools::Qbittorrent => "alist-qbittorrent",
-            alist::Tools::Transmission => "alist-transmission",
-            alist::Tools::Pan115 => "alist-115",
-            alist::Tools::PikPak => "alist-pikpak",
+            alist::Tools::Qbittorrent => "alist:qbittorrent",
+            alist::Tools::Transmission => "alist:transmission",
+            alist::Tools::Pan115 => "alist:115",
+            alist::Tools::PikPak => "alist:pikpak",
         }
     }
 
@@ -282,13 +282,14 @@ impl ThirdPartyDownloader for AlistDownloaderImpl {
 }
 
 fn map_task_status(task: alist::TaskInfo) -> (DownloadStatus, Option<String>) {
-    if task.progress == 1.0 {
+    if task.progress == 100.0 {
         return (DownloadStatus::Completed, None);
     }
     match task.state {
-        alist::TaskState::Errored | alist::TaskState::Failed | alist::TaskState::Failing => {
-            (DownloadStatus::Failed, Some("下载失败".to_string()))
-        }
+        alist::TaskState::Errored | alist::TaskState::Failed | alist::TaskState::Failing => (
+            DownloadStatus::Failed,
+            Some(format!("下载失败: {}", task.error.unwrap_or_default())),
+        ),
         alist::TaskState::Canceling | alist::TaskState::Canceled => {
             (DownloadStatus::Cancelled, None)
         }

@@ -277,6 +277,7 @@ impl TaskManager {
                         .get_subscription(task.bangumi_id)
                         .await?
                         .context("你需要先订阅番剧")?;
+                    let dir = PathBuf::from(bangumi.name.clone()).join(torrent.title.clone());
 
                     // 创建下载任务, 如果推荐资源类型为种子，则优先提供种子
                     if self.use_torrent_to_download(&subscribe, &torrent, false) {
@@ -284,7 +285,7 @@ impl TaskManager {
                             self.downloader
                                 .add_task(
                                     Resource::from_torrent_file_bytes(data)?,
-                                    PathBuf::from(bangumi.name),
+                                    dir,
                                     subscribe.preferred_downloader,
                                     subscribe.allow_fallback,
                                 )
@@ -293,7 +294,7 @@ impl TaskManager {
                             self.downloader
                                 .add_task(
                                     Resource::from_torrent_url(&download_url, &torrent.info_hash)?,
-                                    PathBuf::from(bangumi.name),
+                                    dir,
                                     subscribe.preferred_downloader,
                                     subscribe.allow_fallback,
                                 )
@@ -310,7 +311,7 @@ impl TaskManager {
                         self.downloader
                             .add_task(
                                 Resource::from_info_hash(torrent.info_hash)?,
-                                PathBuf::from(bangumi.name),
+                                dir,
                                 subscribe.preferred_downloader,
                                 subscribe.allow_fallback,
                             )
