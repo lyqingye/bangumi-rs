@@ -232,58 +232,64 @@ mod tests {
         client
     }
 
+    #[ignore]
     #[tokio::test]
     async fn test_login() {
         let client = create_client().await;
         println!("{:?}", client.token);
     }
 
+    #[ignore]
     #[tokio::test]
     async fn test_add_offline_download_task() {
         let client = create_client().await;
         let request = AddOfflineDownloadTaskRequest {
-            urls: vec!["https://mikanani.me/Download/20250316/d870ebb2618dd3e8e7aaa27c662d1d8982d20104.torrent".to_string()],
+            urls: vec!["magnet:?xt=urn:btih:1a76803252df64609b68e00c14b0642c6c5eaa39".to_string()],
             path: "/downloads".to_string(),
-            tool: "qBittorrent".to_string(),
+            tool: "115 Cloud".to_string(),
             delete_policy: "delete_never".to_string(),
         };
         let result = client.add_offline_download_task(request).await;
         println!("{:?}", result);
     }
 
+    #[ignore]
     #[tokio::test]
     async fn test_get_task_info() {
         let client = create_client().await;
         let result = client
-            .get_task_info(TaskType::OfflineDownload, "oYZopQiplPBVwRZpWmqSJ")
+            .get_task_info(TaskType::OfflineDownload, "joGXMIxokczmDd_Rk2W1f")
             .await
             .unwrap();
         println!("{:?}", result);
     }
 
+    #[ignore]
     #[tokio::test]
     async fn test_retry_task() {
         let client = create_client().await;
         let result = client
-            .retry_task(TaskType::OfflineDownload, "62qiGZ2Q9qPJKo_FSfSW6")
+            .retry_task(TaskType::OfflineDownload, "uC5XNSea-gFdgaP-i0S5L")
             .await;
         println!("{:?}", result);
     }
 
+    #[ignore]
     #[tokio::test]
     async fn test_cancel_task() {
         let client = create_client().await;
         let result = client
-            .cancel_task(TaskType::OfflineDownload, "62qiGZ2Q9qPJKo_FSfSW6")
+            .cancel_task(TaskType::OfflineDownload, "k9xXGXtCI4EhOn3EeaECJ")
             .await;
         println!("{:?}", result);
     }
 
+    #[ignore]
     #[tokio::test]
     async fn test_delete_task() {
         let client = create_client().await;
         let result = client
-            .delete_task(TaskType::OfflineDownload, "RaPkD_EfY6TXkdDDwOMJD")
+            .delete_task(TaskType::OfflineDownload, "k9xXGXtCI4EhOn3EeaECJ")
             .await;
         println!("{:?}", result);
     }
