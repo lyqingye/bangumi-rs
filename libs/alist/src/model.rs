@@ -152,6 +152,107 @@ mod none_if_empty {
     }
 }
 
+/// 列表中的文件项目
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct FsListFileItem {
+    pub name: String,
+    pub size: i64,
+    pub is_dir: bool,
+    pub modified: String,
+    #[serde(default)]
+    pub created: String,
+    pub sign: Option<String>,
+    pub thumb: Option<String>,
+    #[serde(rename = "type")]
+    pub file_type: i32,
+    #[serde(default)]
+    pub hashinfo: String,
+    pub hash_info: Option<serde_json::Value>,
+}
+
+/// 文件目录列表响应
+#[derive(Debug, Deserialize, Default)]
+pub struct FsListResponse {
+    pub content: Vec<FsListFileItem>,
+    pub total: i32,
+    #[serde(with = "none_if_empty")]
+    pub readme: Option<String>,
+    #[serde(with = "none_if_empty")]
+    pub header: Option<String>,
+    pub write: bool,
+    pub provider: String,
+}
+
+/// 文件详情响应
+#[derive(Debug, Deserialize, Default)]
+pub struct FsGetResponse {
+    pub name: String,
+    pub size: i64,
+    pub is_dir: bool,
+    pub modified: String,
+    #[serde(default)]
+    pub created: String,
+    pub sign: Option<String>,
+    pub thumb: Option<String>,
+    #[serde(rename = "type")]
+    pub file_type: i32,
+    #[serde(default)]
+    pub hashinfo: String,
+    pub hash_info: Option<serde_json::Value>,
+    pub raw_url: String,
+    #[serde(with = "none_if_empty")]
+    pub readme: Option<String>,
+    #[serde(with = "none_if_empty")]
+    pub header: Option<String>,
+    pub provider: String,
+    pub related: Option<serde_json::Value>,
+}
+
+/// 文件列表请求
+#[derive(Debug, Serialize)]
+pub struct FsListRequest {
+    pub path: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub password: Option<String>,
+    pub page: u32,
+    pub per_page: u32,
+    pub refresh: bool,
+}
+
+/// 文件获取请求
+#[derive(Debug, Serialize)]
+pub struct FsGetRequest {
+    pub path: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub password: Option<String>,
+}
+
+/// 完整文件列表响应（无分页）
+#[derive(Debug, Default)]
+pub struct AllFilesList {
+    pub files: Vec<FsListFileItem>,
+    pub total_count: usize,
+    pub total_size: i64,
+    pub provider: String,
+}
+
+/// 递归文件列表中的文件项（带完整路径）
+#[derive(Debug, Clone)]
+pub struct RecursiveFileItem {
+    pub file: FsListFileItem,
+    pub full_path: String,
+}
+
+/// 文件递归展开结果
+#[derive(Debug, Default)]
+pub struct RecursiveFilesList {
+    pub files: Vec<RecursiveFileItem>,
+    pub directories: Vec<String>,
+    pub total_count: usize,
+    pub total_size: i64,
+    pub total_dirs: usize,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
