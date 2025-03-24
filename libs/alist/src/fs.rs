@@ -417,31 +417,6 @@ mod tests {
 
     #[ignore]
     #[tokio::test]
-    async fn test_get_file() {
-        let client = create_client().await;
-        // 首先获取一个文件的路径
-        let files = client
-            .list_files("/downloads/[Nekomoe kissaten&LoliHouse] Watashi no Shiawase na Kekkon S2 - 11 [WebRip 1080p HEVC-10bit AAC ASSx2].mkv/", None::<String>, 1, 100, false)
-            .await
-            .unwrap();
-
-        // 找到第一个非目录文件
-        let file = files.content.into_iter().find(|f| !f.is_dir);
-
-        if let Some(file) = file {
-            let file_info = client
-                .get_file(&format!("/downloads/{}", file.name), None::<String>)
-                .await
-                .unwrap();
-            println!("文件: {}, 下载URL: {}", file_info.name, file_info.raw_url);
-            println!("提供者: {}, 大小: {}", file_info.provider, file_info.size);
-        } else {
-            println!("未找到可下载的文件");
-        }
-    }
-
-    #[ignore]
-    #[tokio::test]
     async fn test_list_recursive_files() {
         let client = create_client().await;
 
