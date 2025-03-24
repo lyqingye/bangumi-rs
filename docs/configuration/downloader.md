@@ -207,3 +207,66 @@ Bangumi-rs 使用指数退避算法计算重试间隔，从最小间隔开始，
 - **默认值**: `"/downloads/complete"`
 - **格式**: 字符串
 - **示例**: `mount_path = "/downloads/complete"`
+
+
+## Alist 特有配置
+
+### 配置
+
+```toml
+[[downloader.alist]]
+enabled = true
+url = "http://192.168.1.10:5244"
+username = "admin"
+password = "123456"
+tool = "115 Cloud"
+download_dir = "/downloads"
+max_retry_count = 1
+retry_min_interval = "30s"
+retry_max_interval = "10m"
+download_timeout = "1h"
+priority = 10
+```
+
+### Enabled
+
+- **说明**: 是否启用 alist 下载器
+- **默认值**: `false`
+- **格式**: 布尔值
+- **示例**: `enabled = true`
+
+### URL
+
+- **说明**: alist 的地址
+- **默认值**: `"http://127.0.0.1:5244"`
+- **格式**: URL 字符串
+- **示例**: `url = "http://127.0.0.1:5244"`
+
+### Username
+
+- **说明**: alist 的用户名
+- **默认值**: `"admin"`
+- **格式**: 字符串
+- **示例**: `username = "admin"`
+
+### Password
+
+- **说明**: alist 的密码
+- **默认值**: `"123456"`
+- **格式**: 字符串
+- **示例**: `password = "123456"`
+
+### Tool
+
+- **说明**: 下载器类型，可选值为 `115 Cloud`、`qBittorrent`、`Transmission`、`PikPak`
+- **默认值**: `"115 Cloud"`
+- **格式**: 字符串
+- **示例**: `tool = "115 Cloud"`
+
+
+
+
+
+
+
+
