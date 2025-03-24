@@ -155,26 +155,12 @@ impl AListClient {
         self.post(&url, &query).await
     }
 
-    /// 获取已完成任务
-    #[instrument(skip(self), err)]
-    pub async fn get_done_tasks(&self, task_type: TaskType) -> Result<Vec<TaskInfo>> {
-        let url = self.build_task_url(task_type, "done");
-        self.get(&url).await
-    }
-
-    /// 获取未完成任务
-    #[instrument(skip(self), err)]
-    pub async fn get_undone_tasks(&self, task_type: TaskType) -> Result<Option<Vec<TaskInfo>>> {
-        let url = self.build_task_url(task_type, "undone");
-        self.get(&url).await
-    }
-
     /// 删除任务
     #[instrument(skip(self), err)]
     pub async fn delete_task(&self, task_type: TaskType, task_id: &str) -> Result<()> {
         let url = self.build_task_url(task_type, "delete");
         let query = [("tid", task_id)];
-        self.post(&url, &query).await
+        map_result_allow_404(self.post(&url, &query).await)
     }
 
     /// 取消任务
@@ -182,7 +168,7 @@ impl AListClient {
     pub async fn cancel_task(&self, task_type: TaskType, task_id: &str) -> Result<()> {
         let url = self.build_task_url(task_type, "cancel");
         let query = [("tid", task_id)];
-        self.post(&url, &query).await
+        map_result_allow_404(self.post(&url, &query).await)
     }
 
     /// 重试任务
@@ -190,14 +176,7 @@ impl AListClient {
     pub async fn retry_task(&self, task_type: TaskType, task_id: &str) -> Result<()> {
         let url = self.build_task_url(task_type, "retry");
         let query = [("tid", task_id)];
-        self.post(&url, &query).await
-    }
-
-    /// 重试已失败任务
-    #[instrument(skip(self), err)]
-    pub async fn retry_failed_tasks(&self, task_type: TaskType) -> Result<()> {
-        let url = self.build_task_url(task_type, "retry_failed");
-        self.post(&url, &[]).await
+        map_result_allow_404(self.post(&url, &query).await)
     }
 
     /// 添加离线下载任务
@@ -211,6 +190,14 @@ impl AListClient {
             self.base_url.trim_end_matches('/'),
         );
         self.post_json(&url, &request).await
+    }
+}
+
+fn map_result_allow_404(result: Result<()>) -> Result<()> {
+    match result {
+        Ok(_) => Ok(()),
+        Err(Error::ObjectNotFound) => Ok(()),
+        Err(e) => Err(e),
     }
 }
 
