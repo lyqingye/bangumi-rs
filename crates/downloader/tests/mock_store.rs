@@ -124,4 +124,12 @@ impl Store for MockStore {
         }
         Ok(())
     }
+
+    async fn update_tid(&self, info_hash: &str, tid: String) -> Result<()> {
+        let mut tasks = self.tasks.write().await;
+        if let Some(task) = tasks.get_mut(info_hash) {
+            task.tid = Some(tid);
+        }
+        Ok(())
+    }
 }

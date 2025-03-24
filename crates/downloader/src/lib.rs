@@ -91,15 +91,14 @@ pub struct FileInfo {
 pub trait ThirdPartyDownloader: Send + Sync {
     fn name(&self) -> &'static str;
     async fn add_task(&self, resource: Resource, dir: PathBuf) -> Result<Option<String>>;
-    async fn list_tasks(&self, info_hashes: &[String])
-        -> Result<HashMap<String, RemoteTaskStatus>>;
+    async fn list_tasks(&self, tid: &[String]) -> Result<HashMap<String, RemoteTaskStatus>>;
 
-    async fn list_files(&self, info_hash: &str, result: Option<String>) -> Result<Vec<FileInfo>>;
+    async fn list_files(&self, tid: &str, result: Option<String>) -> Result<Vec<FileInfo>>;
     async fn download_file(&self, file_id: &str, ua: &str) -> Result<DownloadInfo>;
-    async fn cancel_task(&self, info_hash: &str) -> Result<()>;
-    async fn remove_task(&self, info_hash: &str, remove_files: bool) -> Result<()>;
-    async fn pause_task(&self, info_hash: &str) -> Result<()>;
-    async fn resume_task(&self, info_hash: &str) -> Result<()>;
+    async fn cancel_task(&self, tid: &str) -> Result<()>;
+    async fn remove_task(&self, tid: &str, remove_files: bool) -> Result<()>;
+    async fn pause_task(&self, tid: &str) -> Result<()>;
+    async fn resume_task(&self, tid: &str) -> Result<()>;
     // 支持的资源类型
     fn supports_resource_type(&self, resource_type: ResourceType) -> bool;
     // 推荐的资源类型
@@ -123,6 +122,7 @@ pub trait Store: Send + Sync {
         err_msg: Option<String>,
         result: Option<String>,
     ) -> Result<()>;
+    async fn update_tid(&self, info_hash: &str, tid: String) -> Result<()>;
     async fn update_retry_status(
         &self,
         info_hash: &str,

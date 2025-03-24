@@ -54,18 +54,18 @@ impl Worker {
 
         info!("需要同步的下载任务数量: {}", local_tasks.len());
 
-        let target_info_hashes: Vec<String> = local_tasks
+        let tids: Vec<String> = local_tasks
             .iter()
-            .map(|task| task.info_hash.clone())
+            .map(|task| task.tid().to_string())
             .collect();
 
-        let remote_tasks = downloader.list_tasks(&target_info_hashes).await?;
+        let remote_tasks = downloader.list_tasks(&tids).await?;
 
         for local_task in local_tasks {
             let info_hash = local_task.info_hash.clone();
+            let tid = local_task.tid();
 
-            let (status, err_msg, result) = if let Some(remote_task) = remote_tasks.get(&info_hash)
-            {
+            let (status, err_msg, result) = if let Some(remote_task) = remote_tasks.get(tid) {
                 debug!("发现远程任务: info_hash={}", info_hash);
                 (
                     remote_task.status.clone(),

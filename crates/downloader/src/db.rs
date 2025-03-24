@@ -141,6 +141,18 @@ impl Db {
             .await?;
         Ok(())
     }
+
+    pub async fn update_tid(&self, info_hash: &str, tid: String) -> Result<()> {
+        let now = Local::now().naive_utc();
+
+        torrent_download_tasks::Entity::update_many()
+            .col_expr(Column::Tid, SimpleExpr::from(tid))
+            .col_expr(Column::UpdatedAt, SimpleExpr::from(now))
+            .filter(Column::InfoHash.eq(info_hash))
+            .exec(&*self.conn)
+            .await?;
+        Ok(())
+    }
 }
 
 #[async_trait]
@@ -185,6 +197,10 @@ impl Store for Db {
     ) -> Result<()> {
         self.update_task_retry_status(info_hash, next_retry_at, err_msg)
             .await
+    }
+
+    async fn update_tid(&self, info_hash: &str, tid: String) -> Result<()> {
+        self.update_tid(info_hash, tid).await
     }
 
     async fn get_torrent_by_info_hash(&self, info_hash: &str) -> Result<Option<TorrentModel>> {

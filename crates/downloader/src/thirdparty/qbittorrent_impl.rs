@@ -77,7 +77,6 @@ impl ThirdPartyDownloader for QbittorrentDownloaderImpl {
             return Err(anyhow::anyhow!("保存路径必须为相对路径"));
         }
         let dir = self.config.generic.download_dir.join(dir);
-        let info_hash = resource.info_hash().to_owned();
         let source = match resource {
             Resource::MagnetInfoHash(_) | Resource::MagnetLink(_, _) => {
                 let magnet = resource.magnet().unwrap_or_default();
@@ -108,15 +107,12 @@ impl ThirdPartyDownloader for QbittorrentDownloaderImpl {
         };
 
         self.cli.add_torrent(arg).await?;
-        Ok(Some(info_hash))
+        Ok(None)
     }
 
-    async fn list_tasks(
-        &self,
-        info_hashes: &[String],
-    ) -> Result<HashMap<String, RemoteTaskStatus>> {
+    async fn list_tasks(&self, tid: &[String]) -> Result<HashMap<String, RemoteTaskStatus>> {
         let arg = GetTorrentListArg {
-            hashes: Some(Sep::<String, '|'>::from(info_hashes).to_string()),
+            hashes: Some(Sep::<String, '|'>::from(tid).to_string()),
             ..Default::default()
         };
         let torrents = self.cli.get_torrent_list(arg).await?;
@@ -155,38 +151,38 @@ impl ThirdPartyDownloader for QbittorrentDownloaderImpl {
         Ok(result)
     }
 
-    async fn cancel_task(&self, info_hash: &str) -> Result<()> {
+    async fn cancel_task(&self, tid: &str) -> Result<()> {
         self.cli
-            .stop_torrents(Hashes::Hashes(Sep::from(vec![info_hash.to_string()])))
+            .stop_torrents(Hashes::Hashes(Sep::from(vec![tid.to_string()])))
             .await?;
         Ok(())
     }
 
-    async fn remove_task(&self, info_hash: &str, remove_files: bool) -> Result<()> {
+    async fn remove_task(&self, tid: &str, remove_files: bool) -> Result<()> {
         self.cli
             .delete_torrents(
-                Hashes::Hashes(Sep::from(vec![info_hash.to_string()])),
+                Hashes::Hashes(Sep::from(vec![tid.to_string()])),
                 remove_files,
             )
             .await?;
         Ok(())
     }
 
-    async fn pause_task(&self, info_hash: &str) -> Result<()> {
+    async fn pause_task(&self, tid: &str) -> Result<()> {
         self.cli
-            .stop_torrents(Hashes::Hashes(Sep::from(vec![info_hash.to_string()])))
+            .stop_torrents(Hashes::Hashes(Sep::from(vec![tid.to_string()])))
             .await?;
         Ok(())
     }
 
-    async fn resume_task(&self, info_hash: &str) -> Result<()> {
+    async fn resume_task(&self, tid: &str) -> Result<()> {
         self.cli
-            .start_torrents(Hashes::Hashes(Sep::from(vec![info_hash.to_string()])))
+            .start_torrents(Hashes::Hashes(Sep::from(vec![tid.to_string()])))
             .await?;
         Ok(())
     }
 
-    async fn list_files(&self, _info_hash: &str, result: Option<String>) -> Result<Vec<FileInfo>> {
+    async fn list_files(&self, _tid: &str, result: Option<String>) -> Result<Vec<FileInfo>> {
         let ctx = result.context("没有下载结果，请确保已经成功下载")?;
         let ctx = TorrentContext::try_from(ctx)?;
         let files = ctx

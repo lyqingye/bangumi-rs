@@ -451,6 +451,7 @@ async fn test_worker_recover_pending_tasks() {
             resource_type: resource.get_type(),
             allow_fallback: true,
             torrent_url: None,
+            tid: None,
         })
         .await
         .unwrap();

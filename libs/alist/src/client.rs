@@ -205,7 +205,7 @@ mod tests {
             .with_max_level(tracing::Level::DEBUG)
             .with_target(true) // 不显示目标模块
             .init();
-        let mut client = AListClient::new("http://localhost:5244", "admin", "123456");
+        let mut client = AListClient::new("http://192.168.1.10:5244", "admin", "123456");
         client.login().await.unwrap();
         client
     }
@@ -222,10 +222,10 @@ mod tests {
     async fn test_add_offline_download_task() {
         let client = create_client().await;
         let request = AddOfflineDownloadTaskRequest {
-            urls: vec!["magnet:?xt=urn:btih:1a76803252df64609b68e00c14b0642c6c5eaa39".to_string()],
+            urls: vec!["https://mikanani.me/Download/20250317/eaa87c191b19ca6e167a7b3539ce8ea7132ab635.torrent".to_string()],
             path: "/downloads".to_string(),
-            tool: "115 Cloud".to_string(),
-            delete_policy: "delete_never".to_string(),
+            tool: "qBittorrent".to_string(),
+            delete_policy: "delete_always".to_string(),
         };
         let result = client.add_offline_download_task(request).await;
         println!("{:?}", result);
@@ -236,7 +236,7 @@ mod tests {
     async fn test_get_task_info() {
         let client = create_client().await;
         let result = client
-            .get_task_info(TaskType::OfflineDownload, "joGXMIxokczmDd_Rk2W1f")
+            .get_task_info(TaskType::OfflineDownload, "E1KG7CMJnzH-phcR-xbjp")
             .await
             .unwrap();
         println!("{:?}", result);
@@ -247,7 +247,7 @@ mod tests {
     async fn test_retry_task() {
         let client = create_client().await;
         let result = client
-            .retry_task(TaskType::OfflineDownload, "uC5XNSea-gFdgaP-i0S5L")
+            .retry_task(TaskType::OfflineDownload, "AlrGbn-0MApAwnM8r2KLI")
             .await;
         println!("{:?}", result);
     }
@@ -257,7 +257,7 @@ mod tests {
     async fn test_cancel_task() {
         let client = create_client().await;
         let result = client
-            .cancel_task(TaskType::OfflineDownload, "k9xXGXtCI4EhOn3EeaECJ")
+            .cancel_task(TaskType::OfflineDownload, "WQEK-I_VIiMBf7LwGO1iL")
             .await;
         println!("{:?}", result);
     }
@@ -267,7 +267,7 @@ mod tests {
     async fn test_delete_task() {
         let client = create_client().await;
         let result = client
-            .delete_task(TaskType::OfflineDownload, "k9xXGXtCI4EhOn3EeaECJ")
+            .delete_task(TaskType::OfflineDownload, "WQEK-I_VIiMBf7LwGO1iL")
             .await;
         println!("{:?}", result);
     }

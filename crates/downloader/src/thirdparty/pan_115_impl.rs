@@ -108,13 +108,10 @@ impl ThirdPartyDownloader for Pan115DownloaderImpl {
         }
     }
 
-    async fn list_tasks(
-        &self,
-        info_hashes: &[String],
-    ) -> Result<HashMap<String, RemoteTaskStatus>> {
+    async fn list_tasks(&self, tids: &[String]) -> Result<HashMap<String, RemoteTaskStatus>> {
         let mut page = 0;
         let mut remote_tasks_status = HashMap::new();
-        let target_hashes: HashSet<&String> = info_hashes.iter().collect();
+        let target_tids: HashSet<&String> = tids.iter().collect();
 
         loop {
             debug!("获取离线下载任务列表: page={}", page);
@@ -131,7 +128,7 @@ impl ThirdPartyDownloader for Pan115DownloaderImpl {
             let filtered_tasks: Vec<_> = resp
                 .tasks
                 .into_iter()
-                .filter(|task| target_hashes.contains(&task.info_hash))
+                .filter(|task| target_tids.contains(&task.info_hash))
                 .collect();
 
             debug!("获取到 {} 个匹配的任务", filtered_tasks.len());
@@ -152,7 +149,7 @@ impl ThirdPartyDownloader for Pan115DownloaderImpl {
                 )
             }));
 
-            if remote_tasks_status.len() >= target_hashes.len() || resp.page_count == resp.page {
+            if remote_tasks_status.len() >= target_tids.len() || resp.page_count == resp.page {
                 break;
             }
 
@@ -162,7 +159,7 @@ impl ThirdPartyDownloader for Pan115DownloaderImpl {
         Ok(remote_tasks_status)
     }
 
-    async fn list_files(&self, _info_hash: &str, result: Option<String>) -> Result<Vec<FileInfo>> {
+    async fn list_files(&self, _tid: &str, result: Option<String>) -> Result<Vec<FileInfo>> {
         match result {
             Some(result) => {
                 let mut cache = self.file_list_cache.lock().await;
@@ -222,24 +219,24 @@ impl ThirdPartyDownloader for Pan115DownloaderImpl {
         Ok(download_info)
     }
 
-    async fn cancel_task(&self, info_hash: &str) -> Result<()> {
-        self.pan115.delete_offline_task(&[info_hash], true).await?;
+    async fn cancel_task(&self, tid: &str) -> Result<()> {
+        self.pan115.delete_offline_task(&[tid], true).await?;
         Ok(())
     }
 
-    async fn remove_task(&self, info_hash: &str, remove_files: bool) -> Result<()> {
+    async fn remove_task(&self, tid: &str, remove_files: bool) -> Result<()> {
         self.pan115
-            .delete_offline_task(&[info_hash], remove_files)
+            .delete_offline_task(&[tid], remove_files)
             .await?;
         Ok(())
     }
 
-    async fn pause_task(&self, _info_hash: &str) -> Result<()> {
+    async fn pause_task(&self, _tid: &str) -> Result<()> {
         info!("115网盘不支持暂停任务");
         Ok(())
     }
 
-    async fn resume_task(&self, _info_hash: &str) -> Result<()> {
+    async fn resume_task(&self, _tid: &str) -> Result<()> {
         info!("115网盘不支持恢复任务");
         Ok(())
     }

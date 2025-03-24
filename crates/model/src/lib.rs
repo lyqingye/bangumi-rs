@@ -37,3 +37,9 @@ impl TryFrom<String> for BgmKind {
         }
     }
 }
+
+impl torrent_download_tasks::Model {
+    pub fn tid(&self) -> &str {
+        self.tid.as_deref().unwrap_or(self.info_hash.as_str())
+    }
+}
