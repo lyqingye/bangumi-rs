@@ -1,3 +1,5 @@
+use std::fmt::{self, Display};
+
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
@@ -83,11 +85,53 @@ pub struct AddOfflineDownloadTaskResult {
     pub tasks: Vec<TaskInfo>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, Default)]
+pub enum Tools {
+    #[default]
+    #[serde(rename = "qBittorrent")]
+    Qbittorrent,
+    #[serde(rename = "Transmission")]
+    Transmission,
+    #[serde(rename = "115 Cloud")]
+    Pan115,
+    #[serde(rename = "PikPak")]
+    PikPak,
+}
+
+impl From<String> for Tools {
+    fn from(s: String) -> Self {
+        match s.as_str() {
+            "qBittorrent" => Tools::Qbittorrent,
+            "Transmission" => Tools::Transmission,
+            "115 Cloud" => Tools::Pan115,
+            "PikPak" => Tools::PikPak,
+            _ => panic!("不支持的工具: {}", s),
+        }
+    }
+}
+
+impl From<Tools> for String {
+    fn from(tool: Tools) -> Self {
+        match tool {
+            Tools::Qbittorrent => "qBittorrent".to_string(),
+            Tools::Transmission => "Transmission".to_string(),
+            Tools::Pan115 => "115 Cloud".to_string(),
+            Tools::PikPak => "PikPak".to_string(),
+        }
+    }
+}
+
+impl Display for Tools {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", serde_json::to_string(self).unwrap())
+    }
+}
+
 #[derive(Debug, Serialize)]
 pub struct AddOfflineDownloadTaskRequest {
     pub urls: Vec<String>,
     pub path: String,
-    pub tool: String,
+    pub tool: Tools,
     pub delete_policy: String,
 }
 
@@ -360,5 +404,20 @@ mod tests {
         };
         let json = serde_json::to_string(&test_struct).unwrap();
         assert_eq!(json, r#"{"field":"value"}"#);
+    }
+
+    #[test]
+    fn test_serialize_tools() {
+        let tools = Tools::Qbittorrent;
+        let json = serde_json::to_string(&tools).unwrap();
+        assert_eq!(json, r#""qBittorrent""#);
+
+        let tools = Tools::Transmission;
+        let json = serde_json::to_string(&tools).unwrap();
+        assert_eq!(json, r#""Transmission""#);
+
+        let tools = Tools::Pan115;
+        let json = serde_json::to_string(&tools).unwrap();
+        assert_eq!(json, r#""115 Cloud""#);
     }
 }

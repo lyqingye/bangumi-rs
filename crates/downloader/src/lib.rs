@@ -127,7 +127,11 @@ impl Display for Tid {
 #[async_trait]
 pub trait ThirdPartyDownloader: Send + Sync {
     fn name(&self) -> &'static str;
-    async fn add_task(&self, resource: Resource, dir: PathBuf) -> Result<Option<Tid>>;
+    async fn add_task(
+        &self,
+        resource: Resource,
+        dir: PathBuf,
+    ) -> Result<(Option<Tid>, Option<String>)>;
     async fn list_tasks(&self, tid: &[Tid]) -> Result<HashMap<Tid, RemoteTaskStatus>>;
 
     async fn list_files(&self, tid: &Tid, result: Option<String>) -> Result<Vec<FileInfo>>;

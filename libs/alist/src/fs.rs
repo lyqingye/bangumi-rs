@@ -86,7 +86,7 @@ impl AListClient {
         &self,
         path: impl Into<String> + Debug,
         password: Option<impl Into<String> + Debug>,
-    ) -> Result<FsGetResponse> {
+    ) -> Result<Option<FsGetResponse>> {
         let url = format!("{}/api/fs/get", self.base_url.trim_end_matches('/'));
 
         let request = FsGetRequest {
@@ -322,7 +322,7 @@ mod tests {
                 .get_file(&file.full_path, None::<String>)
                 .await
                 .unwrap();
-            println!("    下载URL: {}", file_info.raw_url);
+            println!("    下载URL: {}", file_info.unwrap().raw_url);
         }
 
         if all_files.files.len() > 10 {

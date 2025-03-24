@@ -85,7 +85,11 @@ impl ThirdPartyDownloader for Pan115DownloaderImpl {
         "pan_115"
     }
 
-    async fn add_task(&self, resource: Resource, dir: PathBuf) -> Result<Option<Tid>> {
+    async fn add_task(
+        &self,
+        resource: Resource,
+        dir: PathBuf,
+    ) -> Result<(Option<Tid>, Option<String>)> {
         let dir = self.config.generic.download_dir.join(dir);
         let dir_cid = self.get_or_create_dir_cid(&dir).await?;
         let magnet = resource
@@ -96,12 +100,12 @@ impl ThirdPartyDownloader for Pan115DownloaderImpl {
         match self.pan115.add_offline_task(&[&magnet], &dir_cid).await {
             Ok(_) => {
                 info!("成功添加下载任务到网盘: {}", info_hash);
-                Ok(None)
+                Ok((None, None))
             }
             Err(e) => match e {
                 Pan115Error::OfflineTaskExisted => {
                     warn!("任务已在网盘中存在: {}", info_hash);
-                    Ok(None)
+                    Ok((None, None))
                 }
                 _ => Err(anyhow::anyhow!("添加离线下载任务失败: {}", e)),
             },

@@ -72,7 +72,11 @@ impl ThirdPartyDownloader for QbittorrentDownloaderImpl {
         "qbittorrent"
     }
 
-    async fn add_task(&self, resource: Resource, dir: PathBuf) -> Result<Option<Tid>> {
+    async fn add_task(
+        &self,
+        resource: Resource,
+        dir: PathBuf,
+    ) -> Result<(Option<Tid>, Option<String>)> {
         if dir.is_absolute() {
             return Err(anyhow::anyhow!("保存路径必须为相对路径"));
         }
@@ -107,7 +111,7 @@ impl ThirdPartyDownloader for QbittorrentDownloaderImpl {
         };
 
         self.cli.add_torrent(arg).await?;
-        Ok(None)
+        Ok((None, None))
     }
 
     async fn list_tasks(&self, tid: &[Tid]) -> Result<HashMap<Tid, RemoteTaskStatus>> {

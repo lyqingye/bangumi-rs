@@ -198,6 +198,8 @@ fn map_result_allow_404(result: Result<()>) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
+    use crate::Tools;
+
     use super::*;
 
     async fn create_client() -> AListClient {
@@ -224,7 +226,7 @@ mod tests {
         let request = AddOfflineDownloadTaskRequest {
             urls: vec!["https://mikanani.me/Download/20250317/eaa87c191b19ca6e167a7b3539ce8ea7132ab635.torrent".to_string()],
             path: "/downloads".to_string(),
-            tool: "qBittorrent".to_string(),
+            tool: Tools::Qbittorrent,
             delete_policy: "delete_always".to_string(),
         };
         let result = client.add_offline_download_task(request).await;
