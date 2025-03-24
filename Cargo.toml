@@ -17,7 +17,7 @@ members = [
     "libs/utils",
     "libs/torrent",
     "libs/raw-parser",
-    "libs/qbittorrent",
+    "libs/qbittorrent", "libs/alist",
 ]
 resolver = "2"
 
