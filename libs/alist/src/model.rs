@@ -3,6 +3,8 @@ use std::fmt::{self, Display};
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
+use crate::Error;
+
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Response<T> {
     pub code: i32,
@@ -98,14 +100,16 @@ pub enum Tools {
     PikPak,
 }
 
-impl From<String> for Tools {
-    fn from(s: String) -> Self {
+impl TryFrom<String> for Tools {
+    type Error = Error;
+
+    fn try_from(s: String) -> Result<Self, Self::Error> {
         match s.as_str() {
-            "qBittorrent" => Tools::Qbittorrent,
-            "Transmission" => Tools::Transmission,
-            "115 Cloud" => Tools::Pan115,
-            "PikPak" => Tools::PikPak,
-            _ => panic!("不支持的工具: {}", s),
+            "qBittorrent" => Ok(Tools::Qbittorrent),
+            "Transmission" => Ok(Tools::Transmission),
+            "115 Cloud" => Ok(Tools::Pan115),
+            "PikPak" => Ok(Tools::PikPak),
+            _ => Err(Error::UnsupportedTool(s)),
         }
     }
 }
