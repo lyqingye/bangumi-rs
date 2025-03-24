@@ -11,7 +11,7 @@ use tracing::{debug, error, info, warn};
 use crate::{
     config::Config, db::Db, metrics, thirdparty::pan_115_impl::Pan115DownloaderImpl, DownloadInfo,
     Downloader, DownloaderInfo, Event, FileInfo, Resource, ResourceType, Store,
-    ThirdPartyDownloader,
+    ThirdPartyDownloader, Tid,
 };
 
 type State = DownloadStatus;
@@ -78,8 +78,19 @@ impl Tx {
 }
 
 pub struct Context<'a> {
+    tid: Tid,
     ref_task: Model,
     downloader: &'a dyn ThirdPartyDownloader,
+}
+
+impl Context<'_> {
+    pub fn tid(&self) -> &Tid {
+        &self.tid
+    }
+
+    pub fn info_hash(&self) -> &str {
+        &self.ref_task.info_hash
+    }
 }
 
 #[derive(Clone)]
@@ -232,6 +243,7 @@ impl Worker {
         );
 
         let mut ctx = Context {
+            tid: Tid::from(task.tid()),
             ref_task: task.clone(),
             downloader: self.take_downloader(&task.downloader)?,
         };
@@ -248,6 +260,7 @@ impl Worker {
             if let Some(event) = next_event.as_ref() {
                 ctx.ref_task = event.get_ref_task(&**self.store).await?;
                 ctx.downloader = self.take_downloader(&ctx.ref_task.downloader)?;
+                ctx.tid = Tid::from(ctx.ref_task.tid().to_string());
             }
             event = next_event;
             state = next_state;
@@ -307,6 +320,7 @@ impl Worker {
             resource_type: resource.get_type(),
             magnet: resource.magnet(),
             torrent_url: resource.torrent_url(),
+            tid: None,
         };
 
         self.store.upsert(task).await?;
@@ -343,8 +357,9 @@ impl Worker {
             .first()
             .cloned()
             .context("任务不存在")?;
+        let tid = Tid::from(task.tid());
         let downloader = self.take_downloader(&task.downloader)?;
-        let mut result = downloader.list_files(info_hash, task.context).await?;
+        let mut result = downloader.list_files(&tid, task.context.clone()).await?;
         for file in result.iter_mut() {
             file.file_id = format!("{}-{}", downloader.name(), file.file_id);
         }
@@ -419,50 +434,44 @@ impl Worker {
             (Tx::StartTask(resource), State::Pending) => self.on_start_task(resource, ctx).await,
 
             // 取消任务
-            (Tx::CancelTask(info_hash), State::Downloading | State::Retrying) => {
-                self.on_task_cancelled(info_hash, ctx).await
+            (Tx::CancelTask(_), State::Downloading | State::Retrying) => {
+                self.on_task_cancelled(ctx).await
             }
 
             // 暂停任务
-            (Tx::PauseTask(info_hash), State::Downloading | State::Retrying) => {
-                self.on_task_paused(info_hash, ctx).await
+            (Tx::PauseTask(_), State::Downloading | State::Retrying) => {
+                self.on_task_paused(ctx).await
             }
 
             // 恢复任务
-            (Tx::ResumeTask(info_hash), State::Paused) => {
-                self.on_task_resumed(info_hash, ctx).await
-            }
+            (Tx::ResumeTask(_), State::Paused) => self.on_task_resumed(ctx).await,
 
             // 移除任务
-            (Tx::RemoveTask((info_hash, _)), _) => self.on_task_removed(info_hash, ctx).await,
+            (Tx::RemoveTask((_, _)), _) => self.on_task_removed(ctx).await,
 
             // 重试任务
-            (Tx::RetryTask(info_hash), State::Failed | State::Cancelled) => {
-                self.on_task_retry(info_hash, ctx).await
-            }
+            (Tx::RetryTask(_), State::Failed | State::Cancelled) => self.on_task_retry(ctx).await,
 
             // 自动重试
-            (Tx::AutoRetry(info_hash), State::Retrying) => self.on_task_retry(info_hash, ctx).await,
+            (Tx::AutoRetry(_), State::Retrying) => self.on_task_retry(ctx).await,
 
             // 任务失败
-            (Tx::TaskFailed(info_hash, err_msg), State::Downloading | State::Pending) => {
-                self.on_task_failed(info_hash, err_msg, ctx).await
+            (Tx::TaskFailed(_, err_msg), State::Downloading | State::Pending) => {
+                self.on_task_failed(err_msg, ctx).await
             }
 
             // 任务完成
-            (Tx::TaskCompleted(info_hash, result), State::Downloading) => {
-                self.on_task_completed(info_hash, result, ctx).await
+            (Tx::TaskCompleted(_, result), State::Downloading) => {
+                self.on_task_completed(result, ctx).await
             }
 
             // 任务状态更新
-            (Tx::TaskStatusUpdated((info_hash, status)), _) => {
-                self.on_task_status_updated(info_hash, status, ctx).await
+            (Tx::TaskStatusUpdated((_, status)), _) => {
+                self.on_task_status_updated(status, ctx).await
             }
 
             // 自动回退
-            (Tx::AutoFallback(info_hash), State::Failed) => {
-                self.on_task_fallback(info_hash, ctx).await
-            }
+            (Tx::AutoFallback(_), State::Failed) => self.on_task_fallback(ctx).await,
 
             (event, state) => {
                 warn!(
@@ -491,15 +500,20 @@ impl Worker {
             .add_task(resource, ctx.ref_task.dir.clone().into())
             .await
         {
-            Ok(result) => {
+            Ok(tid) => {
                 info!(
                     "处理任务成功(StartTask): info_hash={} state={:?}, 结果: {:?}",
                     info_hash,
                     DownloadStatus::Downloading,
-                    result
+                    info_hash
                 );
-                self.update_task_status(&info_hash, DownloadStatus::Downloading, None, result)
+                self.update_task_status(&info_hash, DownloadStatus::Downloading, None, None)
                     .await?;
+
+                if let Some(tid) = tid {
+                    self.store.update_tid(&info_hash, &tid).await?;
+                }
+
                 Ok((None, Some(State::Downloading)))
             }
 
@@ -520,29 +534,29 @@ impl Worker {
 
     async fn on_task_failed(
         &self,
-        info_hash: String,
         err_msg: String,
         ctx: &mut Context<'_>,
     ) -> Result<(Option<Tx>, Option<State>)> {
-        error!(
-            "处理任务失败(TaskFailed): info_hash={} state={:?} -> TaskFailed, err_msg={}",
-            info_hash, ctx.ref_task.download_status, err_msg
+        let tid = ctx.tid();
+        warn!(
+            "处理任务失败(TaskFailed): tid={} state={:?} -> TaskFailed, err_msg={}",
+            tid, ctx.ref_task.download_status, err_msg
         );
 
-        debug!("从第三方下载器移除失败任务: info_hash={}", info_hash);
-        if let Err(e) = ctx.downloader.remove_task(&info_hash, true).await {
-            warn!("移除失败任务出错: info_hash={}, 错误: {}", info_hash, e);
+        debug!("从第三方下载器移除失败任务: tid={}", tid);
+        if let Err(e) = ctx.downloader.remove_task(tid, true).await {
+            warn!("移除失败任务出错: tid={}, 错误: {}", tid, e);
         }
 
         if ctx.ref_task.retry_count >= ctx.downloader.config().max_retry_count {
             warn!(
-                "任务重试次数已达上限: info_hash={}, 重试次数={}/{}",
-                info_hash,
+                "任务重试次数已达上限: tid={}, 重试次数={}/{}",
+                tid,
                 ctx.ref_task.retry_count,
                 ctx.downloader.config().max_retry_count
             );
             self.update_task_status(
-                &info_hash,
+                ctx.info_hash(),
                 DownloadStatus::Failed,
                 Some(format!(
                     "重试次数超过上限({}): {}",
@@ -554,10 +568,13 @@ impl Worker {
             .await?;
 
             if ctx.ref_task.allow_fallback {
-                info!("任务允许自动回退，尝试其它下载器: info_hash={}", info_hash);
-                Ok((Some(Tx::AutoFallback(info_hash)), Some(State::Failed)))
+                info!("任务允许自动回退，尝试其它下载器: tid={}", tid);
+                Ok((
+                    Some(Tx::AutoFallback(ctx.info_hash().to_string())),
+                    Some(State::Failed),
+                ))
             } else {
-                info!("任务不允许自动回退，直接失败: info_hash={}", info_hash);
+                info!("任务不允许自动回退，直接失败: tid={}", tid);
                 Ok((None, Some(State::Failed)))
             }
         } else {
@@ -567,134 +584,125 @@ impl Worker {
                 .calculate_next_retry(ctx.ref_task.retry_count + 1);
 
             info!(
-                "更新任务重试状态(TaskFailed): info_hash={}, 重试次数={}/{}, next_retry_at={}",
-                info_hash,
+                "更新任务重试状态(TaskFailed): tid={}, 重试次数={}/{}, next_retry_at={}",
+                tid,
                 ctx.ref_task.retry_count + 1,
                 ctx.downloader.config().max_retry_count,
                 next_retry_at
             );
-            self.update_task_retry_status(&info_hash, next_retry_at, Some(err_msg))
+            self.update_task_retry_status(ctx.info_hash(), next_retry_at, Some(err_msg))
                 .await?;
-            Ok((Some(Tx::AutoRetry(info_hash)), Some(State::Retrying)))
+            Ok((
+                Some(Tx::AutoRetry(ctx.info_hash().to_string())),
+                Some(State::Retrying),
+            ))
         }
     }
 
-    async fn on_task_retry(
-        &self,
-        info_hash: String,
-        ctx: &mut Context<'_>,
-    ) -> Result<(Option<Tx>, Option<State>)> {
+    async fn on_task_retry(&self, ctx: &mut Context<'_>) -> Result<(Option<Tx>, Option<State>)> {
+        let tid = ctx.tid();
         info!(
-            "开始重试任务(TaskRetry): info_hash={} state={:?}, 重试次数={}/{}",
-            info_hash,
+            "开始重试任务(TaskRetry): tid={} state={:?}, 重试次数={}/{}",
+            tid,
             ctx.ref_task.download_status,
             ctx.ref_task.retry_count,
             ctx.downloader.config().max_retry_count
         );
-        let resource = self.get_task_resource_by_info_hash(&info_hash).await?;
+        let resource = self.get_task_resource_by_info_hash(ctx.info_hash()).await?;
         // 删除原有任务，然后重新下载
-        if let Err(e) = ctx.downloader.remove_task(&info_hash, true).await {
-            warn!("移除任务准备重试出错: info_hash={}, 错误: {}", info_hash, e);
+        if let Err(e) = ctx.downloader.remove_task(tid, true).await {
+            warn!("移除任务准备重试出错: tid={}, 错误: {}", tid, e);
         }
 
-        self.update_task_status(&info_hash, DownloadStatus::Pending, None, None)
+        self.update_task_status(ctx.info_hash(), DownloadStatus::Pending, None, None)
             .await?;
         Ok((Some(Tx::StartTask(resource)), Some(State::Pending)))
     }
 
     async fn on_task_cancelled(
         &self,
-        info_hash: String,
         ctx: &mut Context<'_>,
     ) -> Result<(Option<Tx>, Option<State>)> {
+        let tid = ctx.tid();
         info!(
-            "取消任务(TaskCancelled): info_hash={} state={:?}",
-            info_hash, ctx.ref_task.download_status
+            "取消任务(TaskCancelled): tid={} state={:?}",
+            tid, ctx.ref_task.download_status
         );
 
-        if let Err(e) = ctx.downloader.cancel_task(&info_hash).await {
-            warn!("取消任务出错: info_hash={}, 错误: {}", info_hash, e);
+        if let Err(e) = ctx.downloader.cancel_task(tid).await {
+            warn!("取消任务出错: tid={}, 错误: {}", tid, e);
         }
 
-        self.update_task_status(&info_hash, DownloadStatus::Cancelled, None, None)
+        self.update_task_status(ctx.info_hash(), DownloadStatus::Cancelled, None, None)
             .await?;
         Ok((None, Some(State::Cancelled)))
     }
 
     async fn on_task_completed(
         &self,
-        info_hash: String,
         result: Option<String>,
         ctx: &mut Context<'_>,
     ) -> Result<(Option<Tx>, Option<State>)> {
+        let tid = ctx.tid();
         info!(
-            "任务完成(TaskCompleted): info_hash={} state={:?}, 结果: {:?}",
-            info_hash, ctx.ref_task.download_status, result
+            "任务完成(TaskCompleted): tid={} state={:?}, 结果: {:?}",
+            tid, ctx.ref_task.download_status, result
         );
-        self.update_task_status(&info_hash, DownloadStatus::Completed, None, result)
+        self.update_task_status(ctx.info_hash(), DownloadStatus::Completed, None, result)
             .await?;
 
         if ctx.downloader.config().delete_task_on_completion {
-            if let Err(e) = ctx.downloader.remove_task(&info_hash, false).await {
-                warn!("清理下载记录出错: info_hash={}, 错误: {}", info_hash, e);
+            if let Err(e) = ctx.downloader.remove_task(tid, false).await {
+                warn!("清理下载记录出错: tid={}, 错误: {}", tid, e);
             }
         }
 
         Ok((None, Some(State::Completed)))
     }
 
-    async fn on_task_removed(
-        &self,
-        info_hash: String,
-        ctx: &mut Context<'_>,
-    ) -> Result<(Option<Tx>, Option<State>)> {
+    async fn on_task_removed(&self, ctx: &mut Context<'_>) -> Result<(Option<Tx>, Option<State>)> {
+        let tid = ctx.tid();
         info!(
-            "移除任务(TaskRemoved): info_hash={} state={:?}",
-            info_hash, ctx.ref_task.download_status
+            "移除任务(TaskRemoved): tid={} state={:?}",
+            tid, ctx.ref_task.download_status
         );
-        if let Err(e) = ctx.downloader.remove_task(&info_hash, true).await {
-            warn!("移除任务出错: info_hash={}, 错误: {}", info_hash, e);
+        if let Err(e) = ctx.downloader.remove_task(tid, true).await {
+            warn!("移除任务出错: tid={}, 错误: {}", tid, e);
         }
-        self.update_task_status(&info_hash, DownloadStatus::Cancelled, None, None)
+        self.update_task_status(ctx.info_hash(), DownloadStatus::Cancelled, None, None)
             .await?;
         Ok((None, Some(State::Cancelled)))
     }
 
-    async fn on_task_paused(
-        &self,
-        info_hash: String,
-        ctx: &mut Context<'_>,
-    ) -> Result<(Option<Tx>, Option<State>)> {
+    async fn on_task_paused(&self, ctx: &mut Context<'_>) -> Result<(Option<Tx>, Option<State>)> {
+        let tid = ctx.tid();
         info!(
-            "暂停任务(TaskPaused): info_hash={} state={:?}",
-            info_hash, ctx.ref_task.download_status
+            "暂停任务(TaskPaused): tid={} state={:?}",
+            tid, ctx.ref_task.download_status
         );
 
-        if let Err(e) = ctx.downloader.pause_task(&info_hash).await {
-            warn!("暂停任务出错: info_hash={}, 错误: {}", info_hash, e);
+        if let Err(e) = ctx.downloader.pause_task(tid).await {
+            warn!("暂停任务出错: tid={}, 错误: {}", tid, e);
             Ok((None, Some(State::Downloading)))
         } else {
-            self.update_task_status(&info_hash, DownloadStatus::Paused, None, None)
+            self.update_task_status(ctx.info_hash(), DownloadStatus::Paused, None, None)
                 .await?;
             Ok((None, Some(State::Paused)))
         }
     }
 
-    async fn on_task_resumed(
-        &self,
-        info_hash: String,
-        ctx: &mut Context<'_>,
-    ) -> Result<(Option<Tx>, Option<State>)> {
+    async fn on_task_resumed(&self, ctx: &mut Context<'_>) -> Result<(Option<Tx>, Option<State>)> {
+        let tid = ctx.tid();
         info!(
-            "恢复任务(TaskResumed): info_hash={} state={:?}",
-            info_hash, ctx.ref_task.download_status
+            "恢复任务(TaskResumed): tid={} state={:?}",
+            tid, ctx.ref_task.download_status
         );
 
-        if let Err(e) = ctx.downloader.resume_task(&info_hash).await {
-            warn!("恢复任务出错: info_hash={}, 错误: {}", info_hash, e);
+        if let Err(e) = ctx.downloader.resume_task(tid).await {
+            warn!("恢复任务出错: tid={}, 错误: {}", tid, e);
             Ok((None, Some(State::Paused)))
         } else {
-            self.update_task_status(&info_hash, DownloadStatus::Downloading, None, None)
+            self.update_task_status(ctx.info_hash(), DownloadStatus::Downloading, None, None)
                 .await?;
             Ok((None, Some(State::Downloading)))
         }
@@ -702,27 +710,24 @@ impl Worker {
 
     async fn on_task_status_updated(
         &self,
-        info_hash: String,
         status: DownloadStatus,
-        _ctx: &mut Context<'_>,
+        ctx: &mut Context<'_>,
     ) -> Result<(Option<Tx>, Option<State>)> {
+        let tid = ctx.tid();
         info!(
-            "远程任务状态被手动更新(TaskStatusUpdated): info_hash={} state={:?}",
-            info_hash, status
+            "远程任务状态被手动更新(TaskStatusUpdated): tid={} state={:?}",
+            tid, status
         );
-        self.update_task_status(&info_hash, status.clone(), None, None)
+        self.update_task_status(ctx.info_hash(), status.clone(), None, None)
             .await?;
         Ok((None, Some(status)))
     }
 
-    async fn on_task_fallback(
-        &self,
-        info_hash: String,
-        ctx: &mut Context<'_>,
-    ) -> Result<(Option<Tx>, Option<State>)> {
+    async fn on_task_fallback(&self, ctx: &mut Context<'_>) -> Result<(Option<Tx>, Option<State>)> {
+        let tid = ctx.tid();
         info!(
-            "自动回退任务(AutoFallback): info_hash={} state={:?}",
-            info_hash, ctx.ref_task.download_status
+            "自动回退任务(AutoFallback): tid={} state={:?}",
+            tid, ctx.ref_task.download_status
         );
 
         // 找到优先级最高的未使用下载器
@@ -736,8 +741,8 @@ impl Worker {
         match fallback_downloader {
             Some(downloader) => {
                 info!(
-                    "自动回退任务(AutoFallback): info_hash={} state={:?}, 使用备用下载器: {}",
-                    info_hash, ctx.ref_task.download_status, downloader
+                    "自动回退任务(AutoFallback): tid={} state={:?}, 使用备用下载器: {}",
+                    tid, ctx.ref_task.download_status, downloader
                 );
                 // 更新任务的下载器
                 let mut new_downloader = ctx.ref_task.downloader.to_string();
@@ -746,26 +751,23 @@ impl Worker {
 
                 // 更新任务状态
                 self.store
-                    .assign_downloader(&info_hash, new_downloader)
+                    .assign_downloader(ctx.info_hash(), new_downloader)
                     .await?;
 
                 // 重新启动任务
-                let resource = self.get_task_resource_by_info_hash(&info_hash).await?;
+                let resource = self.get_task_resource_by_info_hash(ctx.info_hash()).await?;
 
                 // 更新任务状态为 Pending
-                self.update_task_status(&info_hash, DownloadStatus::Pending, None, None)
+                self.update_task_status(ctx.info_hash(), DownloadStatus::Pending, None, None)
                     .await?;
 
                 Ok((Some(Tx::StartTask(resource)), Some(State::Pending)))
             }
             None => {
-                info!(
-                    "自动回退失败: info_hash={}, 没有可用的备选下载器",
-                    info_hash
-                );
+                info!("自动回退失败: tid={}, 没有可用的备选下载器", tid);
                 // 没有可用的备选下载器，标记为失败
                 self.update_task_status(
-                    &info_hash,
+                    ctx.info_hash(),
                     DownloadStatus::Failed,
                     Some(format!(
                         "没有可用的备选下载器: {}",
