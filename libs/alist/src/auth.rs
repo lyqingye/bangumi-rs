@@ -1,8 +1,8 @@
-use crate::model::{LoginRequest, LoginResponse, Response, UserInfo};
-use anyhow::{Context, Result};
+use crate::model::{LoginRequest, LoginResponse, UserInfo};
 use tracing::instrument;
 
 use crate::client::AListClient;
+use crate::Result;
 
 impl AListClient {
     /// 登录AList获取Token
@@ -43,7 +43,7 @@ impl AListClient {
         username: impl Into<String>,
         password: impl Into<String>,
         otp_code: Option<impl Into<String>>,
-    ) -> Result<Option<LoginResponse>> {
+    ) -> Result<LoginResponse> {
         let url = format!("{}/api/auth/login", self.base_url.trim_end_matches('/'));
 
         let request = LoginRequest {
@@ -79,7 +79,7 @@ impl AListClient {
     /// # }
     /// ```
     #[instrument(skip(self), err)]
-    pub async fn get_me(&self) -> Result<Option<UserInfo>> {
+    pub async fn get_me(&self) -> Result<UserInfo> {
         let url = format!("{}/api/me", self.base_url.trim_end_matches('/'));
         self.get(&url).await
     }

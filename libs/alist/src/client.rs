@@ -1,11 +1,10 @@
 use crate::{
-    model::{BatchOperationRequest, BatchOperationResult, Response, TaskInfo, TaskType},
+    model::{Response, TaskInfo, TaskType},
     AddOfflineDownloadTaskRequest, AddOfflineDownloadTaskResult,
 };
-use anyhow::{Context, Result};
-use reqwest::{header, Client, StatusCode};
+use crate::{Error, Result};
+use reqwest::{header, Client};
 use serde::de::DeserializeOwned;
-use std::collections::HashMap;
 use tracing::{debug, instrument};
 
 /// AList API任务管理客户端
@@ -49,7 +48,7 @@ impl AListClient {
 
     /// 发送GET请求
     #[instrument(skip(self), err)]
-    pub(crate) async fn get<T>(&self, url: &str) -> Result<Option<T>>
+    pub(crate) async fn get<T>(&self, url: &str) -> Result<T>
     where
         T: DeserializeOwned + Default,
     {
@@ -59,14 +58,14 @@ impl AListClient {
             .headers(self.create_auth_headers())
             .send()
             .await
-            .context("发送请求失败")?;
+            .map_err(|e| Error::RequestFailed(url.to_owned(), e.to_string()))?;
 
         self.handle_response(response).await
     }
 
     /// 发送POST请求
     #[instrument(skip(self), err)]
-    async fn post<T>(&self, url: &str, query: &[(&str, &str)]) -> Result<Option<T>>
+    async fn post<T>(&self, url: &str, query: &[(&str, &str)]) -> Result<T>
     where
         T: DeserializeOwned + Default,
     {
@@ -77,14 +76,14 @@ impl AListClient {
             .query(query)
             .send()
             .await
-            .context("发送请求失败")?;
+            .map_err(|e| Error::RequestFailed(url.to_owned(), e.to_string()))?;
 
         self.handle_response(response).await
     }
 
     /// 发送带请求体的POST请求
     #[instrument(skip(self, body), err)]
-    pub(crate) async fn post_json<T, B>(&self, url: &str, body: &B) -> Result<Option<T>>
+    pub(crate) async fn post_json<T, B>(&self, url: &str, body: &B) -> Result<T>
     where
         T: DeserializeOwned + Default,
         B: serde::Serialize + std::fmt::Debug,
@@ -96,44 +95,59 @@ impl AListClient {
             .json(body)
             .send()
             .await
-            .context("发送请求失败")?;
+            .map_err(|e| Error::RequestFailed(url.to_owned(), e.to_string()))?;
 
         self.handle_response(response).await
     }
 
     /// 处理API响应
-    async fn handle_response<T>(&self, response: reqwest::Response) -> Result<Option<T>>
+    async fn handle_response<T>(&self, response: reqwest::Response) -> Result<T>
     where
         T: DeserializeOwned + Default,
     {
-        let status = response.status();
-        let body = response.text().await.context("读取响应内容失败")?;
-
-        if status != StatusCode::OK {
-            anyhow::bail!("API请求失败，状态码: {}, 响应内容: {}", status, body);
-        }
+        let body = response
+            .text()
+            .await
+            .map_err(|e| Error::ResponseError(e.to_string()))?;
 
         debug!("响应内容: {}", body);
 
-        let response: Response<T> = serde_json::from_str(&body).context("解析响应内容失败")?;
+        let response: Response<T> = serde_json::from_str(&body)
+            .map_err(|e| Error::ResponseError(format!("解析响应内容失败: {}", e)))?;
 
         if response.code != 200 {
             if response.code == 404 {
-                return Ok(None);
+                return Err(Error::ObjectNotFound);
             }
-            anyhow::bail!(
+
+            if response.code == 403 {
+                return Err(Error::AccessDenied(response.message));
+            }
+
+            if response.code == 400 {
+                return Err(Error::BadRequest(response.message));
+            }
+
+            if response.code == 500 {
+                return Err(Error::ServerError(response.message));
+            }
+
+            return Err(Error::ResponseError(format!(
                 "API请求失败，状态码: {}, 响应内容: {}",
-                response.code,
-                response.message
-            );
+                response.code, response.message
+            )));
         }
 
-        Ok(response.data)
+        Ok(response.data.unwrap_or_default())
     }
 
     /// 获取任务信息
     #[instrument(skip(self), err)]
-    pub async fn get_task_info(&self, task_type: TaskType, task_id: &str) -> Result<Option<TaskInfo>> {
+    pub async fn get_task_info(
+        &self,
+        task_type: TaskType,
+        task_id: &str,
+    ) -> Result<Option<TaskInfo>> {
         let url = self.build_task_url(task_type, "info");
         let mut query = Vec::new();
         query.push(("tid", task_id));
@@ -143,7 +157,7 @@ impl AListClient {
 
     /// 获取已完成任务
     #[instrument(skip(self), err)]
-    pub async fn get_done_tasks(&self, task_type: TaskType) -> Result<Option<Vec<TaskInfo>>> {
+    pub async fn get_done_tasks(&self, task_type: TaskType) -> Result<Vec<TaskInfo>> {
         let url = self.build_task_url(task_type, "done");
         self.get(&url).await
     }
@@ -157,7 +171,7 @@ impl AListClient {
 
     /// 删除任务
     #[instrument(skip(self), err)]
-    pub async fn delete_task(&self, task_type: TaskType, task_id: &str) -> Result<Option<()>> {
+    pub async fn delete_task(&self, task_type: TaskType, task_id: &str) -> Result<()> {
         let url = self.build_task_url(task_type, "delete");
         let query = [("tid", task_id)];
         self.post(&url, &query).await
@@ -165,29 +179,15 @@ impl AListClient {
 
     /// 取消任务
     #[instrument(skip(self), err)]
-    pub async fn cancel_task(&self, task_type: TaskType, task_id: &str) -> Result<Option<()>> {
+    pub async fn cancel_task(&self, task_type: TaskType, task_id: &str) -> Result<()> {
         let url = self.build_task_url(task_type, "cancel");
         let query = [("tid", task_id)];
         self.post(&url, &query).await
     }
 
-    /// 清除已完成任务
-    #[instrument(skip(self), err)]
-    pub async fn clear_done_tasks(&self, task_type: TaskType) -> Result<Option<()>> {
-        let url = self.build_task_url(task_type, "clear_done");
-        self.post(&url, &[]).await
-    }
-
-    /// 清除已成功任务
-    #[instrument(skip(self), err)]
-    pub async fn clear_succeeded_tasks(&self, task_type: TaskType) -> Result<Option<()>> {
-        let url = self.build_task_url(task_type, "clear_succeeded");
-        self.post(&url, &[]).await
-    }
-
     /// 重试任务
     #[instrument(skip(self), err)]
-    pub async fn retry_task(&self, task_type: TaskType, task_id: &str) -> Result<Option<()>> {
+    pub async fn retry_task(&self, task_type: TaskType, task_id: &str) -> Result<()> {
         let url = self.build_task_url(task_type, "retry");
         let query = [("tid", task_id)];
         self.post(&url, &query).await
@@ -195,42 +195,9 @@ impl AListClient {
 
     /// 重试已失败任务
     #[instrument(skip(self), err)]
-    pub async fn retry_failed_tasks(&self, task_type: TaskType) -> Result<Option<()>> {
+    pub async fn retry_failed_tasks(&self, task_type: TaskType) -> Result<()> {
         let url = self.build_task_url(task_type, "retry_failed");
         self.post(&url, &[]).await
-    }
-
-    /// 删除多个任务
-    #[instrument(skip(self), err)]
-    pub async fn delete_some_tasks(
-        &self,
-        task_type: TaskType,
-        task_ids: Vec<String>,
-    ) -> Result<Option<BatchOperationResult>> {
-        let url = self.build_task_url(task_type, "delete_some");
-        self.post_json(&url, &task_ids).await
-    }
-
-    /// 取消多个任务
-    #[instrument(skip(self), err)]
-    pub async fn cancel_some_tasks(
-        &self,
-        task_type: TaskType,
-        task_ids: Vec<String>,
-    ) -> Result<Option<BatchOperationResult>> {
-        let url = self.build_task_url(task_type, "cancel_some");
-        self.post_json(&url, &task_ids).await
-    }
-
-    /// 重试多个任务
-    #[instrument(skip(self), err)]
-    pub async fn retry_some_tasks(
-        &self,
-        task_type: TaskType,
-        task_ids: Vec<String>,
-    ) -> Result<Option<BatchOperationResult>> {
-        let url = self.build_task_url(task_type, "retry_some");
-        self.post_json(&url, &task_ids).await
     }
 
     /// 添加离线下载任务
@@ -261,8 +228,14 @@ mod tests {
             .login("admin", "123456", None::<String>)
             .await
             .unwrap();
-        client.token = result.unwrap().token;
+        client.token = result.token;
         client
+    }
+
+    #[tokio::test]
+    async fn test_login() {
+        let client = create_client().await;
+        println!("{:?}", client.token);
     }
 
     #[tokio::test]
@@ -282,9 +255,36 @@ mod tests {
     async fn test_get_task_info() {
         let client = create_client().await;
         let result = client
-            .get_task_info(TaskType::OfflineDownload, "9qGPePxMwNyzSekcpKWgb")
+            .get_task_info(TaskType::OfflineDownload, "oYZopQiplPBVwRZpWmqSJ")
             .await
             .unwrap();
+        println!("{:?}", result);
+    }
+
+    #[tokio::test]
+    async fn test_retry_task() {
+        let client = create_client().await;
+        let result = client
+            .retry_task(TaskType::OfflineDownload, "62qiGZ2Q9qPJKo_FSfSW6")
+            .await;
+        println!("{:?}", result);
+    }
+
+    #[tokio::test]
+    async fn test_cancel_task() {
+        let client = create_client().await;
+        let result = client
+            .cancel_task(TaskType::OfflineDownload, "62qiGZ2Q9qPJKo_FSfSW6")
+            .await;
+        println!("{:?}", result);
+    }
+
+    #[tokio::test]
+    async fn test_delete_task() {
+        let client = create_client().await;
+        let result = client
+            .delete_task(TaskType::OfflineDownload, "RaPkD_EfY6TXkdDDwOMJD")
+            .await;
         println!("{:?}", result);
     }
 }

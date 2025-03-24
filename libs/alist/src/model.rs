@@ -1,6 +1,5 @@
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
-use std::collections::HashMap;
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Response<T> {
@@ -42,9 +41,13 @@ pub enum TaskState {
     Pending = 0,
     Running = 1,
     Succeeded = 2,
-    Failed = 3,
-    Canceling = 4,
-    Canceled = 5,
+    Canceling = 3,
+    Canceled = 4,
+    Errored = 5,
+    Failing = 6,
+    Failed = 7,
+    WaitingRetry = 8,
+    BeforeRetry = 9,
 }
 
 /// 用户角色枚举
@@ -58,7 +61,7 @@ pub enum UserRole {
 }
 
 /// 任务信息
-#[derive(Debug, Deserialize, Serialize, Default)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct TaskInfo {
     pub id: String,
     pub name: String,
@@ -73,20 +76,6 @@ pub struct TaskInfo {
     pub total_bytes: i64,
     #[serde(with = "none_if_empty")]
     pub error: Option<String>,
-}
-
-/// 批量操作响应
-#[derive(Debug, Deserialize, Serialize, Default)]
-pub struct BatchOperationResult {
-    pub code: i32,
-    pub message: String,
-    pub data: HashMap<String, String>,
-}
-
-/// 批量操作请求体
-#[derive(Debug, Serialize)]
-pub struct BatchOperationRequest {
-    pub task_ids: Vec<String>,
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -163,17 +152,16 @@ mod none_if_empty {
     }
 }
 
-/// 展示如何使用NoneIfEmpty模块的示例结构体
-#[derive(Debug, Deserialize, Serialize)]
-struct ExampleWithNoneIfEmpty {
-    pub id: String,
-    #[serde(with = "none_if_empty")]
-    pub optional_field: Option<String>,
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[derive(Debug, Deserialize, Serialize)]
+    struct ExampleWithNoneIfEmpty {
+        pub id: String,
+        #[serde(with = "none_if_empty")]
+        pub optional_field: Option<String>,
+    }
 
     #[test]
     fn test_deserialize_add_offline_download_task_result() {
