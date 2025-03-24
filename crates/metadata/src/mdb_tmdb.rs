@@ -91,11 +91,11 @@ impl MetadataDb for MdbTmdb {
 
         if attrs.is_required(MetadataAttr::Poster)
             && (bgm.poster_image_url.is_none() || force)
-            && let Some(poster_path) = poster_path
+            && poster_path.is_some()
         {
             bgm.poster_image_url = Some(
                 self.download_image_from_tmdb(
-                    &poster_path,
+                    &poster_path.unwrap(),
                     format_poster_image_file_name(bgm).as_str(),
                 )
                 .await
