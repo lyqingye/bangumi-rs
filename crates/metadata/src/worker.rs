@@ -445,12 +445,12 @@ impl Worker {
         let mut torrents = Vec::new();
 
         for provider in self.providers.iter() {
-            match provider.search_torrents(&bgm).await {
-                Ok(result) => torrents.extend(result),
-                Err(e) => {
-                    error!("[{}] 收集种子信息失败: {}", provider.name(), e);
-                }
-            }
+            let result = provider
+                .search_torrents(&bgm)
+                .await
+                .inspect_err(|e| error!("[{}] 收集种子信息失败: {}", provider.name(), e))
+                .unwrap_or_default();
+            torrents.extend(result);
         }
 
         torrents.dedup_by_key(|t| t.info_hash.clone());
