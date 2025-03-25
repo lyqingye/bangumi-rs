@@ -2,7 +2,7 @@ use std::path::Path;
 
 use anyhow::{Context, Result};
 use chrono::{Datelike, Months, NaiveDate};
-use reqwest::{header::USER_AGENT, Client as ReqwestClient, Url};
+use reqwest::{Client as ReqwestClient, Url, header::USER_AGENT};
 use tracing::instrument;
 
 use crate::model::{FilterCondition, PageResponse, SearchFilter, SubjectType};

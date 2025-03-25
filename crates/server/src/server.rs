@@ -13,7 +13,7 @@ use tracing::{error, info};
 use tracing_actix_web::TracingLogger;
 
 use crate::config::{Config, Writer};
-use crate::logger::{init_logger, LogMessage};
+use crate::logger::{LogMessage, init_logger};
 use crate::router;
 use anyhow::Result;
 use downloader::ThirdPartyDownloader;

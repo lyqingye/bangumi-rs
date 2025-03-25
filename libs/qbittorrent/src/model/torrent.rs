@@ -3,7 +3,7 @@ use std::fmt::{Debug, Display};
 use bytes::Bytes;
 use reqwest::Url;
 use serde::Serialize;
-use serde_with::{skip_serializing_none, SerializeDisplay};
+use serde_with::{SerializeDisplay, skip_serializing_none};
 
 use crate::model::Sep;
 

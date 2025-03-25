@@ -1,8 +1,8 @@
 use crate::model::{LoginRequest, LoginResponse, UserInfo};
 use tracing::instrument;
 
-use crate::client::AListClient;
 use crate::Result;
+use crate::client::AListClient;
 
 impl AListClient {
     pub async fn login(&mut self) -> Result<()> {

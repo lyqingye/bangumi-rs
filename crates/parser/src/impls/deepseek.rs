@@ -1,14 +1,14 @@
-use anyhow::anyhow;
 use anyhow::Result;
+use anyhow::anyhow;
 use async_trait::async_trait;
-use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION, CONTENT_TYPE};
 use reqwest::Response;
 use reqwest::StatusCode;
+use reqwest::header::{AUTHORIZATION, CONTENT_TYPE, HeaderMap, HeaderValue};
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 use tracing::{debug, error, info, warn};
 
-use crate::{fill_file_names, parse_msg, ParseResult, Parser, PROMPT_TEMPLATE};
+use crate::{PROMPT_TEMPLATE, ParseResult, Parser, fill_file_names, parse_msg};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Role {
@@ -330,7 +330,7 @@ mod tests {
         let now = time::Instant::now();
         let resp = client
             .parse_file_names(vec![
-                "[ANBU]_Princess_Lover!_-_01_[2048A39A].mkv".to_string()
+                "[ANBU]_Princess_Lover!_-_01_[2048A39A].mkv".to_string(),
             ])
             .await?;
         println!("{:?}", resp);

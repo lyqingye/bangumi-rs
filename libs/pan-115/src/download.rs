@@ -11,7 +11,7 @@ use super::{
     model::{DownloadData, DownloadInfo, DownloadResp},
 };
 use anyhow::Result;
-use reqwest::{header::USER_AGENT, Url};
+use reqwest::{Url, header::USER_AGENT};
 use serde_json::json;
 
 const API_DOWNLOAD: &str = "https://proapi.115.com/app/chrome/downurl";

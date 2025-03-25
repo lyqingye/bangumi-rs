@@ -1,6 +1,6 @@
 use crate::{
-    config, context::TorrentContext, resource::Resource, AccessType, DownloadInfo, FileInfo,
-    RemoteTaskStatus, ThirdPartyDownloader, Tid,
+    AccessType, DownloadInfo, FileInfo, RemoteTaskStatus, ThirdPartyDownloader, Tid, config,
+    context::TorrentContext, resource::Resource,
 };
 use anyhow::{Context, Result};
 use async_trait::async_trait;

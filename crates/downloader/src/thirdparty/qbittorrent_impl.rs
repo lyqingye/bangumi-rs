@@ -7,20 +7,19 @@ use std::{
 };
 
 use crate::{
-    config,
+    AccessType, DownloadInfo, FileInfo, RemoteTaskStatus, ThirdPartyDownloader, Tid, config,
     context::{TorrentContext, TorrentFileInfo},
     resource::Resource,
-    AccessType, DownloadInfo, FileInfo, RemoteTaskStatus, ThirdPartyDownloader, Tid,
 };
 use anyhow::{Context, Result};
 use async_trait::async_trait;
 use lru::LruCache;
 use model::sea_orm_active_enums::{DownloadStatus, ResourceType};
 use qbittorrent::model::{
+    Sep,
     torrent::{
         AddTorrentArg, GetTorrentListArg, Hashes, State, Torrent, TorrentFile, TorrentSource,
     },
-    Sep,
 };
 use reqwest::Url;
 

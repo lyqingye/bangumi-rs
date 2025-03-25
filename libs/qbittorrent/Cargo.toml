@@ -1,7 +1,7 @@
 [package]
 name = "qbittorrent"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 
 [dependencies]
 serde = { workspace = true, features = ["derive"] }
@@ -9,12 +9,16 @@ serde_json = { workspace = true }
 serde_with = { workspace = true }
 serde_repr = { workspace = true }
 thiserror = { workspace = true }
-reqwest = { workspace = true, features = ["json","multipart", "rustls-tls"], default-features = false }
+reqwest = { workspace = true, features = [
+    "json",
+    "multipart",
+    "rustls-tls",
+], default-features = false }
 tap = { workspace = true }
 tracing = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 url = { workspace = true, features = ["serde"] }
-bytes = { workspace = true, features = ["serde"]}
+bytes = { workspace = true, features = ["serde"] }
 [dev-dependencies]
 dotenv = { workspace = true }
 tracing-subscriber = { workspace = true }

@@ -1,7 +1,7 @@
 [package]
 name = "server"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 build = "build.rs"
 
 [dependencies]
@@ -20,7 +20,9 @@ console-subscriber = { workspace = true, optional = true }
 tokio = { workspace = true, features = ["full"] }
 tokio-stream = { workspace = true }
 tokio_schedule = { workspace = true }
-reqwest = { workspace = true, features = ["rustls-tls"] , default-features = false}
+reqwest = { workspace = true, features = [
+    "rustls-tls",
+], default-features = false }
 chrono = { workspace = true }
 tmdb-api = { workspace = true }
 tmdb = { path = "../../libs/tmdb" }
@@ -49,7 +51,10 @@ dict = { path = "../dict" }
 sysinfo = { workspace = true }
 humantime-serde = { workspace = true }
 sentry-tracing = { workspace = true }
-sentry = { workspace = true, features = ["rustls", "reqwest"],default-features = false }
+sentry = { workspace = true, features = [
+    "rustls",
+    "reqwest",
+], default-features = false }
 [dev-dependencies]
 dotenv = { workspace = true }
 tracing-subscriber = { workspace = true }

@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use model::dictionary;
-use sea_orm::{entity::*, query::*, ConnectOptions, Database, DatabaseConnection};
+use sea_orm::{ConnectOptions, Database, DatabaseConnection, entity::*, query::*};
 use serde::de::DeserializeOwned;
 use std::{sync::Arc, time::Duration};
 use tracing::log::LevelFilter;

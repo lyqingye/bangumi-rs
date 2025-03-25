@@ -1,23 +1,25 @@
 [package]
 name = "mikan"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 
 [dependencies]
 anyhow = { workspace = true }
 thiserror = { workspace = true }
-reqwest = { workspace = true, features = ["rustls-tls"], default-features = false }
-tokio = { workspace = true ,features = ["full"]}
+reqwest = { workspace = true, features = [
+    "rustls-tls",
+], default-features = false }
+tokio = { workspace = true, features = ["full"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 chrono = { workspace = true }
 lazy_static = { workspace = true }
-scraper = {workspace = true}
-tracing = {workspace = true}
-huby = {workspace = true}
+scraper = { workspace = true }
+tracing = { workspace = true }
+huby = { workspace = true }
 utils = { path = "../utils" }
 quick-xml = { workspace = true, features = ["serialize"] }
 
 [dev-dependencies]
-dotenv = {workspace = true}
+dotenv = { workspace = true }
 tracing-subscriber = { workspace = true }

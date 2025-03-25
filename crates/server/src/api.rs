@@ -1,16 +1,15 @@
 use std::{collections::HashSet, path::Path, sync::Arc};
 
 use actix_web::{
-    get, post,
+    HttpRequest, HttpResponse, get, post,
     web::{self, Json},
-    HttpRequest, HttpResponse,
 };
 use anyhow::Context;
 use dict::DictCode;
 use downloader::AccessType;
 use model::sea_orm_active_enums::{BgmKind, State, SubscribeStatus};
 use parser::{Language, VideoResolution};
-use sea_orm::{prelude::Expr, Condition};
+use sea_orm::{Condition, prelude::Expr};
 use tracing::{info, instrument};
 
 use crate::{

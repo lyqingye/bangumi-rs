@@ -1,5 +1,5 @@
-use crate::models::{ParseResult, CHINESE_NUMBER_MAP};
-use anyhow::{anyhow, Result};
+use crate::models::{CHINESE_NUMBER_MAP, ParseResult};
+use anyhow::{Result, anyhow};
 use lazy_static::lazy_static;
 use regex::Regex;
 

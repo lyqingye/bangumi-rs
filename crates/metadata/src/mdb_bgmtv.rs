@@ -5,7 +5,7 @@ use tracing::{error, info, warn};
 
 use model::bangumi;
 
-use crate::{format_poster_image_file_name, MetadataAttr, MetadataAttrSet, MetadataDb};
+use crate::{MetadataAttr, MetadataAttrSet, MetadataDb, format_poster_image_file_name};
 
 #[derive(Clone)]
 pub struct MdbBgmTV {

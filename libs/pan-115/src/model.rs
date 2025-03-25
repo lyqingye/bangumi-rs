@@ -4,7 +4,7 @@ use anyhow::Result;
 use reqwest::header::HeaderMap;
 use serde::Deserialize;
 
-use super::errors::{map_115_error_code, Pan115Error};
+use super::errors::{Pan115Error, map_115_error_code};
 
 #[derive(Deserialize, Default)]
 pub struct LoginResp {

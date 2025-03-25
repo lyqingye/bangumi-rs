@@ -297,11 +297,7 @@ where
     D: serde::Deserializer<'de>,
 {
     let s: String = String::deserialize(deserializer)?;
-    if s.is_empty() {
-        Ok(None)
-    } else {
-        Ok(Some(s))
-    }
+    if s.is_empty() { Ok(None) } else { Ok(Some(s)) }
 }
 
 #[derive(Debug, Deserialize, Default, Clone)]

@@ -7,8 +7,8 @@ use model::{
     torrents::{self, Column as TorrentColumn, Model as TorrentModel},
 };
 use sea_orm::{
-    sea_query::{OnConflict, SimpleExpr},
     ColumnTrait, DatabaseConnection, EntityTrait, IntoActiveModel, QueryFilter, QueryTrait,
+    sea_query::{OnConflict, SimpleExpr},
 };
 use std::sync::Arc;
 

@@ -6,7 +6,7 @@ use std::{
 use tracing::debug;
 
 use super::{
-    client::{Client, APP_VER},
+    client::{APP_VER, Client},
     decode, encode,
     errors::Pan115Error,
     gen_key,

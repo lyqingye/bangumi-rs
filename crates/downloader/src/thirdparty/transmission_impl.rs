@@ -11,18 +11,17 @@ use std::{
 use lru::LruCache;
 use model::sea_orm_active_enums::{DownloadStatus, ResourceType};
 use transmission_rpc::{
-    types::{Id, TorrentAction, TorrentAddArgs, TorrentGetField, TorrentStatus},
     SharableTransClient,
+    types::{Id, TorrentAction, TorrentAddArgs, TorrentGetField, TorrentStatus},
 };
 
 use crate::{
-    config,
+    AccessType, DownloadInfo, FileInfo, RemoteTaskStatus, ThirdPartyDownloader, Tid, config,
     context::{TorrentContext, TorrentFileInfo},
     resource::Resource,
-    AccessType, DownloadInfo, FileInfo, RemoteTaskStatus, ThirdPartyDownloader, Tid,
 };
 
-use base64::{engine::general_purpose::STANDARD, Engine};
+use base64::{Engine, engine::general_purpose::STANDARD};
 
 #[derive(Clone)]
 pub struct Config {

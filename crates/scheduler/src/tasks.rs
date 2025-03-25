@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use downloader::{resource::Resource, Downloader, Event};
+use downloader::{Downloader, Event, resource::Resource};
 use model::sea_orm_active_enums::{ResourceType, State};
 use model::{episode_download_tasks, sea_orm_active_enums::DownloadStatus};
 use model::{subscriptions, torrents};

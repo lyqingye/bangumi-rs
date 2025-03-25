@@ -3,16 +3,16 @@ use std::{collections::HashMap, sync::Arc, time::Duration};
 use anyhow::{Context, Result};
 use chrono::NaiveDateTime;
 use sea_orm::DatabaseConnection;
-use tokio::sync::{mpsc, oneshot, Mutex, RwLock};
+use tokio::sync::{Mutex, RwLock, mpsc, oneshot};
 use tracing::{error, info};
 
 use dict::DictCode;
 use model::sea_orm_active_enums::BgmKind;
 
 use crate::{
-    db::Db, fetcher::Fetcher, matcher::Matcher, mdb_bgmtv::MdbBgmTV, mdb_mikan::MdbMikan,
-    mdb_tmdb::MdbTmdb, metrics, providers::mikan::MikanProvider, MetadataAttr, MetadataAttrSet,
-    MetadataDb, TorrentProvider,
+    MetadataAttr, MetadataAttrSet, MetadataDb, TorrentProvider, db::Db, fetcher::Fetcher,
+    matcher::Matcher, mdb_bgmtv::MdbBgmTV, mdb_mikan::MdbMikan, mdb_tmdb::MdbTmdb, metrics,
+    providers::mikan::MikanProvider,
 };
 
 const REFRESH_COOLDOWN: i64 = 1; // minutes
@@ -332,7 +332,7 @@ impl Worker {
 
         // 4. 如果前两者都无法提供封面，那么则使用Mikan提供
         if bgm.poster_image_url.is_none() {
-            match mdbs
+            if let Err(e) = mdbs
                 .mikan
                 .update_bangumi_metadata(
                     &mut bgm,
@@ -341,10 +341,7 @@ impl Worker {
                 )
                 .await
             {
-                Ok(_) => {}
-                Err(e) => {
-                    error!("使用mikan填充封面失败: {}", e);
-                }
+                error!("使用mikan填充封面失败: {}", e);
             }
         }
 
@@ -405,19 +402,15 @@ impl Worker {
         for mut bgm in bangumis {
             let bgm_id = bgm.id;
 
-            match self.try_match_bangumi(&mut bgm).await {
-                Ok(_) => {}
-                Err(e) => {
-                    error!("匹配番剧失败: {}", e);
-                }
-            };
+            self.try_match_bangumi(&mut bgm)
+                .await
+                .inspect_err(|e| error!("匹配番剧失败: {}", e))
+                .ok();
 
-            match self.handle_refresh_metadata(bgm_id, force, mdbs).await {
-                Ok(_) => {}
-                Err(e) => {
-                    error!("刷新番剧元数据失败: {}", e);
-                }
-            }
+            self.handle_refresh_metadata(bgm_id, force, mdbs)
+                .await
+                .inspect_err(|e| error!("刷新番剧元数据失败: {}", e))
+                .ok();
         }
         info!("放送列表刷新完成");
         Ok(())
@@ -452,14 +445,12 @@ impl Worker {
         let mut torrents = Vec::new();
 
         for provider in self.providers.iter() {
-            match provider.search_torrents(&bgm).await {
-                Ok(result) => {
-                    torrents.extend(result);
-                }
-                Err(e) => {
-                    error!("[{}] 收集种子信息失败: {}", provider.name(), e);
-                }
-            }
+            let result = provider
+                .search_torrents(&bgm)
+                .await
+                .inspect_err(|e| error!("[{}] 收集种子信息失败: {}", provider.name(), e))
+                .unwrap_or_default();
+            torrents.extend(result);
         }
 
         torrents.dedup_by_key(|t| t.info_hash.clone());

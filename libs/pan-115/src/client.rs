@@ -8,7 +8,7 @@ use std::{
 use super::{errors::Pan115Error, model::LoginResp};
 use anyhow::Result;
 use governor::{Quota, RateLimiter};
-use reqwest::{cookie::Jar, Url};
+use reqwest::{Url, cookie::Jar};
 
 pub const API_LOGIN_CHECK: &str = "https://passportapi.115.com/app/1.0/web/1.0/check/sso";
 pub const USER_AGENT: &str = "Mozilla/5.0 115Browser/27.0.5.7";

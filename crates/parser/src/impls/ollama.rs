@@ -1,9 +1,9 @@
 use anyhow::Result;
 use async_trait::async_trait;
-use reqwest::header::{HeaderMap, HeaderValue, CONTENT_TYPE};
+use reqwest::header::{CONTENT_TYPE, HeaderMap, HeaderValue};
 use serde::{Deserialize, Serialize};
 
-use crate::{fill_file_names, parse_msg, ParseResult, Parser, PROMPT_TEMPLATE};
+use crate::{PROMPT_TEMPLATE, ParseResult, Parser, fill_file_names, parse_msg};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Message {

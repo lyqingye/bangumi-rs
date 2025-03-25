@@ -23,7 +23,7 @@ impl Worker {
     /// 处理重试队列中的任务
     async fn process_retry(&self) -> Result<()> {
         let now = Local::now().naive_utc();
-        let mut tasks = self
+        let tasks = self
             .store
             .list_by_status(&[DownloadStatus::Retrying])
             .await?;
@@ -31,7 +31,7 @@ impl Worker {
             return Ok(());
         }
         info!("重试队列中的任务数量: {}", tasks.len());
-        for task in tasks.as_mut_slice() {
+        for task in tasks.iter() {
             if now < task.next_retry_at {
                 continue;
             }
