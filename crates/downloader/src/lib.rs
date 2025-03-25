@@ -5,6 +5,7 @@ pub mod db;
 pub mod metrics;
 pub mod resource;
 mod retry;
+pub mod stm;
 mod syncer;
 pub mod thirdparty;
 pub mod worker;
