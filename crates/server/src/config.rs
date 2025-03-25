@@ -315,10 +315,7 @@ impl Default for AlistConfig {
             username: "admin".to_owned(),
             password: "123456".to_owned(),
             tool: Tools::Qbittorrent,
-            generic: GenericDownloaderConfig {
-                delete_task_on_completion: false,
-                ..Default::default()
-            },
+            generic: GenericDownloaderConfig::default(),
         }
     }
 }
@@ -329,12 +326,6 @@ impl AlistConfig {
             validate_url(&self.url, "downloader.alist.url")?;
             validate_not_empty(&self.username, "downloader.alist.username")?;
             validate_not_empty(&self.password, "downloader.alist.password")?;
-
-            if self.generic.delete_task_on_completion {
-                return Err(anyhow::anyhow!(
-                    "downloader.alist.delete_task_on_completion 不能为 true, alist 会在上传后自动删除，这里无需开启"
-                ));
-            }
         }
         Ok(())
     }
