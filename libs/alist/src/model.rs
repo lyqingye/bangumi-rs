@@ -131,12 +131,37 @@ impl Display for Tools {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, Default)]
+pub enum DeletePolicy {
+    #[default]
+    #[serde(rename = "delete_on_upload_succeed")]
+    DeleteOnUploadSucceed,
+    #[serde(rename = "delete_on_upload_failed")]
+    DeleteOnUploadFailed,
+    #[serde(rename = "delete_never")]
+    DeleteNever,
+    #[serde(rename = "delete_always")]
+    DeleteAlways,
+}
+
+impl Display for DeletePolicy {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let str = match self {
+            DeletePolicy::DeleteOnUploadSucceed => "delete_on_upload_succeed",
+            DeletePolicy::DeleteOnUploadFailed => "delete_on_upload_failed",
+            DeletePolicy::DeleteNever => "delete_never",
+            DeletePolicy::DeleteAlways => "delete_always",
+        };
+        write!(f, "{}", str)
+    }
+}
+
 #[derive(Debug, Serialize)]
 pub struct AddOfflineDownloadTaskRequest {
     pub urls: Vec<String>,
     pub path: String,
     pub tool: Tools,
-    pub delete_policy: String,
+    pub delete_policy: DeletePolicy,
 }
 
 /// 登录请求参数
@@ -419,5 +444,23 @@ mod tests {
         let tools = Tools::Pan115;
         let json = serde_json::to_string(&tools).unwrap();
         assert_eq!(json, r#""115 Cloud""#);
+    }
+
+    #[test]
+    fn test_serialize_delete_policy() {
+        let policy = DeletePolicy::DeleteOnUploadSucceed;
+        let json = serde_json::to_string(&policy).unwrap();
+        assert_eq!(json, r#""delete_on_upload_succeed""#);
+
+        let policy = DeletePolicy::DeleteNever;
+        let json = serde_json::to_string(&policy).unwrap();
+        assert_eq!(json, r#""delete_never""#);
+
+        // 测试反序列化
+        let policy: DeletePolicy = serde_json::from_str(r#""delete_always""#).unwrap();
+        assert_eq!(policy, DeletePolicy::DeleteAlways);
+
+        let policy: DeletePolicy = serde_json::from_str(r#""delete_on_upload_failed""#).unwrap();
+        assert_eq!(policy, DeletePolicy::DeleteOnUploadFailed);
     }
 }

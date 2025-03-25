@@ -23,6 +23,9 @@ pub enum Error {
 
     #[error("不支持的工具: {0}")]
     UnsupportedTool(String),
+
+    #[error("不支持的删除策略: {0}")]
+    UnsupportedDeletePolicy(String),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;

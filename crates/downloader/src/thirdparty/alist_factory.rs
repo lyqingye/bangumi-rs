@@ -145,7 +145,7 @@ impl ThirdPartyDownloader for AlistDownloaderImpl {
             urls: vec![url.to_string()],
             path: path.to_string_lossy().to_string(),
             tool: self.tool,
-            delete_policy: "delete_on_upload_succeed".to_string(),
+            delete_policy: alist::DeletePolicy::DeleteNever,
         };
         let result = self.client.add_offline_download_task(request).await?;
         if result.tasks.is_empty() {
@@ -194,9 +194,6 @@ impl ThirdPartyDownloader for AlistDownloaderImpl {
     }
 
     async fn remove_task(&self, tid: &Tid, _remove_files: bool) -> Result<()> {
-        self.client
-            .cancel_task(alist::TaskType::OfflineDownload, tid.as_str())
-            .await?;
         self.client
             .delete_task(alist::TaskType::OfflineDownload, tid.as_str())
             .await?;
