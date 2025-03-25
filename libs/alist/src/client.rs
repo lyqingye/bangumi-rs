@@ -220,7 +220,7 @@ mod tests {
             urls: vec!["magnet:?xt=urn:btih:7bf4dd0167461357087620cce33fecc1e0d2932b".to_string()],
             path: "/downloads".to_string(),
             tool: Tools::Pan115,
-            delete_policy: "delete_always".to_string(),
+            delete_policy: "delete_on_upload_succeed".to_string(),
         };
         let result = client.add_offline_download_task(request).await;
         println!("{:?}", result);
