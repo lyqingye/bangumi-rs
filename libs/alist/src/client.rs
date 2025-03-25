@@ -262,7 +262,7 @@ mod tests {
     async fn test_delete_task() {
         let client = create_client().await;
         client
-            .delete_task(TaskType::OfflineDownload, "WQEK-I_VIiMBf7LwGO1iL")
+            .delete_task(TaskType::OfflineDownload, "LIUAlG_nNMeQbaoW5jWe_")
             .await
             .unwrap();
     }

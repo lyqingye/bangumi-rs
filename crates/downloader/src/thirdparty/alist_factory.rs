@@ -195,9 +195,6 @@ impl ThirdPartyDownloader for AlistDownloaderImpl {
 
     async fn remove_task(&self, tid: &Tid, _remove_files: bool) -> Result<()> {
         self.client
-            .cancel_task(alist::TaskType::OfflineDownload, tid.as_str())
-            .await?;
-        self.client
             .delete_task(alist::TaskType::OfflineDownload, tid.as_str())
             .await?;
         Ok(())
