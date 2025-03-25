@@ -145,7 +145,7 @@ impl ThirdPartyDownloader for AlistDownloaderImpl {
             urls: vec![url.to_string()],
             path: path.to_string_lossy().to_string(),
             tool: self.tool,
-            delete_policy: "delete_always".to_string(),
+            delete_policy: "delete_on_upload_succeed".to_string(),
         };
         let result = self.client.add_offline_download_task(request).await?;
         if result.tasks.is_empty() {
@@ -282,14 +282,12 @@ impl ThirdPartyDownloader for AlistDownloaderImpl {
 }
 
 fn map_task_status(task: alist::TaskInfo) -> (DownloadStatus, Option<String>) {
-    if task.progress == 100.0 {
-        return (DownloadStatus::Completed, None);
-    }
     match task.state {
         alist::TaskState::Errored | alist::TaskState::Failed | alist::TaskState::Failing => (
             DownloadStatus::Failed,
             Some(format!("下载失败: {}", task.error.unwrap_or_default())),
         ),
+        alist::TaskState::Succeeded => (DownloadStatus::Completed, None),
         alist::TaskState::Canceling | alist::TaskState::Canceled => {
             (DownloadStatus::Cancelled, None)
         }
