@@ -1,9 +1,8 @@
 use std::{path::PathBuf, sync::Arc};
 
-use anyhow::{Context as _, Result};
+use crate::errors::{Error, Result};
 use async_trait::async_trait;
-use bytes::Bytes;
-use chrono::{Local, NaiveDateTime};
+use chrono::NaiveDateTime;
 use model::{sea_orm_active_enums::DownloadStatus, torrent_download_tasks::Model};
 use tokio::sync::{broadcast, mpsc, oneshot};
 use tracing::{debug, error, info, warn};
@@ -73,7 +72,7 @@ impl Tx {
             .await?
             .first()
             .cloned()
-            .ok_or_else(|| anyhow::anyhow!("任务不存在: info_hash={}", info_hash))
+            .ok_or_else(|| Error::TaskNotFound(info_hash.to_string()))
     }
 }
 
@@ -95,7 +94,7 @@ impl Context<'_> {
 
 #[derive(Clone)]
 pub struct Worker {
-    event_queue: Option<mpsc::UnboundedSender<Tx>>,
+    event_queue: mpsc::UnboundedSender<Tx>,
     pub(crate) store: Arc<Box<dyn Store>>,
     pub(crate) config: Config,
     notify_tx: broadcast::Sender<Event>,
@@ -110,7 +109,7 @@ impl Worker {
     ) -> Result<Self> {
         let (notify_tx, _) = broadcast::channel(config.event_queue_size);
         Ok(Self {
-            event_queue: None,
+            event_queue: mpsc::unbounded_channel().0,
             store: Arc::new(store),
             config,
             notify_tx,
@@ -122,7 +121,7 @@ impl Worker {
 impl Worker {
     pub async fn spawn(&mut self) -> Result<()> {
         let (event_queue, event_receiver) = mpsc::unbounded_channel();
-        self.event_queue = Some(event_queue);
+        self.event_queue = event_queue;
         // 启动事件循环
         self.spawn_event_loop(event_receiver);
         // 启动同步器
@@ -138,9 +137,8 @@ impl Worker {
 
     pub(crate) fn send_event(&self, event: Tx) -> Result<()> {
         self.event_queue
-            .as_ref()
-            .context("Downloader 未启动")?
-            .send(event)?;
+            .send(event)
+            .map_err(|_| Error::ChannelClosed)?;
         Ok(())
     }
 
@@ -148,49 +146,9 @@ impl Worker {
         info!("正在关闭 Downloader...");
         let (tx, rx) = oneshot::channel();
         self.send_event(Tx::Shutdown(tx))?;
-        rx.await?;
+        rx.await.map_err(|_| Error::ChannelClosed)?;
         info!("Downloader 已完全关闭");
         Ok(())
-    }
-
-    async fn get_task_resource(&self, task: &Model) -> Result<Resource> {
-        Ok(match task.resource_type {
-            ResourceType::Torrent => {
-                let torrent = self
-                    .store
-                    .get_torrent_by_info_hash(&task.info_hash)
-                    .await?
-                    .ok_or_else(|| {
-                        anyhow::anyhow!("种子文件不存在: info_hash={}", task.info_hash)
-                    })?;
-                let data = torrent
-                    .data
-                    .ok_or_else(|| anyhow::anyhow!("种子内容为空: info_hash={}", task.info_hash))?;
-                Resource::TorrentFileBytes(Bytes::from(data), task.info_hash.clone())
-            }
-            ResourceType::Magnet => {
-                let magnet = task
-                    .magnet
-                    .as_ref()
-                    .ok_or_else(|| anyhow::anyhow!("磁力链接为空: info_hash={}", task.info_hash))?;
-                Resource::from_magnet_link(magnet)?
-            }
-            ResourceType::InfoHash => Resource::from_info_hash(task.info_hash.clone())?,
-            ResourceType::TorrentURL => {
-                let torrent_url = task.torrent_url.as_ref().ok_or_else(|| {
-                    anyhow::anyhow!("种子下载URL为空: info_hash={}", task.info_hash)
-                })?;
-                Resource::from_torrent_url(torrent_url, &task.info_hash)?
-            }
-        })
-    }
-
-    async fn get_task_resource_by_info_hash(&self, info_hash: &str) -> Result<Resource> {
-        let tasks = self.store.list_by_hashes(&[info_hash.to_string()]).await?;
-        let task = tasks
-            .first()
-            .ok_or_else(|| anyhow::anyhow!("任务不存在: info_hash={}", info_hash))?;
-        self.get_task_resource(task).await
     }
 
     async fn recover_pending_tasks(&self) -> Result<()> {
@@ -203,7 +161,11 @@ impl Worker {
 
         info!("找到 {} 个未处理的任务", pending_tasks.len());
         for task in pending_tasks {
-            let resource = self.get_task_resource(&task).await?;
+            let resource = self
+                .store
+                .load_resource(&task.info_hash)
+                .await?
+                .ok_or_else(|| Error::ResourceNotFound(task.info_hash.to_string()))?;
             if let Err(e) = self.send_event(Tx::StartTask(resource)) {
                 error!("恢复任务到队列失败: {} - {}", task.info_hash, e);
             } else {
@@ -286,44 +248,20 @@ impl Worker {
             downloader,
             allow_fallback
         );
-        self.create_task(&resource, dir, downloader, allow_fallback)
-            .await?;
-        self.send_event(Tx::StartTask(resource))?;
-        Ok(())
-    }
-
-    async fn create_task(
-        &self,
-        resource: &Resource,
-        dir: PathBuf,
-        downloader: Option<String>,
-        allow_fallback: bool,
-    ) -> Result<()> {
         let downloader = if let Some(downloader_name) = downloader {
             self.take_downloader(&downloader_name)?
         } else {
             self.best_downloader()
         };
-        let now = Local::now().naive_utc();
-        let task = Model {
-            info_hash: resource.info_hash().to_string(),
-            download_status: DownloadStatus::Pending,
-            downloader: downloader.name().to_string(),
-            allow_fallback,
-            context: None,
-            err_msg: None,
-            created_at: now,
-            updated_at: now,
-            dir: dir.to_string_lossy().into_owned(),
-            retry_count: 0,
-            next_retry_at: now,
-            resource_type: resource.get_type(),
-            magnet: resource.magnet(),
-            torrent_url: resource.torrent_url(),
-            tid: None,
-        };
-
-        self.store.upsert(task).await?;
+        self.store
+            .create(
+                &resource,
+                dir,
+                downloader.name().to_string(),
+                allow_fallback,
+            )
+            .await?;
+        self.send_event(Tx::StartTask(resource))?;
         Ok(())
     }
 
@@ -356,7 +294,7 @@ impl Worker {
             .await?
             .first()
             .cloned()
-            .context("任务不存在")?;
+            .ok_or_else(|| Error::TaskNotFound(info_hash.to_string()))?;
         let tid = Tid::from(task.tid());
         let downloader = self.take_downloader(&task.downloader)?;
         let mut result = downloader.list_files(&tid, task.context.clone()).await?;
@@ -368,9 +306,11 @@ impl Worker {
 
     pub async fn download_file(&self, file_id: &str, ua: &str) -> Result<DownloadInfo> {
         info!("下载文件: file_id={}, ua={}", file_id, ua);
-        let (downloader_name, file_id) = file_id.split_once('-').context("文件ID格式错误")?;
+        let (downloader_name, file_id) = file_id
+            .split_once('-')
+            .ok_or_else(|| Error::InvalidFileId(file_id.to_string()))?;
         let downloader = self.take_downloader(downloader_name)?;
-        let result = downloader.download_file(file_id, ua).await;
+        let result = downloader.dl_file(file_id, ua).await;
 
         if let Err(ref e) = result {
             warn!("下载文件失败: file_id={}, 错误: {}", file_id, e);
@@ -608,7 +548,11 @@ impl Worker {
             ctx.ref_task.retry_count,
             ctx.downloader.config().max_retry_count
         );
-        let resource = self.get_task_resource_by_info_hash(ctx.info_hash()).await?;
+        let resource = self
+            .store
+            .load_resource(ctx.info_hash())
+            .await?
+            .ok_or_else(|| Error::ResourceNotFound(ctx.info_hash().to_string()))?;
         // 删除原有任务，然后重新下载
         if let Err(e) = ctx.downloader.remove_task(tid, true).await {
             warn!("移除任务准备重试出错: tid={}, 错误: {}", tid, e);
@@ -751,11 +695,15 @@ impl Worker {
 
                 // 更新任务状态
                 self.store
-                    .assign_downloader(ctx.info_hash(), new_downloader)
+                    .assign_dlr(ctx.info_hash(), new_downloader)
                     .await?;
 
                 // 重新启动任务
-                let resource = self.get_task_resource_by_info_hash(ctx.info_hash()).await?;
+                let resource = self
+                    .store
+                    .load_resource(ctx.info_hash())
+                    .await?
+                    .ok_or_else(|| Error::ResourceNotFound(ctx.info_hash().to_string()))?;
 
                 // 更新任务状态为 Pending
                 self.update_task_status(ctx.info_hash(), DownloadStatus::Pending, None, None)
@@ -787,7 +735,7 @@ impl Worker {
             .downloaders
             .iter()
             .find(|d| d.name() == latest)
-            .context(format!("指定的下载器不存在: {}", latest))?;
+            .ok_or_else(|| Error::DownloaderNotFound(latest.to_string()))?;
         Ok(downloader)
     }
 
@@ -903,14 +851,14 @@ impl Downloader for Worker {
         self.best_downloader().recommended_resource_type()
     }
 
-    fn get_downloader(&self, downloader: &str) -> Option<&dyn ThirdPartyDownloader> {
+    fn get_dlr(&self, downloader: &str) -> Option<&dyn ThirdPartyDownloader> {
         self.downloaders
             .iter()
             .find(|d| d.name() == downloader)
             .map(|d| &***d)
     }
 
-    fn list_downloaders(&self) -> Vec<DownloaderInfo> {
+    fn dlrs(&self) -> Vec<DownloaderInfo> {
         let mut downloaders: Vec<DownloaderInfo> = self
             .downloaders
             .iter()
@@ -932,45 +880,5 @@ impl Worker {
         let downloader = Pan115DownloaderImpl::new_from_env()?;
         let config = Config::default();
         Self::new_with_conn(Box::new(db), config, vec![Arc::new(Box::new(downloader))])
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[ignore]
-    #[tokio::test]
-    async fn test_worker() -> Result<()> {
-        dotenv::dotenv().ok();
-        tracing_subscriber::fmt()
-            .with_max_level(tracing::Level::INFO)
-            .with_target(true)
-            .init();
-        let mut worker = Worker::new_from_env().await?;
-        worker.spawn().await?;
-        worker
-            .add_task(
-                Resource::from_magnet_link(
-                    "magnet:?xt=urn:btih:f6ebf8a1f26d01f317c8e94ec40ebb3dd1a75d40",
-                )
-                .unwrap(),
-                PathBuf::from("test"),
-                None,
-                true,
-            )
-            .await?;
-        let mut rx = worker.subscribe();
-        loop {
-            let event = rx.recv().await?;
-            #[allow(irrefutable_let_patterns)]
-            if let Event::TaskUpdated((_, status, _)) = event {
-                if status == DownloadStatus::Completed {
-                    break;
-                }
-            }
-        }
-        worker.shutdown().await?;
-        Ok(())
     }
 }

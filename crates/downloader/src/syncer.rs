@@ -38,7 +38,7 @@ impl Worker {
     ) -> Result<()> {
         let local_tasks = self
             .store
-            .list_by_downloader_and_status(
+            .list_by_dlr_and_status(
                 downloader.name(),
                 &[
                     DownloadStatus::Downloading,

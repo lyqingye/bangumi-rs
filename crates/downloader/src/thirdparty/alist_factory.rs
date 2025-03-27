@@ -1,8 +1,9 @@
+use crate::errors::Result;
 use crate::{
     AccessType, DownloadInfo, FileInfo, RemoteTaskStatus, ThirdPartyDownloader, Tid, config,
     context::TorrentContext, resource::Resource,
 };
-use anyhow::{Context, Result};
+use anyhow::Context;
 use async_trait::async_trait;
 use lru::LruCache;
 use model::sea_orm_active_enums::{DownloadStatus, ResourceType};
@@ -137,7 +138,9 @@ impl ThirdPartyDownloader for AlistDownloaderImpl {
             Resource::MagnetInfoHash(_) | Resource::MagnetLink(_, _) => {
                 resource.magnet().unwrap_or_default()
             }
-            _ => anyhow::bail!("不支持的资源类型: {:?}", resource),
+            _ => {
+                return Err(anyhow::anyhow!("不支持的资源类型: {:?}", resource).into());
+            }
         };
 
         let path = self.config.generic.download_dir.join(dir);
@@ -149,7 +152,7 @@ impl ThirdPartyDownloader for AlistDownloaderImpl {
         };
         let result = self.client.add_offline_download_task(request).await?;
         if result.tasks.is_empty() {
-            anyhow::bail!("添加任务失败, 没有返回任何结果");
+            return Err(anyhow::anyhow!("添加任务失败, 没有返回任何结果").into());
         }
 
         let ctx = TorrentContext {
@@ -169,7 +172,7 @@ impl ThirdPartyDownloader for AlistDownloaderImpl {
                 .client
                 .get_task_info(alist::TaskType::OfflineDownload, tid.as_str())
                 .await?
-                .context("获取任务信息失败")?;
+                .with_context(|| "获取任务信息失败")?;
             let (status, err_msg) = map_task_status(task);
             tasks.insert(
                 tid.clone(),
@@ -242,7 +245,7 @@ impl ThirdPartyDownloader for AlistDownloaderImpl {
         Ok(files)
     }
 
-    async fn download_file(&self, file_id: &str, _ua: &str) -> Result<DownloadInfo> {
+    async fn dl_file(&self, file_id: &str, _ua: &str) -> Result<DownloadInfo> {
         let file_path = {
             let mut file_cache = self.file_cache.lock().unwrap();
             file_cache.get(file_id).cloned()
@@ -253,7 +256,7 @@ impl ThirdPartyDownloader for AlistDownloaderImpl {
                 .client
                 .get_file(&file_path, None::<String>)
                 .await?
-                .context("文件不存在,可能被移动或删除")?;
+                .with_context(|| "文件不存在,可能被移动或删除")?;
             let download_info = DownloadInfo {
                 url: file.raw_url.clone(),
                 access_type: AccessType::Redirect,
@@ -261,7 +264,7 @@ impl ThirdPartyDownloader for AlistDownloaderImpl {
 
             Ok(download_info)
         } else {
-            anyhow::bail!("文件不存在");
+            return Err(anyhow::anyhow!("文件不存在").into());
         }
     }
 

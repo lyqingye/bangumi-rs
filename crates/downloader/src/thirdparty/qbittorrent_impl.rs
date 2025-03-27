@@ -6,12 +6,13 @@ use std::{
     sync::{Arc, Mutex},
 };
 
+use crate::errors::Result;
 use crate::{
     AccessType, DownloadInfo, FileInfo, RemoteTaskStatus, ThirdPartyDownloader, Tid, config,
     context::{TorrentContext, TorrentFileInfo},
     resource::Resource,
 };
-use anyhow::{Context, Result};
+use anyhow::Context;
 use async_trait::async_trait;
 use lru::LruCache;
 use model::sea_orm_active_enums::{DownloadStatus, ResourceType};
@@ -77,7 +78,7 @@ impl ThirdPartyDownloader for QbittorrentDownloaderImpl {
         dir: PathBuf,
     ) -> Result<(Option<Tid>, Option<String>)> {
         if dir.is_absolute() {
-            return Err(anyhow::anyhow!("保存路径必须为相对路径"));
+            return Err(anyhow::anyhow!("保存路径必须为相对路径").into());
         }
         let dir = self.config.generic.download_dir.join(dir);
         let source = match resource {
@@ -186,7 +187,7 @@ impl ThirdPartyDownloader for QbittorrentDownloaderImpl {
     }
 
     async fn list_files(&self, _tid: &Tid, result: Option<String>) -> Result<Vec<FileInfo>> {
-        let ctx = result.context("没有下载结果，请确保已经成功下载")?;
+        let ctx = result.with_context(|| "没有下载结果，请确保已经成功下载")?;
         let ctx = TorrentContext::try_from(ctx)?;
         let files = ctx
             .files
@@ -216,7 +217,7 @@ impl ThirdPartyDownloader for QbittorrentDownloaderImpl {
         Ok(files)
     }
 
-    async fn download_file(&self, file_id: &str, _ua: &str) -> Result<DownloadInfo> {
+    async fn dl_file(&self, file_id: &str, _ua: &str) -> Result<DownloadInfo> {
         let mut file_cache = self.file_cache.lock().unwrap();
         let file_info = file_cache.get(file_id);
         if let Some(file_path) = file_info {
@@ -225,7 +226,7 @@ impl ThirdPartyDownloader for QbittorrentDownloaderImpl {
                 access_type: AccessType::Forward,
             })
         } else {
-            Err(anyhow::anyhow!("文件不存在"))
+            Err(anyhow::anyhow!("文件不存在").into())
         }
     }
 

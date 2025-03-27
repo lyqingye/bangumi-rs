@@ -1285,6 +1285,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "transmission-rpc",
+ "url",
 ]
 
 [[package]]
