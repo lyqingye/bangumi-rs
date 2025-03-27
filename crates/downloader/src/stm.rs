@@ -1,287 +1,388 @@
+use crate::{Store, ThirdPartyDownloader, Tid, resource::Resource};
 use anyhow::Result;
-use async_trait::async_trait;
-use std::{collections::HashMap, hash::Hash, sync::Arc};
+use bytes::Bytes;
+use model::{
+    sea_orm_active_enums::{DownloadStatus, ResourceType},
+    torrent_download_tasks::Model,
+};
+use statig::awaitable::InitializedStateMachine;
+use statig::prelude::*;
+use std::sync::Arc;
+use tracing::warn;
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+macro_rules! run_action {
+    ($action:expr) => {
+        match $action.await {
+            Ok(response) => response,
+            Err(e) => {
+                tracing::error!("状态转换出错: {}", e);
+                Handled
+            }
+        }
+    };
+}
+
+#[derive(Clone)]
+pub struct TaskStm {
+    pub store: Arc<Box<dyn Store>>,
+    pub downloaders: Vec<Arc<Box<dyn ThirdPartyDownloader>>>,
+}
+
+#[derive(Clone)]
+pub struct Context<'a> {
+    pub tid: Tid,
+    pub info_hash: &'a str,
+    pub task: &'a Model,
+    pub tdl: &'a dyn ThirdPartyDownloader,
+    pub next_event: Option<Event>,
+}
+
+impl Context<'_> {
+    #[allow(invalid_value)]
+    pub fn uninitialized() -> Self {
+        unsafe { std::mem::zeroed() }
+    }
+}
+
+#[derive(Clone)]
 pub enum Event {
-    Start,
-    Stop,
+    // 启动任务
+    Start(Resource),
+    // 取消任务
     Cancel,
-    Finish,
-    Fail,
+    // 暂停任务
+    Pause,
+    // 恢复任务
+    Resume,
+    // 重试任务
     Retry,
+    // 自动降级
     Fallback,
-    Sync,
+    // 任务失败
+    Failed(String, String),
+    // 移除任务
+    Remove,
+    // 任务完成
+    Completed,
+    // 任务同步
+    Synced(DownloadStatus),
 }
 
-#[derive(Debug, Clone)]
-pub struct Context {}
-
-#[derive(Hash, Eq, PartialEq, Debug, Clone)]
-pub enum State {
-    Pending,
-    Running,
-    Stopped,
-    Cancelled,
-    Failed,
-    Finished,
-    Retrying,
-}
-
-// Guard trait - 检查状态转换是否可以进行
-#[async_trait]
-pub trait Guard<C, E, S>: Send + Sync {
-    async fn check(&self, ctx: &C, event: &E, state: &S) -> Result<bool>;
-}
-
-// Action trait - 执行状态转换时的动作
-#[async_trait]
-pub trait Action<C, E, S>: Send + Sync {
-    async fn execute(&self, ctx: &mut C, event: &E, state: &S) -> Result<(Option<E>, Option<S>)>;
-}
-
-// 默认的 Guard 实现 - 总是返回 true
-pub struct AlwaysTrue;
-
-#[async_trait]
-impl<C, E, S> Guard<C, E, S> for AlwaysTrue
-where
-    C: Send + Sync,
-    E: Send + Sync,
-    S: Send + Sync,
-{
-    async fn check(&self, _ctx: &C, _event: &E, _state: &S) -> Result<bool> {
-        Ok(true)
-    }
-}
-
-// 默认的 Action 实现 - 什么都不做
-pub struct NoOp;
-
-#[async_trait]
-impl<C, E, S> Action<C, E, S> for NoOp
-where
-    C: Send + Sync,
-    E: Send + Sync,
-    S: Send + Sync,
-{
-    async fn execute(
-        &self,
-        _ctx: &mut C,
-        _event: &E,
-        _state: &S,
-    ) -> Result<(Option<E>, Option<S>)> {
-        Ok((None, None))
-    }
-}
-
-// 总是返回 true 的简单 Guard
-pub struct TrueGuard;
-
-#[async_trait]
-impl<C, E, S> Guard<C, E, S> for TrueGuard
-where
-    C: Send + Sync,
-    E: Send + Sync,
-    S: Send + Sync,
-{
-    async fn check(&self, _ctx: &C, _event: &E, _state: &S) -> Result<bool> {
-        Ok(true)
-    }
-}
-
-// 简单的总是返回 None 的 Action
-pub struct EmptyAction;
-
-#[async_trait]
-impl<C, E, S> Action<C, E, S> for EmptyAction
-where
-    C: Send + Sync,
-    E: Send + Sync,
-    S: Send + Sync,
-{
-    async fn execute(
-        &self,
-        _ctx: &mut C,
-        _event: &E,
-        _state: &S,
-    ) -> Result<(Option<E>, Option<S>)> {
-        Ok((None, None))
-    }
-}
-
-// 状态转换定义
-pub struct Transition<C, E, S> {
-    pub from: S,
-    pub to: S,
-    pub guards: Vec<Arc<dyn Guard<C, E, S>>>,
-    pub actions: Vec<Arc<dyn Action<C, E, S>>>,
-}
-
-// 状态转换表
-pub struct TransitionTable<C, E, S: Hash + Eq + Clone> {
-    transitions: HashMap<S, Transition<C, E, S>>,
-}
-
-impl<C, E, S> TransitionTable<C, E, S>
-where
-    C: Send + Sync + 'static,
-    E: Send + Sync + 'static + Hash + Eq + Clone,
-    S: Send + Sync + 'static + Hash + Eq + Clone,
-{
-    pub fn new() -> Self {
-        Self {
-            transitions: HashMap::new(),
+#[state_machine(initial = "State::pending()", context_identifier = "ctx")]
+impl TaskStm {
+    #[state]
+    async fn pending(&self, ctx: &mut Context<'_>, event: &Event) -> Response<State> {
+        match event {
+            Event::Start(resource) => run_action!(self.act_start(ctx, resource)),
+            Event::Failed(_, err_msg) => run_action!(self.act_fail(ctx, err_msg)),
+            Event::Remove => run_action!(self.act_remove(ctx)),
+            Event::Synced(status) => run_action!(self.act_sync(ctx, status)),
+            _ => Handled,
         }
     }
 
-    pub fn add(&mut self, transition: Transition<C, E, S>) {
-        self.transitions.insert(transition.from.clone(), transition);
+    #[state]
+    async fn downloading(&self, ctx: &mut Context<'_>, event: &Event) -> Response<State> {
+        match event {
+            Event::Cancel => run_action!(self.act_cancel(ctx)),
+            Event::Pause => run_action!(self.act_pause(ctx)),
+            Event::Failed(_, err_msg) => run_action!(self.act_fail(ctx, err_msg)),
+            Event::Completed => run_action!(self.act_complete(ctx)),
+            Event::Remove => run_action!(self.act_remove(ctx)),
+            Event::Synced(status) => run_action!(self.act_sync(ctx, status)),
+            _ => Handled,
+        }
     }
 
-    pub fn add_transition(
-        &mut self,
-        from: S,
-        to: S,
-        guard: Arc<dyn Guard<C, E, S>>,
-        action: Arc<dyn Action<C, E, S>>,
-    ) {
-        let transition = Transition {
-            from: from.clone(),
-            to,
-            guards: vec![guard],
-            actions: vec![action],
-        };
-        self.add(transition);
+    #[state]
+    async fn paused(&self, ctx: &mut Context<'_>, event: &Event) -> Response<State> {
+        match event {
+            Event::Resume => run_action!(self.act_resume(ctx)),
+            Event::Remove => run_action!(self.act_remove(ctx)),
+            Event::Synced(status) => run_action!(self.act_sync(ctx, status)),
+            _ => Handled,
+        }
     }
 
-    pub async fn process(
+    #[state]
+    async fn retrying(&self, ctx: &mut Context<'_>, event: &Event) -> Response<State> {
+        match event {
+            Event::Cancel => run_action!(self.act_cancel(ctx)),
+            Event::Pause => run_action!(self.act_pause(ctx)),
+            Event::Retry => run_action!(self.act_retry(ctx)),
+            Event::Remove => run_action!(self.act_remove(ctx)),
+            Event::Synced(status) => run_action!(self.act_sync(ctx, status)),
+            _ => Handled,
+        }
+    }
+
+    #[state]
+    async fn failed(&self, ctx: &mut Context<'_>, event: &Event) -> Response<State> {
+        match event {
+            Event::Retry => run_action!(self.act_retry(ctx)),
+            Event::Fallback => run_action!(self.act_fallback(ctx)),
+            Event::Remove => run_action!(self.act_remove(ctx)),
+            Event::Synced(status) => run_action!(self.act_sync(ctx, status)),
+            _ => Handled,
+        }
+    }
+
+    #[state]
+    async fn completed(&self, ctx: &mut Context<'_>, event: &Event) -> Response<State> {
+        match event {
+            Event::Remove => run_action!(self.act_remove(ctx)),
+            Event::Synced(status) => run_action!(self.act_sync(ctx, status)),
+            _ => Handled,
+        }
+    }
+
+    #[state]
+    async fn cancelled(&self, ctx: &mut Context<'_>, event: &Event) -> Response<State> {
+        match event {
+            Event::Remove => run_action!(self.act_remove(ctx)),
+            Event::Synced(status) => run_action!(self.act_sync(ctx, status)),
+            _ => Handled,
+        }
+    }
+}
+
+impl TaskStm {
+    async fn act_start(
         &self,
-        ctx: &mut C,
-        event: &E,
-        current_state: &S,
-    ) -> Result<Option<S>> {
-        if let Some(transition) = self.transitions.get(current_state) {
-            // 检查所有guard
-            for guard in &transition.guards {
-                if !guard.check(ctx, event, current_state).await? {
-                    return Ok(None); // Guard失败，不执行转换
+        ctx: &mut Context<'_>,
+        resource: &Resource,
+    ) -> Result<Response<State>> {
+        let info_hash = resource.info_hash();
+        let dir = ctx.task.dir.clone();
+
+        match ctx.tdl.add_task(resource.clone(), dir.into()).await {
+            Ok((tid, result)) => {
+                self.store
+                    .update_status(info_hash, DownloadStatus::Downloading, None, result)
+                    .await?;
+
+                if let Some(tid) = tid {
+                    self.store.update_tid(info_hash, &tid).await?;
                 }
+
+                Ok(Transition(State::downloading()))
             }
-
-            // 执行所有action
-            for action in &transition.actions {
-                let (next_event, next_state) = action.execute(ctx, event, current_state).await?;
-
-                // 处理可能的额外状态转换
-                if let Some(_next_event) = next_event {
-                    // TODO: 处理下一个事件
-                }
-
-                if let Some(state) = next_state {
-                    return Ok(Some(state));
-                }
+            Err(e) => {
+                ctx.next_event = Some(Event::Failed(info_hash.to_owned(), e.to_string()));
+                Ok(Handled)
             }
-
-            return Ok(Some(transition.to.clone()));
-        }
-
-        Ok(None) // 没有找到匹配的转换
-    }
-}
-
-// 状态机
-pub struct StateMachine {
-    table: TransitionTable<Context, Event, State>,
-    context: Context,
-    current_state: State,
-}
-
-impl StateMachine {
-    pub fn new(table: TransitionTable<Context, Event, State>) -> Self {
-        Self {
-            table,
-            context: Context {},
-            current_state: State::Pending,
         }
     }
 
-    pub async fn process_event(&mut self, event: Event) -> Result<()> {
-        if let Some(new_state) = self
-            .table
-            .process(&mut self.context, &event, &self.current_state)
-            .await?
-        {
-            self.current_state = new_state;
+    async fn act_fail(&self, ctx: &mut Context<'_>, err_msg: &str) -> Result<Response<State>> {
+        if let Err(e) = ctx.tdl.remove_task(&ctx.tid, true).await {
+            warn!("移除失败任务出错: tid={}, 错误: {}", ctx.tid, e);
         }
-        Ok(())
+
+        if ctx.task.retry_count >= ctx.tdl.config().max_retry_count {
+            self.store
+                .update_status(
+                    ctx.info_hash,
+                    DownloadStatus::Failed,
+                    Some(err_msg.to_string()),
+                    None,
+                )
+                .await?;
+
+            if ctx.task.allow_fallback {
+                ctx.next_event = Some(Event::Fallback);
+            }
+            Ok(Transition(State::failed()))
+        } else {
+            let next_retry_at = ctx
+                .tdl
+                .config()
+                .calculate_next_retry(ctx.task.retry_count + 1);
+
+            self.store
+                .update_retry_status(ctx.info_hash, next_retry_at, Some(err_msg.to_string()))
+                .await?;
+
+            ctx.next_event = Some(Event::Retry);
+            Ok(Transition(State::retrying()))
+        }
     }
 
-    pub fn current_state(&self) -> &State {
-        &self.current_state
+    async fn act_cancel(&self, ctx: &mut Context<'_>) -> Result<Response<State>> {
+        if let Err(e) = ctx.tdl.cancel_task(&ctx.tid).await {
+            warn!("取消任务出错: tid={}, 错误: {}", ctx.tid, e);
+        }
+
+        self.store
+            .update_status(ctx.info_hash, DownloadStatus::Cancelled, None, None)
+            .await?;
+
+        Ok(Transition(State::cancelled()))
     }
-}
 
-// 使用示例
-pub fn build_transition_table() -> TransitionTable<Context, Event, State> {
-    let mut table = TransitionTable::new();
+    async fn act_pause(&self, ctx: &mut Context<'_>) -> Result<Response<State>> {
+        if let Err(e) = ctx.tdl.pause_task(&ctx.tid).await {
+            warn!("暂停任务出错: tid={}, 错误: {}", ctx.tid, e);
+        }
 
-    // 使用默认实现
-    table.add_transition(
-        State::Pending,
-        State::Running,
-        Arc::new(AlwaysTrue),
-        Arc::new(NoOp),
-    );
+        self.store
+            .update_status(ctx.info_hash, DownloadStatus::Paused, None, None)
+            .await?;
 
-    // 使用函数转换
-    table.add_transition(
-        State::Running,
-        State::Finished,
-        Arc::new(TrueGuard),
-        Arc::new(EmptyAction),
-    );
+        Ok(Transition(State::paused()))
+    }
 
-    table
-}
+    async fn act_resume(&self, ctx: &mut Context<'_>) -> Result<Response<State>> {
+        if let Err(e) = ctx.tdl.resume_task(&ctx.tid).await {
+            warn!("恢复任务出错: tid={}, 错误: {}", ctx.tid, e);
+        }
 
-// 自定义 Action 示例
-pub struct CompleteAction;
+        self.store
+            .update_status(ctx.info_hash, DownloadStatus::Downloading, None, None)
+            .await?;
 
-#[async_trait]
-impl Action<Context, Event, State> for CompleteAction {
-    async fn execute(
+        Ok(Transition(State::downloading()))
+    }
+
+    async fn act_complete(&self, ctx: &mut Context<'_>) -> Result<Response<State>> {
+        if ctx.tdl.config().delete_task_on_completion {
+            if let Err(e) = ctx.tdl.remove_task(&ctx.tid, false).await {
+                warn!("移除任务出错: tid={}, 错误: {}", ctx.tid, e);
+            }
+        }
+
+        self.store
+            .update_status(ctx.info_hash, DownloadStatus::Completed, None, None)
+            .await?;
+
+        Ok(Transition(State::completed()))
+    }
+
+    async fn act_retry(&self, ctx: &mut Context<'_>) -> Result<Response<State>> {
+        let resource = self.get_task_resource_by_info_hash(ctx.info_hash).await?;
+        if let Err(e) = ctx.tdl.remove_task(&ctx.tid, true).await {
+            warn!("移除任务准备重试出错: tid={}, 错误: {}", ctx.tid, e);
+        }
+
+        self.store
+            .update_status(ctx.info_hash, DownloadStatus::Pending, None, None)
+            .await?;
+
+        ctx.next_event = Some(Event::Start(resource));
+        Ok(Transition(State::pending()))
+    }
+
+    async fn act_sync(
         &self,
-        _ctx: &mut Context,
-        _event: &Event,
-        _state: &State,
-    ) -> Result<(Option<Event>, Option<State>)> {
-        // 可以在这里实现复杂逻辑
-        println!("Task completed!");
-        Ok((None, Some(State::Finished)))
+        ctx: &mut Context<'_>,
+        status: &DownloadStatus,
+    ) -> Result<Response<State>> {
+        self.store
+            .update_status(ctx.info_hash, status.clone(), None, None)
+            .await?;
+
+        match status {
+            DownloadStatus::Downloading => Ok(Transition(State::downloading())),
+            DownloadStatus::Paused => Ok(Transition(State::paused())),
+            DownloadStatus::Failed => Ok(Transition(State::failed())),
+            DownloadStatus::Completed => Ok(Transition(State::completed())),
+            DownloadStatus::Cancelled => Ok(Transition(State::cancelled())),
+            DownloadStatus::Pending => Ok(Transition(State::pending())),
+            DownloadStatus::Retrying => Ok(Transition(State::retrying())),
+        }
+    }
+
+    async fn act_fallback(&self, ctx: &mut Context<'_>) -> Result<Response<State>> {
+        // 找到优先级最高的未使用下载器
+        let fallback_downloader = self
+            .downloaders
+            .iter()
+            .filter(|d| !ctx.task.downloader.contains(d.name()))
+            .max_by_key(|d| d.config().priority)
+            .map(|d| d.name());
+
+        match fallback_downloader {
+            Some(downloader) => {
+                let mut new_downloader = ctx.task.downloader.to_string();
+                new_downloader.push(',');
+                new_downloader.push_str(downloader);
+
+                self.store
+                    .assign_downloader(ctx.info_hash, new_downloader)
+                    .await?;
+
+                let resource = self.get_task_resource_by_info_hash(ctx.info_hash).await?;
+                ctx.next_event = Some(Event::Start(resource));
+                Ok(Transition(State::pending()))
+            }
+            None => Ok(Transition(State::failed())),
+        }
+    }
+
+    async fn act_remove(&self, ctx: &mut Context<'_>) -> Result<Response<State>> {
+        if let Err(e) = ctx.tdl.remove_task(&ctx.tid, true).await {
+            warn!("移除任务出错: tid={}, 错误: {}", ctx.tid, e);
+        }
+
+        self.store
+            .update_status(ctx.info_hash, DownloadStatus::Cancelled, None, None)
+            .await?;
+
+        Ok(Transition(State::cancelled()))
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+impl TaskStm {
+    async fn get_task_resource(&self, task: &Model) -> Result<Resource> {
+        Ok(match task.resource_type {
+            ResourceType::Torrent => {
+                let torrent = self
+                    .store
+                    .get_torrent_by_info_hash(&task.info_hash)
+                    .await?
+                    .ok_or_else(|| {
+                        anyhow::anyhow!("种子文件不存在: info_hash={}", task.info_hash)
+                    })?;
+                let data = torrent
+                    .data
+                    .ok_or_else(|| anyhow::anyhow!("种子内容为空: info_hash={}", task.info_hash))?;
+                Resource::TorrentFileBytes(Bytes::from(data), task.info_hash.clone())
+            }
+            ResourceType::Magnet => {
+                let magnet = task
+                    .magnet
+                    .as_ref()
+                    .ok_or_else(|| anyhow::anyhow!("磁力链接为空: info_hash={}", task.info_hash))?;
+                Resource::from_magnet_link(magnet)?
+            }
+            ResourceType::InfoHash => Resource::from_info_hash(task.info_hash.clone())?,
+            ResourceType::TorrentURL => {
+                let torrent_url = task.torrent_url.as_ref().ok_or_else(|| {
+                    anyhow::anyhow!("种子下载URL为空: info_hash={}", task.info_hash)
+                })?;
+                Resource::from_torrent_url(torrent_url, &task.info_hash)?
+            }
+        })
+    }
 
-    #[tokio::test]
-    async fn test_state_machine() -> Result<()> {
-        let table = build_transition_table();
-        let mut machine = StateMachine::new(table);
+    async fn get_task_resource_by_info_hash(&self, info_hash: &str) -> Result<Resource> {
+        let tasks = self.store.list_by_hashes(&[info_hash.to_string()]).await?;
+        let task = tasks
+            .first()
+            .ok_or_else(|| anyhow::anyhow!("任务不存在: info_hash={}", info_hash))?;
+        self.get_task_resource(task).await
+    }
+}
 
-        // 初始状态应该是Pending
-        assert!(matches!(machine.current_state(), State::Pending));
-
-        // 处理Start事件
-        machine.process_event(Event::Start).await?;
-        assert!(matches!(machine.current_state(), State::Running));
-
-        // 处理Finish事件
-        machine.process_event(Event::Finish).await?;
-        assert!(matches!(machine.current_state(), State::Finished));
-
-        Ok(())
+impl TaskStm {
+    pub async fn new(
+        store: Arc<Box<dyn Store>>,
+        downloaders: Vec<Arc<Box<dyn ThirdPartyDownloader>>>,
+        ctx: &mut Context<'_>,
+    ) -> InitializedStateMachine<Self> {
+        Self { store, downloaders }
+            .uninitialized_state_machine()
+            .init_with_context(ctx)
+            .await
     }
 }

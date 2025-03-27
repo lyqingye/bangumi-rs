@@ -33,6 +33,7 @@ regex = { workspace = true }
 bytes = { workspace = true }
 transmission-rpc = { workspace = true, features = ["sync"] }
 base64.workspace = true
+statig = { workspace = true, features = ["macro", "async"] }
 [dev-dependencies]
 dotenv = { workspace = true }
 tracing-subscriber = { workspace = true }
