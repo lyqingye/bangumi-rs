@@ -1,15 +1,16 @@
 #![deny(clippy::unused_async)]
+pub mod actor;
 pub mod config;
 pub mod context;
 pub mod db;
+pub mod dlrs;
+pub mod errors;
 pub mod metrics;
 pub mod resource;
-mod retry;
-mod syncer;
+pub mod stm;
 pub mod thirdparty;
-pub mod worker;
 
-use anyhow::Result;
+use crate::errors::Result;
 use async_trait::async_trait;
 use chrono::NaiveDateTime;
 use resource::Resource;
@@ -65,8 +66,8 @@ pub trait Downloader: Send + Sync {
     async fn resume_task(&self, info_hash: &str) -> Result<()>;
     fn supports_resource_type(&self, resource_type: ResourceType) -> bool;
     fn recommended_resource_type(&self) -> ResourceType;
-    fn get_downloader(&self, downloader: &str) -> Option<&dyn ThirdPartyDownloader>;
-    fn list_downloaders(&self) -> Vec<DownloaderInfo>;
+    fn take_dlr(&self, downloader: &str) -> Option<&dyn ThirdPartyDownloader>;
+    fn dlrs(&self) -> Vec<DownloaderInfo>;
 }
 
 #[derive(Debug, Clone)]
@@ -135,7 +136,7 @@ pub trait ThirdPartyDownloader: Send + Sync {
     async fn list_tasks(&self, tid: &[Tid]) -> Result<HashMap<Tid, RemoteTaskStatus>>;
 
     async fn list_files(&self, tid: &Tid, result: Option<String>) -> Result<Vec<FileInfo>>;
-    async fn download_file(&self, file_id: &str, ua: &str) -> Result<DownloadInfo>;
+    async fn dl_file(&self, file_id: &str, ua: &str) -> Result<DownloadInfo>;
     async fn cancel_task(&self, tid: &Tid) -> Result<()>;
     async fn remove_task(&self, tid: &Tid, remove_files: bool) -> Result<()>;
     async fn pause_task(&self, tid: &Tid) -> Result<()>;
@@ -149,9 +150,18 @@ pub trait ThirdPartyDownloader: Send + Sync {
 
 #[async_trait]
 pub trait Store: Send + Sync {
+    async fn create(
+        &self,
+        resource: &Resource,
+        dir: PathBuf,
+        downloader: String,
+        allow_fallback: bool,
+    ) -> Result<()>;
+    async fn get_by_hash(&self, info_hash: &str) -> Result<Option<Model>>;
+    async fn load_resource(&self, info_hash: &str) -> Result<Option<Resource>>;
     async fn list_by_hashes(&self, info_hashes: &[String]) -> Result<Vec<Model>>;
     async fn list_by_status(&self, status: &[DownloadStatus]) -> Result<Vec<Model>>;
-    async fn list_by_downloader_and_status(
+    async fn list_by_dlr_and_status(
         &self,
         downloader: &str,
         status: &[DownloadStatus],
@@ -170,9 +180,8 @@ pub trait Store: Send + Sync {
         next_retry_at: NaiveDateTime,
         err_msg: Option<String>,
     ) -> Result<()>;
-    async fn upsert(&self, task: Model) -> Result<()>;
-    async fn get_torrent_by_info_hash(&self, info_hash: &str) -> Result<Option<TorrentModel>>;
-    async fn assign_downloader(&self, info_hash: &str, downloader: String) -> Result<()>;
+    async fn get_torrent(&self, info_hash: &str) -> Result<Option<TorrentModel>>;
+    async fn assign_dlr(&self, info_hash: &str, downloader: String) -> Result<()>;
 }
 
 #[cfg(test)]

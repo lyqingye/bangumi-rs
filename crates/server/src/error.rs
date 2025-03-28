@@ -18,6 +18,9 @@ pub enum ServerError {
 
     #[error("network error: {0}")]
     NetworkError(#[from] reqwest::Error),
+
+    #[error("downloader error: {0}")]
+    DownloaderError(#[from] downloader::errors::Error),
 }
 
 impl ResponseError for ServerError {

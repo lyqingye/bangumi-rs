@@ -84,7 +84,7 @@ impl Scheduler {
 
         let mut recommended_resource_type = self.downloader.recommended_resource_type();
         if let Some(preferred_downloader) = &sub.preferred_downloader {
-            match self.downloader.get_downloader(preferred_downloader) {
+            match self.downloader.take_dlr(preferred_downloader) {
                 Some(downloader) => {
                     recommended_resource_type = downloader.recommended_resource_type();
                 }

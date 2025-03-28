@@ -1,4 +1,5 @@
-use anyhow::{Context, Result};
+use crate::errors::{Error, Result};
+use anyhow::Context;
 use async_trait::async_trait;
 use std::{
     collections::HashMap,
@@ -80,9 +81,9 @@ impl TransmissionDownloaderImpl {
     #[cfg(test)]
     pub fn new_from_env() -> Result<Self> {
         let config = Config {
-            url: std::env::var("TRANSMISSION_URL")?,
-            username: std::env::var("TRANSMISSION_USER")?,
-            password: std::env::var("TRANSMISSION_PASSWORD")?,
+            url: std::env::var("TRANSMISSION_URL").unwrap(),
+            username: std::env::var("TRANSMISSION_USER").unwrap(),
+            password: std::env::var("TRANSMISSION_PASSWORD").unwrap(),
             ..Default::default()
         };
         Ok(Self::new(config))
@@ -101,7 +102,7 @@ impl ThirdPartyDownloader for TransmissionDownloaderImpl {
         dir: PathBuf,
     ) -> Result<(Option<Tid>, Option<String>)> {
         if dir.is_absolute() {
-            return Err(anyhow::anyhow!("保存路径必须为相对路径"));
+            return Err(Error::DownloadDir(dir.to_string_lossy().to_string()));
         }
 
         let save_dir = self.config.generic.download_dir.join(dir);
@@ -128,14 +129,10 @@ impl ThirdPartyDownloader for TransmissionDownloaderImpl {
         };
 
         // 直接使用Arc里的引用
-        let resp = self
-            .cli
-            .torrent_add(args)
-            .await
-            .map_err(|e| anyhow::anyhow!("{}", e))?;
+        let resp = self.cli.torrent_add(args).await?;
 
         if !resp.is_ok() {
-            return Err(anyhow::anyhow!("添加种子任务失败: {}", resp.result));
+            return Err(anyhow::anyhow!("添加种子任务失败: {}", resp.result).into());
         }
 
         Ok((None, None))
@@ -169,13 +166,16 @@ impl ThirdPartyDownloader for TransmissionDownloaderImpl {
             .map_err(|e| anyhow::anyhow!("{}", e))?;
 
         if !resp.is_ok() {
-            return Err(anyhow::anyhow!("获取种子任务列表失败: {}", resp.result));
+            return Err(anyhow::anyhow!("获取种子任务列表失败: {}", resp.result).into());
         }
 
         let mut result = HashMap::new();
         let torrents = resp.arguments.torrents;
         for torrent in torrents {
-            let hash = torrent.hash_string.clone().context("任务缺少哈希值")?;
+            let hash = torrent
+                .hash_string
+                .clone()
+                .with_context(|| "任务缺少哈希值")?;
             let (status, err_msg) = map_task_status(&torrent);
             let mut ctx = TorrentContext::default();
 
@@ -202,13 +202,13 @@ impl ThirdPartyDownloader for TransmissionDownloaderImpl {
                 }
             }
 
-            let remote_task_status = RemoteTaskStatus {
+            let rts = RemoteTaskStatus {
                 status,
                 err_msg,
                 result: Some(ctx.try_into()?),
             };
 
-            result.insert(Tid::from(hash), remote_task_status);
+            result.insert(Tid::from(hash), rts);
         }
 
         Ok(result)
@@ -216,7 +216,6 @@ impl ThirdPartyDownloader for TransmissionDownloaderImpl {
 
     async fn cancel_task(&self, tid: &Tid) -> Result<()> {
         let ids = vec![Id::Hash(tid.to_string())];
-        // 直接使用Arc里的引用
         self.cli
             .torrent_action(TorrentAction::Stop, ids)
             .await
@@ -226,7 +225,6 @@ impl ThirdPartyDownloader for TransmissionDownloaderImpl {
 
     async fn remove_task(&self, tid: &Tid, remove_files: bool) -> Result<()> {
         let ids = vec![Id::Hash(tid.to_string())];
-        // 直接使用Arc里的引用
         self.cli
             .torrent_remove(ids, remove_files)
             .await
@@ -236,7 +234,6 @@ impl ThirdPartyDownloader for TransmissionDownloaderImpl {
 
     async fn pause_task(&self, tid: &Tid) -> Result<()> {
         let ids = vec![Id::Hash(tid.to_string())];
-        // 直接使用Arc里的引用
         self.cli
             .torrent_action(TorrentAction::Stop, ids)
             .await
@@ -246,7 +243,6 @@ impl ThirdPartyDownloader for TransmissionDownloaderImpl {
 
     async fn resume_task(&self, tid: &Tid) -> Result<()> {
         let ids = vec![Id::Hash(tid.to_string())];
-        // 直接使用Arc里的引用
         self.cli
             .torrent_action(TorrentAction::Start, ids)
             .await
@@ -254,8 +250,8 @@ impl ThirdPartyDownloader for TransmissionDownloaderImpl {
         Ok(())
     }
 
-    async fn list_files(&self, _tid: &Tid, result: Option<String>) -> Result<Vec<FileInfo>> {
-        let ctx = result.context("没有下载结果，请确保已经成功下载")?;
+    async fn list_files(&self, tid: &Tid, result: Option<String>) -> Result<Vec<FileInfo>> {
+        let ctx = result.context(Error::NoDownloadResult(tid.to_string()))?;
         let ctx = TorrentContext::try_from(ctx)?;
 
         let files = ctx
@@ -290,7 +286,7 @@ impl ThirdPartyDownloader for TransmissionDownloaderImpl {
         Ok(files)
     }
 
-    async fn download_file(&self, file_id: &str, _ua: &str) -> Result<DownloadInfo> {
+    async fn dl_file(&self, file_id: &str, _ua: &str) -> Result<DownloadInfo> {
         let mut file_cache = self.file_cache.lock().unwrap();
         let file_info = file_cache.get(file_id);
         if let Some(file_path) = file_info {
@@ -299,7 +295,7 @@ impl ThirdPartyDownloader for TransmissionDownloaderImpl {
                 access_type: AccessType::Forward,
             })
         } else {
-            Err(anyhow::anyhow!("文件不存在或缓存已过期"))
+            Err(Error::FileNotFound(file_id.to_string()))
         }
     }
 

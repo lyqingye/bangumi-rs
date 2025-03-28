@@ -1,7 +1,8 @@
-use anyhow::Result;
 use bytes::Bytes;
 use lazy_static::lazy_static;
 use model::sea_orm_active_enums::ResourceType;
+
+use crate::errors::{Error, Result};
 
 #[derive(Debug, Clone)]
 pub enum Resource {
@@ -19,9 +20,7 @@ impl Resource {
     pub fn from_info_hash<T: Into<String>>(info_hash: T) -> Result<Self> {
         let info_hash = info_hash.into();
         if info_hash.len() != 40 || !info_hash.chars().all(|c| c.is_ascii_hexdigit()) {
-            return Err(anyhow::anyhow!(
-                "无效的 info_hash 格式，应为40位十六进制字符"
-            ));
+            return Err(Error::InfoHashFormat(info_hash));
         }
         Ok(Resource::MagnetInfoHash(info_hash))
     }
@@ -43,7 +42,7 @@ impl Resource {
                 ));
             }
         }
-        Err(anyhow::anyhow!("非法磁力链接，无法获取info_hash"))
+        Err(Error::MagnetFormat(magnet_link))
     }
 
     pub fn from_torrent_url<T: Into<String>>(torrent_url: T, info_hash: T) -> Result<Self> {

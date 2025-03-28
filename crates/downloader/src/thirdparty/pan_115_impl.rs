@@ -6,18 +6,18 @@ use std::{
     time::Duration,
 };
 
+use anyhow::Context;
 use lru::LruCache;
 use model::sea_orm_active_enums::DownloadStatus;
 use pan_115::{errors::Pan115Error, model::OfflineTaskStatus};
 use tokio::sync::Mutex;
 use tracing::{debug, info, warn};
 
+use crate::errors::{Error, Result};
 use crate::{
     AccessType, DownloadInfo, FileInfo, RemoteTaskStatus, Resource, ResourceType,
     ThirdPartyDownloader, Tid, config, context::Pan115Context,
 };
-use anyhow::Result;
-use anyhow::{Context, anyhow};
 use async_trait::async_trait;
 
 #[derive(Debug, Clone)]
@@ -107,7 +107,7 @@ impl ThirdPartyDownloader for Pan115DownloaderImpl {
                     warn!("任务已在网盘中存在: {}", info_hash);
                     Ok((None, None))
                 }
-                _ => Err(anyhow::anyhow!("添加离线下载任务失败: {}", e)),
+                _ => Err(anyhow::anyhow!("添加离线下载任务失败: {}", e).into()),
             },
         }
     }
@@ -123,7 +123,7 @@ impl ThirdPartyDownloader for Pan115DownloaderImpl {
                 .pan115
                 .list_offline_tasks_page(page)
                 .await
-                .map_err(|e| anyhow!("获取网盘下载任务列表失败: {}", e))?;
+                .with_context(|| "获取网盘下载任务列表失败")?;
 
             if resp.tasks.is_empty() {
                 break;
@@ -164,7 +164,7 @@ impl ThirdPartyDownloader for Pan115DownloaderImpl {
         Ok(remote_tasks_status)
     }
 
-    async fn list_files(&self, _tid: &Tid, result: Option<String>) -> Result<Vec<FileInfo>> {
+    async fn list_files(&self, tid: &Tid, result: Option<String>) -> Result<Vec<FileInfo>> {
         match result {
             Some(result) => {
                 let mut cache = self.file_list_cache.lock().await;
@@ -194,11 +194,11 @@ impl ThirdPartyDownloader for Pan115DownloaderImpl {
                 cache.put(context.file_id, (files.clone(), now));
                 Ok(files)
             }
-            None => Err(anyhow::anyhow!("该下载器不支持下载文件")),
+            None => Err(Error::NoDownloadResult(tid.to_string())),
         }
     }
 
-    async fn download_file(&self, file_id: &str, ua: &str) -> Result<DownloadInfo> {
+    async fn dl_file(&self, file_id: &str, ua: &str) -> Result<DownloadInfo> {
         let mut cache = self.download_cache.lock().await;
         let cache_key = format!("{}-{}", file_id, ua);
 
@@ -218,7 +218,7 @@ impl ThirdPartyDownloader for Pan115DownloaderImpl {
                 url: info.url.url,
                 access_type: AccessType::Redirect,
             })
-            .context("下载文件失败")?;
+            .with_context(|| "下载文件失败")?;
 
         cache.put(cache_key, (download_info.clone(), now));
         Ok(download_info)

@@ -23,6 +23,16 @@ impl Default for Config {
     }
 }
 
+impl Config {
+    pub fn sync_tick(&self) -> tokio::time::Interval {
+        tokio::time::interval(self.sync_interval)
+    }
+
+    pub fn retry_tick(&self) -> tokio::time::Interval {
+        tokio::time::interval(self.retry_processor_interval)
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct GenericConfig {
     /// 下载目录

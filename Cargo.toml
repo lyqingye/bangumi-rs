@@ -17,7 +17,8 @@ members = [
     "libs/utils",
     "libs/torrent",
     "libs/raw-parser",
-    "libs/qbittorrent", "libs/alist",
+    "libs/qbittorrent",
+    "libs/alist",
 ]
 resolver = "2"
 
@@ -154,5 +155,7 @@ built = "0.7.7"
 tap = "1.0.1"
 transmission-rpc = "0.5.0"
 
-sentry = { version = "0.36.0",default-features = false }
+sentry = { version = "0.36.0", default-features = false }
 sentry-tracing = { version = "0.36.0" }
+
+statig = "0.3.0"

@@ -1,11 +1,13 @@
-use anyhow::Result;
 use async_trait::async_trait;
-use chrono::NaiveDateTime;
+use chrono::{Local, NaiveDateTime};
+use downloader::errors::{Error, Result};
+use downloader::resource::Resource;
 use downloader::{Store, Tid};
-use model::sea_orm_active_enums::DownloadStatus;
+use model::sea_orm_active_enums::{DownloadStatus, ResourceType};
 use model::torrent_download_tasks::Model;
 use model::torrents::Model as TorrentModel;
 use std::collections::HashMap;
+use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -60,7 +62,7 @@ impl Store for MockStore {
         Ok(result)
     }
 
-    async fn list_by_downloader_and_status(
+    async fn list_by_dlr_and_status(
         &self,
         downloader: &str,
         status: &[DownloadStatus],
@@ -90,12 +92,6 @@ impl Store for MockStore {
         Ok(())
     }
 
-    async fn upsert(&self, task: Model) -> Result<()> {
-        let mut tasks = self.tasks.write().await;
-        tasks.insert(task.info_hash.clone(), task);
-        Ok(())
-    }
-
     async fn update_retry_status(
         &self,
         info_hash: &str,
@@ -111,12 +107,12 @@ impl Store for MockStore {
         Ok(())
     }
 
-    async fn get_torrent_by_info_hash(&self, info_hash: &str) -> Result<Option<TorrentModel>> {
+    async fn get_torrent(&self, info_hash: &str) -> Result<Option<TorrentModel>> {
         let torrents = self.torrents.read().await;
         Ok(torrents.get(info_hash).cloned())
     }
 
-    async fn assign_downloader(&self, info_hash: &str, downloader: String) -> Result<()> {
+    async fn assign_dlr(&self, info_hash: &str, downloader: String) -> Result<()> {
         let mut tasks = self.tasks.write().await;
         if let Some(task) = tasks.get_mut(info_hash) {
             task.downloader = downloader;
@@ -130,6 +126,57 @@ impl Store for MockStore {
         if let Some(task) = tasks.get_mut(info_hash) {
             task.tid = Some(tid.to_string());
         }
+        Ok(())
+    }
+
+    async fn get_by_hash(&self, info_hash: &str) -> Result<Option<Model>> {
+        let tasks = self.tasks.read().await;
+        Ok(tasks.get(info_hash).cloned())
+    }
+
+    async fn load_resource(&self, info_hash: &str) -> Result<Option<Resource>> {
+        let task = self.get_by_hash(info_hash).await?;
+        if let Some(task) = task {
+            match task.resource_type {
+                ResourceType::InfoHash => {
+                    Ok(Some(Resource::from_info_hash(task.info_hash.clone())?))
+                }
+                _ => Err(Error::UnsupportedResourceType(task.resource_type)),
+            }
+        } else {
+            Ok(None)
+        }
+    }
+
+    async fn create(
+        &self,
+        resource: &Resource,
+        dir: PathBuf,
+        downloader: String,
+        allow_fallback: bool,
+    ) -> Result<()> {
+        let now = Local::now().naive_utc();
+        let mut tasks = self.tasks.write().await;
+        tasks.insert(
+            resource.info_hash().to_string(),
+            Model {
+                info_hash: resource.info_hash().to_string(),
+                download_status: DownloadStatus::Pending,
+                downloader: downloader.to_string(),
+                allow_fallback,
+                context: None,
+                err_msg: None,
+                created_at: now,
+                updated_at: now,
+                dir: dir.to_string_lossy().into_owned(),
+                retry_count: 0,
+                next_retry_at: now,
+                resource_type: resource.get_type(),
+                magnet: resource.magnet(),
+                torrent_url: resource.torrent_url(),
+                tid: None,
+            },
+        );
         Ok(())
     }
 }

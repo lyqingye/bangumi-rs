@@ -228,7 +228,7 @@ impl Server {
         }
 
         let dl_store = downloader::db::Db::new(db.conn_pool());
-        let mut downloader_worker = downloader::worker::Worker::new_with_conn(
+        let mut downloader_worker = downloader::actor::Actor::new(
             Box::new(dl_store),
             downloader::config::Config::default(),
             downloaders,

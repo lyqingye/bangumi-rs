@@ -1,6 +1,8 @@
 mod entity;
 pub mod migrator;
-use entity::sea_orm_active_enums::{BgmKind, Kind, SubscribeStatus};
+use std::fmt::{self, Display};
+
+use entity::sea_orm_active_enums::{BgmKind, Kind, ResourceType, SubscribeStatus};
 pub use entity::*;
 
 impl From<String> for Kind {
@@ -41,5 +43,16 @@ impl TryFrom<String> for BgmKind {
 impl torrent_download_tasks::Model {
     pub fn tid(&self) -> &str {
         self.tid.as_deref().unwrap_or(self.info_hash.as_str())
+    }
+}
+
+impl Display for ResourceType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ResourceType::Torrent => write!(f, "Torrent"),
+            ResourceType::Magnet => write!(f, "Magnet"),
+            ResourceType::TorrentURL => write!(f, "TorrentURL"),
+            ResourceType::InfoHash => write!(f, "InfoHash"),
+        }
     }
 }

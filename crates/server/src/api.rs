@@ -940,7 +940,7 @@ pub async fn list_downloaders(
     let downloaders = state
         .scheduler
         .get_downloader()
-        .list_downloaders()
+        .dlrs()
         .into_iter()
         .map(|d| DownloaderInfo {
             name: d.name,
