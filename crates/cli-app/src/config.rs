@@ -23,7 +23,11 @@ impl ConfigWriter {
 impl Writer for ConfigWriter {
     fn write(&self, config: &Config) -> Result<()> {
         let config_str = toml::to_string(config)?;
-        let tmp_path = self.path.with_extension("tmp");
+        let file_name = self
+            .path
+            .file_name()
+            .ok_or_else(|| anyhow::anyhow!("无法获取文件名"))?;
+        let tmp_path = std::env::temp_dir().join(file_name).with_extension("tmp");
         {
             let mut file = std::fs::File::create(&tmp_path)?;
             file.write_all(config_str.as_bytes())?;
