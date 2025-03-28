@@ -1,7 +1,8 @@
-use std::{path::PathBuf, sync::Arc, time::Duration};
+use std::{collections::HashMap, path::PathBuf, sync::Arc, time::Duration};
 
 use crate::{
-    DownloadInfo, Downloader, DownloaderInfo, FileInfo, Store, ThirdPartyDownloader, Tid,
+    DownloadInfo, Downloader, DownloaderInfo, FileInfo, RemoteTaskStatus, Store,
+    ThirdPartyDownloader, Tid,
     config::Config,
     dlrs::Dlrs,
     errors::{Error, Result},
@@ -193,120 +194,6 @@ impl Actor {
         Ok(())
     }
 
-    pub async fn sync_all(&self) {
-        for dlr in self.dlrs.iter() {
-            self.sync_single(&***dlr)
-                .await
-                .inspect_err(|e| {
-                    error!("同步下载器:({}) 任务状态失败: {}", dlr.name(), e);
-                })
-                .ok();
-        }
-    }
-
-    async fn sync_single(&self, dlr: &dyn ThirdPartyDownloader) -> Result<()> {
-        let local = self
-            .store
-            .list_by_dlr_and_status(
-                dlr.name(),
-                &[
-                    DownloadStatus::Downloading,
-                    DownloadStatus::Pending,
-                    DownloadStatus::Paused,
-                ],
-            )
-            .await?;
-
-        if local.is_empty() {
-            return Ok(());
-        }
-
-        info!("需要同步的下载任务数量: {}", local.len());
-
-        let tids: Vec<Tid> = local.iter().map(|task| Tid::from(task.tid())).collect();
-        let remote = dlr.list_tasks(&tids).await?;
-
-        for local_task in local {
-            let info_hash = local_task.info_hash.clone();
-            let tid = Tid::from(local_task.tid());
-
-            let (status, err_msg, result) = if let Some(remote_task) = remote.get(&tid) {
-                debug!("发现远程任务: info_hash={}", info_hash);
-                (
-                    remote_task.status.clone(),
-                    remote_task.err_msg.clone(),
-                    remote_task.result.clone(),
-                )
-            } else if local_task.download_status == DownloadStatus::Pending {
-                // NOTE: 说明本地任务还没被处理，可能还在队列中排队，所以在这里忽略
-                (DownloadStatus::Pending, None, None)
-            } else {
-                warn!("任务在下载器中不存在: {}", info_hash);
-                (
-                    DownloadStatus::Pending,
-                    Some("任务在下载器中不存在".to_string()),
-                    None,
-                )
-            };
-
-            if status.clone() != local_task.download_status {
-                info!(
-                    "远程任务状态更新: info_hash={}, old_status={:?}, new_status={:?}, err_msg={:?}",
-                    info_hash, local_task.download_status, status, err_msg
-                );
-
-                match status {
-                    DownloadStatus::Completed => {
-                        self.tx
-                            .send((info_hash.clone(), Event::Completed(result)))?;
-                    }
-
-                    DownloadStatus::Cancelled => {
-                        self.tx.send((info_hash.clone(), Event::Cancel))?;
-                    }
-
-                    DownloadStatus::Failed => {
-                        self.tx.send((
-                            info_hash.clone(),
-                            Event::Failed(info_hash.clone(), err_msg.unwrap_or_default()),
-                        ))?;
-                    }
-
-                    // 本地状态和远程任务状态不一致，例如本地状态是Downloading, 然后远程任务被用户手动暂停了
-                    // 例如本地状态是Paused, 然后远程任务被用户手动恢复了
-                    // 所以此时需要更新本地任务状态
-                    DownloadStatus::Paused | DownloadStatus::Downloading => {
-                        info!("远程任务被手动暂停或恢复: info_hash={}", info_hash);
-                        self.tx.send((info_hash.clone(), Event::Synced(status)))?;
-                    }
-
-                    _ => {
-                        warn!(
-                            "未处理的任务状态: info_hash={}, local_status={:?}, remote_status={:?}, err_msg={:?}",
-                            info_hash, local_task.download_status, status, err_msg
-                        );
-                    }
-                }
-            } else if matches!(
-                local_task.download_status,
-                DownloadStatus::Pending | DownloadStatus::Downloading | DownloadStatus::Paused
-            ) {
-                let now = Local::now().naive_utc();
-                let elapsed = now - local_task.updated_at;
-                if elapsed > dlr.config().download_timeout {
-                    warn!("下载超时: info_hash={}", info_hash);
-                    self.tx.send((
-                        info_hash.clone(),
-                        Event::Failed(info_hash.clone(), "下载超时".to_string()),
-                    ))?;
-                }
-            }
-        }
-        info!("同步远程任务状态完成");
-
-        Ok(())
-    }
-
     pub async fn shutdown(&self) -> Result<()> {
         let (tx, rx) = oneshot::channel();
         if let Err(e) = self.tx.send((String::new(), Event::Shutdown(tx))) {
@@ -320,6 +207,159 @@ impl Actor {
 
     pub fn dlrs(&self) -> Dlrs<'_> {
         Dlrs::from(&self.dlrs)
+    }
+}
+
+/// 同步所有下载器任务状态
+impl Actor {
+    pub async fn sync_all(&self) {
+        for dlr in self.dlrs.iter() {
+            self.sync_single(&***dlr)
+                .await
+                .inspect_err(|e| {
+                    error!("同步下载器:({}) 任务状态失败: {}", dlr.name(), e);
+                })
+                .ok();
+        }
+    }
+
+    async fn sync_single(&self, dlr: &dyn ThirdPartyDownloader) -> Result<()> {
+        let tstats = [
+            DownloadStatus::Downloading,
+            DownloadStatus::Pending,
+            DownloadStatus::Paused,
+        ];
+
+        let ltasks = self
+            .store
+            .list_by_dlr_and_status(dlr.name(), &tstats)
+            .await?;
+
+        debug!("需要同步的下载任务数量: {}", ltasks.len());
+
+        if ltasks.is_empty() {
+            return Ok(());
+        }
+
+        let tids: Vec<Tid> = ltasks.iter().map(|t| Tid::from(t.tid())).collect();
+        let rtasks = dlr.list_tasks(&tids).await?;
+
+        for ltask in ltasks {
+            let ih = ltask.info_hash.clone();
+            let tid = Tid::from(ltask.tid());
+
+            self.sync_task(dlr, &ltask, &rtasks, &tid, &ih)?;
+        }
+
+        debug!("同步远程任务状态完成");
+        Ok(())
+    }
+
+    fn sync_task(
+        &self,
+        dlr: &dyn ThirdPartyDownloader,
+        ltask: &Model,
+        rtasks: &HashMap<Tid, RemoteTaskStatus>,
+        tid: &Tid,
+        ih: &str,
+    ) -> Result<()> {
+        let (st, err_msg, res) = self.detect_task_status(ltask, rtasks, tid, ih);
+
+        if st != ltask.download_status {
+            self.handle_status_change(ih, &ltask.download_status, &st, err_msg, res)?;
+        }
+
+        self.chk_task_timeout(dlr, ltask, ih)
+    }
+
+    fn detect_task_status(
+        &self,
+        ltask: &Model,
+        rtasks: &HashMap<Tid, RemoteTaskStatus>,
+        tid: &Tid,
+        ih: &str,
+    ) -> (DownloadStatus, Option<String>, Option<String>) {
+        if let Some(rtask) = rtasks.get(tid) {
+            debug!("发现远程任务: info_hash={}", ih);
+            (
+                rtask.status.clone(),
+                rtask.err_msg.clone(),
+                rtask.result.clone(),
+            )
+        } else if ltask.download_status == DownloadStatus::Pending {
+            // 本地任务还没被处理，可能在队列中排队
+            (DownloadStatus::Pending, None, None)
+        } else {
+            // 这里的场景是，本地任务已经被处理，但远程任务不存在
+
+            warn!("任务在下载器中不存在: {}", ih);
+            (
+                DownloadStatus::Pending,
+                Some("任务在下载器中不存在".to_string()),
+                None,
+            )
+        }
+    }
+
+    fn handle_status_change(
+        &self,
+        ih: &str,
+        old_st: &DownloadStatus,
+        new_st: &DownloadStatus,
+        err_msg: Option<String>,
+        res: Option<String>,
+    ) -> Result<()> {
+        match new_st {
+            DownloadStatus::Completed => {
+                self.tx.send((ih.to_string(), Event::Completed(res)))?;
+            }
+            DownloadStatus::Cancelled => {
+                self.tx.send((ih.to_string(), Event::Cancel))?;
+            }
+            DownloadStatus::Failed => {
+                let err = err_msg.unwrap_or_default();
+                self.tx
+                    .send((ih.to_string(), Event::Failed(ih.to_string(), err)))?;
+            }
+            DownloadStatus::Paused | DownloadStatus::Downloading => {
+                info!("远程任务被手动暂停或恢复: info_hash={}", ih);
+                self.tx
+                    .send((ih.to_string(), Event::Synced(new_st.clone())))?;
+            }
+            _ => {
+                warn!(
+                    "未处理的任务状态: info_hash={}, local_status={:?}, remote_status={:?}, err_msg={:?}",
+                    ih, old_st, new_st, err_msg
+                );
+            }
+        }
+
+        Ok(())
+    }
+
+    fn chk_task_timeout(
+        &self,
+        dlr: &dyn ThirdPartyDownloader,
+        task: &Model,
+        ih: &str,
+    ) -> Result<()> {
+        if !matches!(
+            task.download_status,
+            DownloadStatus::Pending | DownloadStatus::Downloading | DownloadStatus::Paused
+        ) {
+            return Ok(());
+        }
+
+        let now = Local::now().naive_utc();
+        let elapse = now - task.updated_at;
+        if elapse > dlr.config().download_timeout {
+            self.tx.send((
+                ih.to_string(),
+                Event::Failed(ih.to_string(), "下载超时".to_string()),
+            ))?;
+        }
+
+        Ok(())
     }
 }
 
@@ -390,7 +430,7 @@ impl Downloader for Actor {
     }
 
     async fn list_files(&self, info_hash: &str) -> Result<Vec<FileInfo>> {
-        info!("列出文件: info_hash={}", info_hash);
+        debug!("列出文件: info_hash={}", info_hash);
         let task = self
             .store
             .list_by_hashes(&[info_hash.to_string()])
@@ -408,7 +448,7 @@ impl Downloader for Actor {
     }
 
     async fn download_file(&self, file_id: &str, ua: &str) -> Result<DownloadInfo> {
-        info!("下载文件: file_id={}, ua={}", file_id, ua);
+        debug!("下载文件: file_id={}, ua={}", file_id, ua);
         let (dlr_name, file_id) = file_id
             .split_once('-')
             .ok_or_else(|| Error::InvalidFileId(file_id.to_string()))?;
