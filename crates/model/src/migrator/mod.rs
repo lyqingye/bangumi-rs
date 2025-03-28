@@ -6,6 +6,26 @@ static MIGRATIONS_DIR: Dir = include_dir!("$CARGO_MANIFEST_DIR/../../develop/mig
 
 pub struct Migrator;
 
+/// 提取迁移版本号并转为数组
+fn extract_version_parts(name: &str) -> Vec<u32> {
+    // 提取版本号部分
+    let name = name.to_string();
+    // 先删除'm'前缀
+    let without_prefix = if let Some(stripped) = name.strip_prefix('m') {
+        stripped
+    } else {
+        &name
+    };
+
+    // 然后提取版本号部分（到第一个'_'之前）
+    let version_str = without_prefix.split('_').next().unwrap_or("");
+
+    version_str
+        .split('.')
+        .filter_map(|part| part.parse::<u32>().ok())
+        .collect()
+}
+
 #[async_trait::async_trait]
 impl MigratorTrait for Migrator {
     fn migrations() -> Vec<Box<dyn MigrationTrait>> {
@@ -66,15 +86,8 @@ impl MigratorTrait for Migrator {
 
         // 按版本号排序
         migrations.sort_by(|a, b| {
-            // 将版本号字符串转换为版本号数组进行比较
-            let version_to_parts = |v: &str| -> Vec<u32> {
-                v.split('.')
-                    .filter_map(|part| part.parse::<u32>().ok())
-                    .collect()
-            };
-
-            let a_version = version_to_parts(a.name().trim_start_matches('m'));
-            let b_version = version_to_parts(b.name().trim_start_matches('m'));
+            let a_version = extract_version_parts(a.name());
+            let b_version = extract_version_parts(b.name());
             a_version.cmp(&b_version)
         });
 
@@ -168,5 +181,35 @@ mod tests {
         for migration in migrations {
             println!("{}", migration.name());
         }
+    }
+
+    #[test]
+    fn test_migration_sort_order() {
+        // 创建一组无序的迁移对象
+        let mut migrations: Vec<Box<dyn MigrationTrait>> = vec![
+            Box::new(Migration::new("1.0.9", "downloader", "SQL1", None)),
+            Box::new(Migration::new("1.0.0", "init", "SQL2", None)),
+            Box::new(Migration::new("1.1.0", "sub_option", "SQL3", None)),
+            Box::new(Migration::new("1.0.5", "torrent_source", "SQL4", None)),
+        ];
+
+        // 按版本号排序
+        migrations.sort_by(|a, b| {
+            let a_version = extract_version_parts(a.name());
+            let b_version = extract_version_parts(b.name());
+            a_version.cmp(&b_version)
+        });
+
+        // 验证排序后的顺序
+        let sorted_names: Vec<String> = migrations.iter().map(|m| m.name().to_string()).collect();
+        assert_eq!(
+            sorted_names,
+            vec![
+                "m1.0.0_init",
+                "m1.0.5_torrent_source",
+                "m1.0.9_downloader",
+                "m1.1.0_sub_option",
+            ]
+        );
     }
 }
