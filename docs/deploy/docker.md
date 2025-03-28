@@ -131,12 +131,6 @@ enabled = true
 
 ```
 
-## 下载数据库初始化文件
-
-```bash
-curl -o schema.sql https://raw.githubusercontent.com/lyqingye/bangumi-rs/refs/heads/master/develop/schema.sql
-```
-
 ## 下载 Nginx 配置文件
 
 ```bash
@@ -159,7 +153,6 @@ services:
       - "3306:3306"
     volumes:
       - ./data:/var/lib/mysql
-      - ./schema.sql:/docker-entrypoint-initdb.d/schema.sql
     healthcheck:
       test:
         [
