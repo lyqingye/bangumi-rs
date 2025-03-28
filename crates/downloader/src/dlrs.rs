@@ -28,7 +28,7 @@ impl<'a> Dlrs<'a> {
     }
 
     pub fn take(&self, name: &str) -> Option<&'a dyn ThirdPartyDownloader> {
-        let latest = name.split(',').last().unwrap();
+        let latest = name.split(',').last().unwrap_or(name);
         self.inner.iter().find(|d| d.name() == latest).copied()
     }
 

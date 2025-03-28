@@ -35,6 +35,9 @@ pub struct Context<'a> {
 }
 
 impl<'a> Context<'a> {
+    #[allow(clippy::transmute_ptr_to_ref)]
+    #[allow(clippy::transmuting_null)]
+    #[allow(clippy::missing_transmute_annotations)]
     pub fn uninit(tdl: &'a dyn ThirdPartyDownloader) -> Self {
         Self {
             tid: Tid::from(""),
@@ -74,6 +77,7 @@ pub enum Event {
 }
 
 #[state_machine(initial = "State::pending()", context_identifier = "ctx")]
+#[allow(clippy::needless_lifetimes)]
 impl<'a> TaskDL<'a> {
     #[state]
     async fn pending(&self, ctx: &mut Context<'_>, event: &Event) -> Response<State> {
@@ -151,6 +155,7 @@ impl<'a> TaskDL<'a> {
     }
 }
 
+#[allow(clippy::needless_lifetimes)]
 impl<'a> TaskDL<'a> {
     async fn act_start(
         &self,
@@ -365,6 +370,7 @@ impl<'a> TaskDL<'a> {
     }
 }
 
+#[allow(clippy::needless_lifetimes)]
 impl<'a> TaskDL<'a> {
     pub async fn new(
         store: &'a dyn Store,

@@ -739,7 +739,10 @@ impl Worker {
     }
 
     fn take_downloader(&self, assigned_downloader: &str) -> Result<&dyn ThirdPartyDownloader> {
-        let latest = assigned_downloader.split(',').last().unwrap();
+        let latest = assigned_downloader
+            .split(',')
+            .last()
+            .unwrap_or(assigned_downloader);
         let downloader = &***self
             .downloaders
             .iter()
