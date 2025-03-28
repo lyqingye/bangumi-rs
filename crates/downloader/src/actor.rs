@@ -196,9 +196,7 @@ impl Actor {
 
     pub async fn shutdown(&self) -> Result<()> {
         let (tx, rx) = oneshot::channel();
-        if let Err(e) = self.tx.send((String::new(), Event::Shutdown(tx))) {
-            error!("发送关闭事件失败: {}", e);
-        }
+        self.tx.send((String::new(), Event::Shutdown(tx)))?;
         let _ = tokio::time::timeout(Duration::from_secs(60), rx)
             .await
             .map_err(|_| Error::ShutdownTimeout)?;
@@ -352,6 +350,7 @@ impl Actor {
 
         let now = Local::now().naive_utc();
         let elapse = now - task.updated_at;
+
         if elapse > dlr.config().download_timeout {
             self.tx.send((
                 ih.to_string(),
@@ -373,16 +372,20 @@ impl Downloader for Actor {
         allow_fallback: bool,
     ) -> Result<()> {
         let info_hash = resource.info_hash();
+
         let dlr = if let Some(name) = dlr_name {
             self.dlrs().must_take(&name)?
         } else {
             self.dlrs().best()
         };
+
         self.store
             .create(&resource, dir, dlr.name().to_string(), allow_fallback)
             .await?;
+
         self.tx
             .send((info_hash.to_owned(), Event::Start(resource)))?;
+
         Ok(())
     }
 
@@ -431,6 +434,7 @@ impl Downloader for Actor {
 
     async fn list_files(&self, info_hash: &str) -> Result<Vec<FileInfo>> {
         debug!("列出文件: info_hash={}", info_hash);
+
         let task = self
             .store
             .list_by_hashes(&[info_hash.to_string()])
@@ -438,20 +442,25 @@ impl Downloader for Actor {
             .first()
             .cloned()
             .ok_or_else(|| Error::TaskNotFound(info_hash.to_string()))?;
+
         let tid = Tid::from(task.tid());
-        let downloader = self.dlrs().must_take(&task.downloader)?;
-        let mut result = downloader.list_files(&tid, task.context.clone()).await?;
+        let dlr = self.dlrs().must_take(&task.downloader)?;
+        let mut result = dlr.list_files(&tid, task.context.clone()).await?;
+
         for file in result.iter_mut() {
-            file.file_id = format!("{}-{}", downloader.name(), file.file_id);
+            file.file_id = format!("{}-{}", dlr.name(), file.file_id);
         }
+
         Ok(result)
     }
 
     async fn download_file(&self, file_id: &str, ua: &str) -> Result<DownloadInfo> {
         debug!("下载文件: file_id={}, ua={}", file_id, ua);
+
         let (dlr_name, file_id) = file_id
             .split_once('-')
             .ok_or_else(|| Error::InvalidFileId(file_id.to_string()))?;
+
         let dlr = self.dlrs().must_take(dlr_name)?;
         let result = dlr.dl_file(file_id, ua).await;
 
