@@ -353,23 +353,16 @@ impl<'a> TaskDL<'a> {
         self.update_status(ctx.info_hash, status.clone(), None, None)
             .await?;
 
-        self.init(ctx, status).await
+        Ok(Transition(map_status(status)))
     }
 
+    #[allow(clippy::unused_async)]
     async fn init(
         &self,
         _ctx: &mut Context<'_>,
         status: &DownloadStatus,
     ) -> Result<Response<State>> {
-        match status {
-            DownloadStatus::Downloading => Ok(Transition(State::downloading())),
-            DownloadStatus::Paused => Ok(Transition(State::paused())),
-            DownloadStatus::Failed => Ok(Transition(State::failed())),
-            DownloadStatus::Completed => Ok(Transition(State::completed())),
-            DownloadStatus::Cancelled => Ok(Transition(State::cancelled())),
-            DownloadStatus::Pending => Ok(Transition(State::pending())),
-            DownloadStatus::Retrying => Ok(Transition(State::retrying())),
-        }
+        Ok(Transition(map_status(status)))
     }
 
     async fn fallback(&self, ctx: &mut Context<'_>) -> Result<Response<State>> {
@@ -492,5 +485,17 @@ impl<'a> TaskDL<'a> {
             err_msg,
         )));
         Ok(())
+    }
+}
+
+fn map_status(status: &DownloadStatus) -> State {
+    match status {
+        DownloadStatus::Downloading => State::downloading(),
+        DownloadStatus::Paused => State::paused(),
+        DownloadStatus::Failed => State::failed(),
+        DownloadStatus::Completed => State::completed(),
+        DownloadStatus::Cancelled => State::cancelled(),
+        DownloadStatus::Pending => State::pending(),
+        DownloadStatus::Retrying => State::retrying(),
     }
 }

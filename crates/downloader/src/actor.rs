@@ -274,7 +274,7 @@ impl Actor {
             let ih = ltask.info_hash.clone();
             let tid = Tid::from(ltask.tid());
 
-            self.sync_task(dlr, &ltask, &rtasks, &tid, &ih)?;
+            self.sync_task(dlr, ltask, &rtasks, &tid, &ih)?;
         }
 
         debug!("同步远程任务状态完成");
