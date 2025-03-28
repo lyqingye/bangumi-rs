@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use chrono::{Local, NaiveDateTime};
-use downloader::errors::Result;
+use downloader::errors::{Error, Result};
 use downloader::resource::Resource;
 use downloader::{Store, Tid};
 use model::sea_orm_active_enums::{DownloadStatus, ResourceType};
@@ -141,7 +141,7 @@ impl Store for MockStore {
                 ResourceType::InfoHash => {
                     Ok(Some(Resource::from_info_hash(task.info_hash.clone())?))
                 }
-                _ => panic!("不支持的资源类型: {:?}", task.resource_type),
+                _ => Err(Error::UnsupportedResourceType(task.resource_type)),
             }
         } else {
             Ok(None)

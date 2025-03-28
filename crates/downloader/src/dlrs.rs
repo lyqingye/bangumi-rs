@@ -55,7 +55,6 @@ impl<'a> From<&'a [Arc<Box<dyn ThirdPartyDownloader>>]> for Dlrs<'a> {
     }
 }
 
-// 为 Vec 类型实现 From trait，便于使用
 impl<'a> From<&'a Vec<Arc<Box<dyn ThirdPartyDownloader>>>> for Dlrs<'a> {
     fn from(downloaders: &'a Vec<Arc<Box<dyn ThirdPartyDownloader>>>) -> Self {
         Self::from(downloaders.as_slice())
