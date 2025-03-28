@@ -49,14 +49,14 @@ impl<'a> Dlrs<'a> {
 }
 
 impl<'a> From<&'a [Arc<Box<dyn ThirdPartyDownloader>>]> for Dlrs<'a> {
-    fn from(downloaders: &'a [Arc<Box<dyn ThirdPartyDownloader>>]) -> Self {
-        let downloaders = downloaders.iter().map(|d| &***d).collect::<Vec<_>>();
-        Self { inner: downloaders }
+    fn from(dlrs: &'a [Arc<Box<dyn ThirdPartyDownloader>>]) -> Self {
+        let dlrs = dlrs.iter().map(|d| &***d).collect::<Vec<_>>();
+        Self { inner: dlrs }
     }
 }
 
 impl<'a> From<&'a Vec<Arc<Box<dyn ThirdPartyDownloader>>>> for Dlrs<'a> {
-    fn from(downloaders: &'a Vec<Arc<Box<dyn ThirdPartyDownloader>>>) -> Self {
-        Self::from(downloaders.as_slice())
+    fn from(dlrs: &'a Vec<Arc<Box<dyn ThirdPartyDownloader>>>) -> Self {
+        Self::from(dlrs.as_slice())
     }
 }

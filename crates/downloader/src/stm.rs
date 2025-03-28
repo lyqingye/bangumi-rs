@@ -186,9 +186,13 @@ impl<'a> TaskDL<'a> {
     }
 
     async fn fail(&self, ctx: &mut Context<'_>, err_msg: &str) -> Result<Response<State>> {
-        if let Err(e) = ctx.tdl.remove_task(&ctx.tid, true).await {
-            warn!("移除失败任务出错: tid={}, 错误: {}", ctx.tid, e);
-        }
+        ctx.tdl
+            .remove_task(&ctx.tid, true)
+            .await
+            .inspect_err(|e| {
+                warn!("移除失败任务出错: tid={}, 错误: {}", ctx.tid, e);
+            })
+            .ok();
 
         if ctx.task.retry_count >= ctx.tdl.config().max_retry_count {
             self.update_status(
@@ -222,9 +226,13 @@ impl<'a> TaskDL<'a> {
     }
 
     async fn cancel(&self, ctx: &mut Context<'_>) -> Result<Response<State>> {
-        if let Err(e) = ctx.tdl.cancel_task(&ctx.tid).await {
-            warn!("取消任务出错: tid={}, 错误: {}", ctx.tid, e);
-        }
+        ctx.tdl
+            .cancel_task(&ctx.tid)
+            .await
+            .inspect_err(|e| {
+                warn!("取消任务出错: tid={}, 错误: {}", ctx.tid, e);
+            })
+            .ok();
 
         self.update_status(ctx.info_hash, DownloadStatus::Cancelled, None, None)
             .await?;
@@ -233,9 +241,13 @@ impl<'a> TaskDL<'a> {
     }
 
     async fn pause(&self, ctx: &mut Context<'_>) -> Result<Response<State>> {
-        if let Err(e) = ctx.tdl.pause_task(&ctx.tid).await {
-            warn!("暂停任务出错: tid={}, 错误: {}", ctx.tid, e);
-        }
+        ctx.tdl
+            .pause_task(&ctx.tid)
+            .await
+            .inspect_err(|e| {
+                warn!("暂停任务出错: tid={}, 错误: {}", ctx.tid, e);
+            })
+            .ok();
 
         self.update_status(ctx.info_hash, DownloadStatus::Paused, None, None)
             .await?;
@@ -244,9 +256,13 @@ impl<'a> TaskDL<'a> {
     }
 
     async fn resume(&self, ctx: &mut Context<'_>) -> Result<Response<State>> {
-        if let Err(e) = ctx.tdl.resume_task(&ctx.tid).await {
-            warn!("恢复任务出错: tid={}, 错误: {}", ctx.tid, e);
-        }
+        ctx.tdl
+            .resume_task(&ctx.tid)
+            .await
+            .inspect_err(|e| {
+                warn!("恢复任务出错: tid={}, 错误: {}", ctx.tid, e);
+            })
+            .ok();
 
         self.update_status(ctx.info_hash, DownloadStatus::Downloading, None, None)
             .await?;
@@ -260,9 +276,13 @@ impl<'a> TaskDL<'a> {
         result: Option<String>,
     ) -> Result<Response<State>> {
         if ctx.tdl.config().delete_task_on_completion {
-            if let Err(e) = ctx.tdl.remove_task(&ctx.tid, false).await {
-                warn!("移除任务出错: tid={}, 错误: {}", ctx.tid, e);
-            }
+            ctx.tdl
+                .remove_task(&ctx.tid, false)
+                .await
+                .inspect_err(|e| {
+                    warn!("移除任务出错: tid={}, 错误: {}", ctx.tid, e);
+                })
+                .ok();
         }
 
         self.update_status(ctx.info_hash, DownloadStatus::Completed, None, result)
@@ -278,9 +298,13 @@ impl<'a> TaskDL<'a> {
             .await?
             .ok_or(Error::ResourceNotFound(ctx.info_hash.to_string()))?;
 
-        if let Err(e) = ctx.tdl.remove_task(&ctx.tid, true).await {
-            warn!("移除任务准备重试出错: tid={}, 错误: {}", ctx.tid, e);
-        }
+        ctx.tdl
+            .remove_task(&ctx.tid, true)
+            .await
+            .inspect_err(|e| {
+                warn!("移除任务准备重试出错: tid={}, 错误: {}", ctx.tid, e);
+            })
+            .ok();
 
         self.update_status(ctx.info_hash, DownloadStatus::Pending, None, None)
             .await?;
@@ -346,9 +370,13 @@ impl<'a> TaskDL<'a> {
     }
 
     async fn remove(&self, ctx: &mut Context<'_>, remove_files: bool) -> Result<Response<State>> {
-        if let Err(e) = ctx.tdl.remove_task(&ctx.tid, remove_files).await {
-            warn!("移除任务出错: tid={}, 错误: {}", ctx.tid, e);
-        }
+        ctx.tdl
+            .remove_task(&ctx.tid, remove_files)
+            .await
+            .inspect_err(|e| {
+                warn!("移除任务出错: tid={}, 错误: {}", ctx.tid, e);
+            })
+            .ok();
 
         self.update_status(ctx.info_hash, DownloadStatus::Cancelled, None, None)
             .await?;

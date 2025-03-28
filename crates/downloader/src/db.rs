@@ -26,16 +26,6 @@ impl Db {
         Self { conn }
     }
 
-    pub async fn new_from_env() -> Result<Self> {
-        let conn =
-            Arc::new(sea_orm::Database::connect(std::env::var("DATABASE_URL").unwrap()).await?);
-        Ok(Self::new(conn))
-    }
-
-    pub fn conn(&self) -> &DatabaseConnection {
-        &self.conn
-    }
-
     async fn get_task_resource(&self, task: &Model) -> Result<Resource> {
         Ok(match task.resource_type {
             ResourceType::Torrent => {

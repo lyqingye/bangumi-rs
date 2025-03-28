@@ -95,6 +95,7 @@ impl Actor {
         let mut ctx = Context::uninit(self.dlrs().best());
         let mut stm = TaskDL::new(&**self.store, &self.dlrs, &mut ctx, &self.notify_tx).await;
         let dlrs = Dlrs::from(&self.dlrs);
+
         while let Some(tx) = tx_rx.recv().await {
             if let Event::Shutdown(tx) = tx.1 {
                 let _ = tx.send(());
@@ -150,26 +151,24 @@ impl Actor {
     }
 
     async fn recover(&self) -> Result<()> {
-        let pending_tasks = self
+        let pending = self
             .store
             .list_by_status(&[DownloadStatus::Pending])
             .await?;
 
-        for task in pending_tasks {
+        for task in pending {
             let resource = self
                 .store
                 .load_resource(&task.info_hash)
                 .await?
                 .ok_or(Error::ResourceNotFound(task.info_hash.to_string()))?;
 
-            if let Err(e) = self
-                .tx
+            self.tx
                 .send((task.info_hash.clone(), Event::Start(resource)))
-            {
-                error!("恢复任务到队列失败: {} - {}", task.info_hash, e);
-            } else {
-                info!("成功恢复任务: info_hash={}", task.info_hash);
-            }
+                .inspect_err(|e| {
+                    error!("恢复任务到队列失败: {} - {}", task.info_hash, e);
+                })
+                .ok();
         }
         Ok(())
     }
@@ -189,7 +188,6 @@ impl Actor {
             if now < task.next_retry_at {
                 continue;
             }
-            // 重试
             self.retry(&task.info_hash).await?;
         }
         Ok(())
@@ -206,11 +204,11 @@ impl Actor {
         }
     }
 
-    pub async fn sync_single(&self, downloader: &dyn ThirdPartyDownloader) -> Result<()> {
+    async fn sync_single(&self, dlr: &dyn ThirdPartyDownloader) -> Result<()> {
         let local = self
             .store
             .list_by_dlr_and_status(
-                downloader.name(),
+                dlr.name(),
                 &[
                     DownloadStatus::Downloading,
                     DownloadStatus::Pending,
@@ -226,8 +224,7 @@ impl Actor {
         info!("需要同步的下载任务数量: {}", local.len());
 
         let tids: Vec<Tid> = local.iter().map(|task| Tid::from(task.tid())).collect();
-
-        let remote = downloader.list_tasks(&tids).await?;
+        let remote = dlr.list_tasks(&tids).await?;
 
         for local_task in local {
             let info_hash = local_task.info_hash.clone();
@@ -296,7 +293,7 @@ impl Actor {
             ) {
                 let now = Local::now().naive_utc();
                 let elapsed = now - local_task.updated_at;
-                if elapsed > downloader.config().download_timeout {
+                if elapsed > dlr.config().download_timeout {
                     warn!("下载超时: info_hash={}", info_hash);
                     self.tx.send((
                         info_hash.clone(),
@@ -332,22 +329,17 @@ impl Downloader for Actor {
         &self,
         resource: Resource,
         dir: PathBuf,
-        downloader: Option<String>,
+        dlr_name: Option<String>,
         allow_fallback: bool,
     ) -> Result<()> {
         let info_hash = resource.info_hash();
-        let downloader = if let Some(name) = downloader {
+        let dlr = if let Some(name) = dlr_name {
             self.dlrs().must_take(&name)?
         } else {
             self.dlrs().best()
         };
         self.store
-            .create(
-                &resource,
-                dir,
-                downloader.name().to_string(),
-                allow_fallback,
-            )
+            .create(&resource, dir, dlr.name().to_string(), allow_fallback)
             .await?;
         self.tx
             .send((info_hash.to_owned(), Event::Start(resource)))?;
