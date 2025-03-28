@@ -44,3 +44,4 @@ sea-orm = { workspace = true, features = [
     "macros",
     "debug-print",
 ] }
+rand = { workspace = true }

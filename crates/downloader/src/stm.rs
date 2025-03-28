@@ -1,4 +1,4 @@
-use crate::dlrs::Dlrs;
+use crate::dlrs::{Dlrs, assign_dlr};
 use crate::errors::{Error, Result};
 use crate::{Store, ThirdPartyDownloader, Tid, resource::Resource};
 use chrono::NaiveDateTime;
@@ -53,6 +53,9 @@ impl<'a> Context<'a> {
 
 #[derive(Debug)]
 pub enum Event {
+    // 初始化
+    Init(DownloadStatus),
+
     // 启动任务
     Start(Resource),
     // 取消任务
@@ -94,6 +97,7 @@ impl<'a> TaskDL<'a> {
             Event::Failed(_, err_msg) => run_action!(self.fail(ctx, err_msg)),
             Event::Remove(remove_files) => run_action!(self.remove(ctx, *remove_files)),
             Event::Synced(status) => run_action!(self.sync(ctx, status)),
+            Event::Init(status) => run_action!(self.init(ctx, status)),
             _ => Handled,
         }
     }
@@ -107,6 +111,7 @@ impl<'a> TaskDL<'a> {
             Event::Completed(result) => run_action!(self.complete(ctx, result.to_owned())),
             Event::Remove(remove_files) => run_action!(self.remove(ctx, *remove_files)),
             Event::Synced(status) => run_action!(self.sync(ctx, status)),
+            Event::Init(status) => run_action!(self.init(ctx, status)),
             _ => Handled,
         }
     }
@@ -117,6 +122,7 @@ impl<'a> TaskDL<'a> {
             Event::Resume => run_action!(self.resume(ctx)),
             Event::Remove(remove_files) => run_action!(self.remove(ctx, *remove_files)),
             Event::Synced(status) => run_action!(self.sync(ctx, status)),
+            Event::Init(status) => run_action!(self.init(ctx, status)),
             _ => Handled,
         }
     }
@@ -129,6 +135,7 @@ impl<'a> TaskDL<'a> {
             Event::Retry => run_action!(self.retry(ctx)),
             Event::Remove(remove_files) => run_action!(self.remove(ctx, *remove_files)),
             Event::Synced(status) => run_action!(self.sync(ctx, status)),
+            Event::Init(status) => run_action!(self.init(ctx, status)),
             _ => Handled,
         }
     }
@@ -140,6 +147,7 @@ impl<'a> TaskDL<'a> {
             Event::Fallback => run_action!(self.fallback(ctx)),
             Event::Remove(remove_files) => run_action!(self.remove(ctx, *remove_files)),
             Event::Synced(status) => run_action!(self.sync(ctx, status)),
+            Event::Init(status) => run_action!(self.init(ctx, status)),
             _ => Handled,
         }
     }
@@ -149,6 +157,7 @@ impl<'a> TaskDL<'a> {
         match event {
             Event::Remove(remove_files) => run_action!(self.remove(ctx, *remove_files)),
             Event::Synced(status) => run_action!(self.sync(ctx, status)),
+            Event::Init(status) => run_action!(self.init(ctx, status)),
             _ => Handled,
         }
     }
@@ -158,6 +167,7 @@ impl<'a> TaskDL<'a> {
         match event {
             Event::Remove(remove_files) => run_action!(self.remove(ctx, *remove_files)),
             Event::Synced(status) => run_action!(self.sync(ctx, status)),
+            Event::Init(status) => run_action!(self.init(ctx, status)),
             _ => Handled,
         }
     }
@@ -343,15 +353,16 @@ impl<'a> TaskDL<'a> {
         self.update_status(ctx.info_hash, status.clone(), None, None)
             .await?;
 
-        match status {
-            DownloadStatus::Downloading => Ok(Transition(State::downloading())),
-            DownloadStatus::Paused => Ok(Transition(State::paused())),
-            DownloadStatus::Failed => Ok(Transition(State::failed())),
-            DownloadStatus::Completed => Ok(Transition(State::completed())),
-            DownloadStatus::Cancelled => Ok(Transition(State::cancelled())),
-            DownloadStatus::Pending => Ok(Transition(State::pending())),
-            DownloadStatus::Retrying => Ok(Transition(State::retrying())),
-        }
+        Ok(Transition(map_status(status)))
+    }
+
+    #[allow(clippy::unused_async)]
+    async fn init(
+        &self,
+        _ctx: &mut Context<'_>,
+        status: &DownloadStatus,
+    ) -> Result<Response<State>> {
+        Ok(Transition(map_status(status)))
     }
 
     async fn fallback(&self, ctx: &mut Context<'_>) -> Result<Response<State>> {
@@ -366,9 +377,7 @@ impl<'a> TaskDL<'a> {
                     dlr.name()
                 );
 
-                let mut new_dlr = ctx.task.downloader.to_string();
-                new_dlr.push(',');
-                new_dlr.push_str(dlr.name());
+                let new_dlr = assign_dlr(&ctx.task.downloader, dlr.name());
 
                 self.store.assign_dlr(ctx.info_hash, new_dlr).await?;
 
@@ -476,5 +485,17 @@ impl<'a> TaskDL<'a> {
             err_msg,
         )));
         Ok(())
+    }
+}
+
+fn map_status(status: &DownloadStatus) -> State {
+    match status {
+        DownloadStatus::Downloading => State::downloading(),
+        DownloadStatus::Paused => State::paused(),
+        DownloadStatus::Failed => State::failed(),
+        DownloadStatus::Completed => State::completed(),
+        DownloadStatus::Cancelled => State::cancelled(),
+        DownloadStatus::Pending => State::pending(),
+        DownloadStatus::Retrying => State::retrying(),
     }
 }

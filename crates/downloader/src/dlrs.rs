@@ -5,6 +5,14 @@ use crate::{
     errors::{Error, Result},
 };
 
+pub fn assigned_dlr(dlr: &str) -> &str {
+    dlr.split(',').last().unwrap_or(dlr)
+}
+
+pub fn assign_dlr(dlr: &str, new_dlr: &str) -> String {
+    format!("{},{}", dlr, new_dlr)
+}
+
 pub struct Dlrs<'a> {
     inner: Vec<&'a dyn ThirdPartyDownloader>,
 }
@@ -28,7 +36,7 @@ impl<'a> Dlrs<'a> {
     }
 
     pub fn take(&self, name: &str) -> Option<&'a dyn ThirdPartyDownloader> {
-        let latest = name.split(',').last().unwrap_or(name);
+        let latest = assigned_dlr(name);
         self.inner.iter().find(|d| d.name() == latest).copied()
     }
 
