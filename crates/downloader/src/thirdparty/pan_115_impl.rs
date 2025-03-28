@@ -90,7 +90,12 @@ impl ThirdPartyDownloader for Pan115DownloaderImpl {
         resource: Resource,
         dir: PathBuf,
     ) -> Result<(Option<Tid>, Option<String>)> {
-        let dir = self.config.generic.download_dir.join(dir);
+        let mut dir = self.config.generic.download_dir.join(dir);
+        dir = dir
+            .parent()
+            .unwrap_or(self.config.generic.download_dir.as_path())
+            .to_path_buf();
+
         let dir_cid = self.get_or_create_dir_cid(&dir).await?;
         let magnet = resource
             .magnet()
@@ -298,5 +303,16 @@ fn map_task_status(status: OfflineTaskStatus) -> DownloadStatus {
         OfflineTaskStatus::Downloading => DownloadStatus::Downloading,
         OfflineTaskStatus::Completed => DownloadStatus::Completed,
         OfflineTaskStatus::Failed | OfflineTaskStatus::Unknow => DownloadStatus::Failed,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_get_or_create_dir_cid() {
+        let path = PathBuf::from("/downloads/test/1");
+        println!("path: {:?}", path.parent().unwrap());
     }
 }
