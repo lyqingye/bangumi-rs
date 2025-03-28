@@ -7,11 +7,8 @@ pub mod dlrs;
 pub mod errors;
 pub mod metrics;
 pub mod resource;
-mod retry;
 pub mod stm;
-mod syncer;
 pub mod thirdparty;
-pub mod worker;
 
 use crate::errors::Result;
 use async_trait::async_trait;

@@ -13,7 +13,7 @@ use pan_115::{errors::Pan115Error, model::OfflineTaskStatus};
 use tokio::sync::Mutex;
 use tracing::{debug, info, warn};
 
-use crate::errors::Result;
+use crate::errors::{Error, Result};
 use crate::{
     AccessType, DownloadInfo, FileInfo, RemoteTaskStatus, Resource, ResourceType,
     ThirdPartyDownloader, Tid, config, context::Pan115Context,
@@ -164,7 +164,7 @@ impl ThirdPartyDownloader for Pan115DownloaderImpl {
         Ok(remote_tasks_status)
     }
 
-    async fn list_files(&self, _tid: &Tid, result: Option<String>) -> Result<Vec<FileInfo>> {
+    async fn list_files(&self, tid: &Tid, result: Option<String>) -> Result<Vec<FileInfo>> {
         match result {
             Some(result) => {
                 let mut cache = self.file_list_cache.lock().await;
@@ -194,7 +194,7 @@ impl ThirdPartyDownloader for Pan115DownloaderImpl {
                 cache.put(context.file_id, (files.clone(), now));
                 Ok(files)
             }
-            None => Err(anyhow::anyhow!("该下载器不支持下载文件").into()),
+            None => Err(Error::NoDownloadResult(tid.to_string())),
         }
     }
 

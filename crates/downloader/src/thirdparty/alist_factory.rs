@@ -1,4 +1,4 @@
-use crate::errors::Result;
+use crate::errors::{Error, Result};
 use crate::{
     AccessType, DownloadInfo, FileInfo, RemoteTaskStatus, ThirdPartyDownloader, Tid, config,
     context::TorrentContext, resource::Resource,
@@ -139,7 +139,7 @@ impl ThirdPartyDownloader for AlistDownloaderImpl {
                 resource.magnet().unwrap_or_default()
             }
             _ => {
-                return Err(anyhow::anyhow!("不支持的资源类型: {:?}", resource).into());
+                return Err(Error::UnsupportedResourceType(resource.get_type()));
             }
         };
 
@@ -213,8 +213,8 @@ impl ThirdPartyDownloader for AlistDownloaderImpl {
         Ok(())
     }
 
-    async fn list_files(&self, _tid: &Tid, result: Option<String>) -> Result<Vec<FileInfo>> {
-        let ctx = result.context("没有下载结果，请确保已经成功下载")?;
+    async fn list_files(&self, tid: &Tid, result: Option<String>) -> Result<Vec<FileInfo>> {
+        let ctx = result.context(Error::NoDownloadResult(tid.to_string()))?;
         let ctx = TorrentContext::try_from(ctx)?;
         let files = self
             .client
@@ -256,7 +256,7 @@ impl ThirdPartyDownloader for AlistDownloaderImpl {
                 .client
                 .get_file(&file_path, None::<String>)
                 .await?
-                .with_context(|| "文件不存在,可能被移动或删除")?;
+                .ok_or(Error::FileNotFound(file_path))?;
             let download_info = DownloadInfo {
                 url: file.raw_url.clone(),
                 access_type: AccessType::Redirect,
@@ -264,7 +264,7 @@ impl ThirdPartyDownloader for AlistDownloaderImpl {
 
             Ok(download_info)
         } else {
-            return Err(anyhow::anyhow!("文件不存在").into());
+            return Err(Error::FileNotFound(file_path.unwrap_or_default()));
         }
     }
 

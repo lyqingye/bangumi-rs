@@ -1,4 +1,4 @@
-use crate::errors::Result;
+use crate::errors::{Error, Result};
 use anyhow::Context;
 use async_trait::async_trait;
 use std::{
@@ -102,7 +102,7 @@ impl ThirdPartyDownloader for TransmissionDownloaderImpl {
         dir: PathBuf,
     ) -> Result<(Option<Tid>, Option<String>)> {
         if dir.is_absolute() {
-            return Err(anyhow::anyhow!("保存路径必须为相对路径").into());
+            return Err(Error::DownloadDir(dir.to_string_lossy().to_string()));
         }
 
         let save_dir = self.config.generic.download_dir.join(dir);
@@ -129,11 +129,7 @@ impl ThirdPartyDownloader for TransmissionDownloaderImpl {
         };
 
         // 直接使用Arc里的引用
-        let resp = self
-            .cli
-            .torrent_add(args)
-            .await
-            .map_err(|e| anyhow::anyhow!("{}", e))?;
+        let resp = self.cli.torrent_add(args).await?;
 
         if !resp.is_ok() {
             return Err(anyhow::anyhow!("添加种子任务失败: {}", resp.result).into());
@@ -254,8 +250,8 @@ impl ThirdPartyDownloader for TransmissionDownloaderImpl {
         Ok(())
     }
 
-    async fn list_files(&self, _tid: &Tid, result: Option<String>) -> Result<Vec<FileInfo>> {
-        let ctx = result.with_context(|| "没有下载结果，请确保已经成功下载")?;
+    async fn list_files(&self, tid: &Tid, result: Option<String>) -> Result<Vec<FileInfo>> {
+        let ctx = result.context(Error::NoDownloadResult(tid.to_string()))?;
         let ctx = TorrentContext::try_from(ctx)?;
 
         let files = ctx
@@ -299,7 +295,7 @@ impl ThirdPartyDownloader for TransmissionDownloaderImpl {
                 access_type: AccessType::Forward,
             })
         } else {
-            Err(anyhow::anyhow!("文件不存在或缓存已过期").into())
+            Err(Error::FileNotFound(file_id.to_string()))
         }
     }
 

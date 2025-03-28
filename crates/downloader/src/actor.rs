@@ -93,7 +93,7 @@ impl Actor {
 
     pub async fn run_loop(&self, mut tx_rx: mpsc::UnboundedReceiver<Tx>) {
         let mut ctx = Context::uninit(self.dlrs().best());
-        let mut stm = TaskDL::new(&**self.store, &self.dlrs, &mut ctx).await;
+        let mut stm = TaskDL::new(&**self.store, &self.dlrs, &mut ctx, &self.notify_tx).await;
         let dlrs = Dlrs::from(&self.dlrs);
         while let Some(tx) = tx_rx.recv().await {
             if let Event::Shutdown(tx) = tx.1 {
@@ -365,7 +365,21 @@ impl Downloader for Actor {
     }
 
     async fn metrics(&self) -> metrics::Metrics {
-        metrics::Metrics { num_of_tasks: 1 }
+        let tasks = self
+            .store
+            .list_by_status(&[
+                DownloadStatus::Downloading,
+                DownloadStatus::Pending,
+                DownloadStatus::Retrying,
+            ])
+            .await;
+        if let Ok(tasks) = tasks {
+            metrics::Metrics {
+                num_of_tasks: tasks.len(),
+            }
+        } else {
+            metrics::Metrics { num_of_tasks: 0 }
+        }
     }
 
     async fn subscribe(&self) -> broadcast::Receiver<crate::Event> {

@@ -1,12 +1,13 @@
 use crate::dlrs::Dlrs;
 use crate::errors::{Error, Result};
 use crate::{Store, ThirdPartyDownloader, Tid, resource::Resource};
+use chrono::NaiveDateTime;
 use model::sea_orm_active_enums::DownloadStatus;
 use model::torrent_download_tasks::Model;
 use statig::awaitable::InitializedStateMachine;
 use statig::prelude::*;
 use std::sync::Arc;
-use tokio::sync::oneshot;
+use tokio::sync::{broadcast, oneshot};
 use tracing::warn;
 
 macro_rules! run_action {
@@ -24,6 +25,7 @@ macro_rules! run_action {
 pub struct TaskDL<'a> {
     pub store: &'a dyn Store,
     pub dlrs: Dlrs<'a>,
+    pub notify_tx: &'a broadcast::Sender<crate::Event>,
 }
 
 pub struct Context<'a> {
@@ -76,16 +78,20 @@ pub enum Event {
     Shutdown(oneshot::Sender<()>),
 }
 
-#[state_machine(initial = "State::pending()", context_identifier = "ctx")]
+#[state_machine(
+    initial = "State::pending()",
+    context_identifier = "ctx",
+    state(derive(Debug))
+)]
 #[allow(clippy::needless_lifetimes)]
 impl<'a> TaskDL<'a> {
     #[state]
     async fn pending(&self, ctx: &mut Context<'_>, event: &Event) -> Response<State> {
         match event {
-            Event::Start(resource) => run_action!(self.act_start(ctx, resource)),
-            Event::Failed(_, err_msg) => run_action!(self.act_fail(ctx, err_msg)),
-            Event::Remove(remove_files) => run_action!(self.act_remove(ctx, *remove_files)),
-            Event::Synced(status) => run_action!(self.act_sync(ctx, status)),
+            Event::Start(resource) => run_action!(self.start(ctx, resource)),
+            Event::Failed(_, err_msg) => run_action!(self.fail(ctx, err_msg)),
+            Event::Remove(remove_files) => run_action!(self.remove(ctx, *remove_files)),
+            Event::Synced(status) => run_action!(self.sync(ctx, status)),
             _ => Handled,
         }
     }
@@ -93,12 +99,12 @@ impl<'a> TaskDL<'a> {
     #[state]
     async fn downloading(&self, ctx: &mut Context<'_>, event: &Event) -> Response<State> {
         match event {
-            Event::Cancel => run_action!(self.act_cancel(ctx)),
-            Event::Pause => run_action!(self.act_pause(ctx)),
-            Event::Failed(_, err_msg) => run_action!(self.act_fail(ctx, err_msg)),
-            Event::Completed(result) => run_action!(self.act_complete(ctx, result.to_owned())),
-            Event::Remove(remove_files) => run_action!(self.act_remove(ctx, *remove_files)),
-            Event::Synced(status) => run_action!(self.act_sync(ctx, status)),
+            Event::Cancel => run_action!(self.cancel(ctx)),
+            Event::Pause => run_action!(self.pause(ctx)),
+            Event::Failed(_, err_msg) => run_action!(self.fail(ctx, err_msg)),
+            Event::Completed(result) => run_action!(self.complete(ctx, result.to_owned())),
+            Event::Remove(remove_files) => run_action!(self.remove(ctx, *remove_files)),
+            Event::Synced(status) => run_action!(self.sync(ctx, status)),
             _ => Handled,
         }
     }
@@ -106,9 +112,9 @@ impl<'a> TaskDL<'a> {
     #[state]
     async fn paused(&self, ctx: &mut Context<'_>, event: &Event) -> Response<State> {
         match event {
-            Event::Resume => run_action!(self.act_resume(ctx)),
-            Event::Remove(remove_files) => run_action!(self.act_remove(ctx, *remove_files)),
-            Event::Synced(status) => run_action!(self.act_sync(ctx, status)),
+            Event::Resume => run_action!(self.resume(ctx)),
+            Event::Remove(remove_files) => run_action!(self.remove(ctx, *remove_files)),
+            Event::Synced(status) => run_action!(self.sync(ctx, status)),
             _ => Handled,
         }
     }
@@ -116,11 +122,11 @@ impl<'a> TaskDL<'a> {
     #[state]
     async fn retrying(&self, ctx: &mut Context<'_>, event: &Event) -> Response<State> {
         match event {
-            Event::Cancel => run_action!(self.act_cancel(ctx)),
-            Event::Pause => run_action!(self.act_pause(ctx)),
-            Event::Retry => run_action!(self.act_retry(ctx)),
-            Event::Remove(remove_files) => run_action!(self.act_remove(ctx, *remove_files)),
-            Event::Synced(status) => run_action!(self.act_sync(ctx, status)),
+            Event::Cancel => run_action!(self.cancel(ctx)),
+            Event::Pause => run_action!(self.pause(ctx)),
+            Event::Retry => run_action!(self.retry(ctx)),
+            Event::Remove(remove_files) => run_action!(self.remove(ctx, *remove_files)),
+            Event::Synced(status) => run_action!(self.sync(ctx, status)),
             _ => Handled,
         }
     }
@@ -128,10 +134,10 @@ impl<'a> TaskDL<'a> {
     #[state]
     async fn failed(&self, ctx: &mut Context<'_>, event: &Event) -> Response<State> {
         match event {
-            Event::Retry => run_action!(self.act_retry(ctx)),
-            Event::Fallback => run_action!(self.act_fallback(ctx)),
-            Event::Remove(remove_files) => run_action!(self.act_remove(ctx, *remove_files)),
-            Event::Synced(status) => run_action!(self.act_sync(ctx, status)),
+            Event::Retry => run_action!(self.retry(ctx)),
+            Event::Fallback => run_action!(self.fallback(ctx)),
+            Event::Remove(remove_files) => run_action!(self.remove(ctx, *remove_files)),
+            Event::Synced(status) => run_action!(self.sync(ctx, status)),
             _ => Handled,
         }
     }
@@ -139,8 +145,8 @@ impl<'a> TaskDL<'a> {
     #[state]
     async fn completed(&self, ctx: &mut Context<'_>, event: &Event) -> Response<State> {
         match event {
-            Event::Remove(remove_files) => run_action!(self.act_remove(ctx, *remove_files)),
-            Event::Synced(status) => run_action!(self.act_sync(ctx, status)),
+            Event::Remove(remove_files) => run_action!(self.remove(ctx, *remove_files)),
+            Event::Synced(status) => run_action!(self.sync(ctx, status)),
             _ => Handled,
         }
     }
@@ -148,8 +154,8 @@ impl<'a> TaskDL<'a> {
     #[state]
     async fn cancelled(&self, ctx: &mut Context<'_>, event: &Event) -> Response<State> {
         match event {
-            Event::Remove(remove_files) => run_action!(self.act_remove(ctx, *remove_files)),
-            Event::Synced(status) => run_action!(self.act_sync(ctx, status)),
+            Event::Remove(remove_files) => run_action!(self.remove(ctx, *remove_files)),
+            Event::Synced(status) => run_action!(self.sync(ctx, status)),
             _ => Handled,
         }
     }
@@ -157,18 +163,13 @@ impl<'a> TaskDL<'a> {
 
 #[allow(clippy::needless_lifetimes)]
 impl<'a> TaskDL<'a> {
-    async fn act_start(
-        &self,
-        ctx: &mut Context<'_>,
-        resource: &Resource,
-    ) -> Result<Response<State>> {
+    async fn start(&self, ctx: &mut Context<'_>, resource: &Resource) -> Result<Response<State>> {
         let info_hash = resource.info_hash();
         let dir = ctx.task.dir.clone();
 
         match ctx.tdl.add_task(resource.clone(), dir.into()).await {
             Ok((tid, result)) => {
-                self.store
-                    .update_status(info_hash, DownloadStatus::Downloading, None, result)
+                self.update_status(info_hash, DownloadStatus::Downloading, None, result)
                     .await?;
 
                 if let Some(tid) = tid {
@@ -184,24 +185,23 @@ impl<'a> TaskDL<'a> {
         }
     }
 
-    async fn act_fail(&self, ctx: &mut Context<'_>, err_msg: &str) -> Result<Response<State>> {
+    async fn fail(&self, ctx: &mut Context<'_>, err_msg: &str) -> Result<Response<State>> {
         if let Err(e) = ctx.tdl.remove_task(&ctx.tid, true).await {
             warn!("移除失败任务出错: tid={}, 错误: {}", ctx.tid, e);
         }
 
         if ctx.task.retry_count >= ctx.tdl.config().max_retry_count {
-            self.store
-                .update_status(
-                    ctx.info_hash,
-                    DownloadStatus::Failed,
-                    Some(format!(
-                        "重试次数超过上限({}): {}",
-                        ctx.tdl.config().max_retry_count,
-                        err_msg
-                    )),
-                    None,
-                )
-                .await?;
+            self.update_status(
+                ctx.info_hash,
+                DownloadStatus::Failed,
+                Some(format!(
+                    "重试次数超过上限({}): {}",
+                    ctx.tdl.config().max_retry_count,
+                    err_msg
+                )),
+                None,
+            )
+            .await?;
 
             if ctx.task.allow_fallback {
                 ctx.next_event = Some(Event::Fallback);
@@ -213,8 +213,7 @@ impl<'a> TaskDL<'a> {
                 .config()
                 .calculate_next_retry(ctx.task.retry_count + 1);
 
-            self.store
-                .update_retry_status(ctx.info_hash, next_retry_at, Some(err_msg.to_string()))
+            self.update_retry_status(ctx.info_hash, next_retry_at, Some(err_msg.to_string()))
                 .await?;
 
             ctx.next_event = Some(Event::Retry);
@@ -222,43 +221,40 @@ impl<'a> TaskDL<'a> {
         }
     }
 
-    async fn act_cancel(&self, ctx: &mut Context<'_>) -> Result<Response<State>> {
+    async fn cancel(&self, ctx: &mut Context<'_>) -> Result<Response<State>> {
         if let Err(e) = ctx.tdl.cancel_task(&ctx.tid).await {
             warn!("取消任务出错: tid={}, 错误: {}", ctx.tid, e);
         }
 
-        self.store
-            .update_status(ctx.info_hash, DownloadStatus::Cancelled, None, None)
+        self.update_status(ctx.info_hash, DownloadStatus::Cancelled, None, None)
             .await?;
 
         Ok(Transition(State::cancelled()))
     }
 
-    async fn act_pause(&self, ctx: &mut Context<'_>) -> Result<Response<State>> {
+    async fn pause(&self, ctx: &mut Context<'_>) -> Result<Response<State>> {
         if let Err(e) = ctx.tdl.pause_task(&ctx.tid).await {
             warn!("暂停任务出错: tid={}, 错误: {}", ctx.tid, e);
         }
 
-        self.store
-            .update_status(ctx.info_hash, DownloadStatus::Paused, None, None)
+        self.update_status(ctx.info_hash, DownloadStatus::Paused, None, None)
             .await?;
 
         Ok(Transition(State::paused()))
     }
 
-    async fn act_resume(&self, ctx: &mut Context<'_>) -> Result<Response<State>> {
+    async fn resume(&self, ctx: &mut Context<'_>) -> Result<Response<State>> {
         if let Err(e) = ctx.tdl.resume_task(&ctx.tid).await {
             warn!("恢复任务出错: tid={}, 错误: {}", ctx.tid, e);
         }
 
-        self.store
-            .update_status(ctx.info_hash, DownloadStatus::Downloading, None, None)
+        self.update_status(ctx.info_hash, DownloadStatus::Downloading, None, None)
             .await?;
 
         Ok(Transition(State::downloading()))
     }
 
-    async fn act_complete(
+    async fn complete(
         &self,
         ctx: &mut Context<'_>,
         result: Option<String>,
@@ -269,14 +265,13 @@ impl<'a> TaskDL<'a> {
             }
         }
 
-        self.store
-            .update_status(ctx.info_hash, DownloadStatus::Completed, None, result)
+        self.update_status(ctx.info_hash, DownloadStatus::Completed, None, result)
             .await?;
 
         Ok(Transition(State::completed()))
     }
 
-    async fn act_retry(&self, ctx: &mut Context<'_>) -> Result<Response<State>> {
+    async fn retry(&self, ctx: &mut Context<'_>) -> Result<Response<State>> {
         let resource = self
             .store
             .load_resource(ctx.info_hash)
@@ -287,21 +282,19 @@ impl<'a> TaskDL<'a> {
             warn!("移除任务准备重试出错: tid={}, 错误: {}", ctx.tid, e);
         }
 
-        self.store
-            .update_status(ctx.info_hash, DownloadStatus::Pending, None, None)
+        self.update_status(ctx.info_hash, DownloadStatus::Pending, None, None)
             .await?;
 
         ctx.next_event = Some(Event::Start(resource));
         Ok(Transition(State::pending()))
     }
 
-    async fn act_sync(
+    async fn sync(
         &self,
         ctx: &mut Context<'_>,
         status: &DownloadStatus,
     ) -> Result<Response<State>> {
-        self.store
-            .update_status(ctx.info_hash, status.clone(), None, None)
+        self.update_status(ctx.info_hash, status.clone(), None, None)
             .await?;
 
         match status {
@@ -315,7 +308,7 @@ impl<'a> TaskDL<'a> {
         }
     }
 
-    async fn act_fallback(&self, ctx: &mut Context<'_>) -> Result<Response<State>> {
+    async fn fallback(&self, ctx: &mut Context<'_>) -> Result<Response<State>> {
         // 找到优先级最高的未使用下载器
         let fallback = self.dlrs.best_unused(&ctx.task.downloader);
 
@@ -337,36 +330,66 @@ impl<'a> TaskDL<'a> {
                 Ok(Transition(State::pending()))
             }
             None => {
-                self.store
-                    .update_status(
-                        ctx.info_hash,
-                        DownloadStatus::Failed,
-                        Some(format!(
-                            "没有可用的备选下载器: {}",
-                            &ctx.task.err_msg.as_ref().unwrap_or(&"".to_string())
-                        )),
-                        None,
-                    )
-                    .await?;
+                self.update_status(
+                    ctx.info_hash,
+                    DownloadStatus::Failed,
+                    Some(format!(
+                        "没有可用的备选下载器: {}",
+                        &ctx.task.err_msg.as_ref().unwrap_or(&"".to_string())
+                    )),
+                    None,
+                )
+                .await?;
                 Ok(Transition(State::failed()))
             }
         }
     }
 
-    async fn act_remove(
-        &self,
-        ctx: &mut Context<'_>,
-        remove_files: bool,
-    ) -> Result<Response<State>> {
+    async fn remove(&self, ctx: &mut Context<'_>, remove_files: bool) -> Result<Response<State>> {
         if let Err(e) = ctx.tdl.remove_task(&ctx.tid, remove_files).await {
             warn!("移除任务出错: tid={}, 错误: {}", ctx.tid, e);
         }
 
-        self.store
-            .update_status(ctx.info_hash, DownloadStatus::Cancelled, None, None)
+        self.update_status(ctx.info_hash, DownloadStatus::Cancelled, None, None)
             .await?;
 
         Ok(Transition(State::cancelled()))
+    }
+
+    async fn update_status(
+        &self,
+        info_hash: &str,
+        status: DownloadStatus,
+        err_msg: Option<String>,
+        result: Option<String>,
+    ) -> Result<()> {
+        self.store
+            .update_status(info_hash, status.clone(), err_msg.clone(), result)
+            .await?;
+        let _ = self.notify_tx.send(crate::Event::TaskUpdated((
+            info_hash.to_string(),
+            status,
+            err_msg,
+        )));
+        Ok(())
+    }
+
+    async fn update_retry_status(
+        &self,
+        info_hash: &str,
+        next_retry_at: NaiveDateTime,
+        err_msg: Option<String>,
+    ) -> Result<()> {
+        self.store
+            .update_retry_status(info_hash, next_retry_at, err_msg.clone())
+            .await?;
+
+        let _ = self.notify_tx.send(crate::Event::TaskUpdated((
+            info_hash.to_string(),
+            DownloadStatus::Retrying,
+            err_msg,
+        )));
+        Ok(())
     }
 }
 
@@ -376,10 +399,12 @@ impl<'a> TaskDL<'a> {
         store: &'a dyn Store,
         dlrs: &'a [Arc<Box<dyn ThirdPartyDownloader>>],
         ctx: &mut Context<'_>,
+        notify_tx: &'a broadcast::Sender<crate::Event>,
     ) -> InitializedStateMachine<Self> {
         Self {
             store,
             dlrs: dlrs.into(),
+            notify_tx,
         }
         .uninitialized_state_machine()
         .init_with_context(ctx)
