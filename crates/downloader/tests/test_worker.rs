@@ -421,9 +421,9 @@ async fn test_worker_add_retry_failed_task() {
         .unwrap();
 
     tokio::time::sleep(Duration::from_secs(1)).await;
-    worker_clone.sync_all().await.unwrap();
+    worker_clone.sync_all().await;
     worker_clone.retry(resource.info_hash()).await.unwrap();
-    worker_clone.sync_all().await.unwrap();
+    worker_clone.sync_all().await;
     worker_clone.shutdown().await.unwrap();
 
     // 验证下载中的任务状态

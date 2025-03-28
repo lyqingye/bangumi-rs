@@ -21,7 +21,7 @@ macro_rules! run_action {
     };
 }
 
-pub struct TaskStm<'a> {
+pub struct TaskDL<'a> {
     pub store: &'a dyn Store,
     pub dlrs: Dlrs<'a>,
 }
@@ -74,7 +74,7 @@ pub enum Event {
 }
 
 #[state_machine(initial = "State::pending()", context_identifier = "ctx")]
-impl<'a> TaskStm<'a> {
+impl<'a> TaskDL<'a> {
     #[state]
     async fn pending(&self, ctx: &mut Context<'_>, event: &Event) -> Response<State> {
         match event {
@@ -151,7 +151,7 @@ impl<'a> TaskStm<'a> {
     }
 }
 
-impl<'a> TaskStm<'a> {
+impl<'a> TaskDL<'a> {
     async fn act_start(
         &self,
         ctx: &mut Context<'_>,
@@ -312,9 +312,9 @@ impl<'a> TaskStm<'a> {
 
     async fn act_fallback(&self, ctx: &mut Context<'_>) -> Result<Response<State>> {
         // 找到优先级最高的未使用下载器
-        let fallback_dlr = self.dlrs.best_except(&ctx.task.downloader);
+        let fallback = self.dlrs.best_unused(&ctx.task.downloader);
 
-        match fallback_dlr {
+        match fallback {
             Some(dlr) => {
                 let mut new_dlr = ctx.task.downloader.to_string();
                 new_dlr.push(',');
@@ -365,14 +365,14 @@ impl<'a> TaskStm<'a> {
     }
 }
 
-impl<'a> TaskStm<'a> {
+impl<'a> TaskDL<'a> {
     pub async fn new(
         store: &'a dyn Store,
         dlrs: &'a [Arc<Box<dyn ThirdPartyDownloader>>],
         ctx: &mut Context<'_>,
     ) -> InitializedStateMachine<Self> {
         Self {
-            store: &*store,
+            store,
             dlrs: dlrs.into(),
         }
         .uninitialized_state_machine()

@@ -6,31 +6,30 @@ use crate::{
 };
 
 pub struct Dlrs<'a> {
-    downloaders: Vec<&'a dyn ThirdPartyDownloader>,
+    inner: Vec<&'a dyn ThirdPartyDownloader>,
 }
 
 impl<'a> Dlrs<'a> {
     pub fn best(&self) -> &'a dyn ThirdPartyDownloader {
-        self.downloaders
+        self.inner
             .iter()
             .max_by_key(|d| d.config().priority)
-            .map(|d| *d)
+            .copied()
             .unwrap()
     }
 
-    pub fn best_except(&self, except: &str) -> Option<&'a dyn ThirdPartyDownloader> {
-        self.downloaders
+    pub fn best_unused(&self, used: &str) -> Option<&'a dyn ThirdPartyDownloader> {
+        let used_set: std::collections::HashSet<&str> = used.split(',').collect();
+        self.inner
             .iter()
-            .filter(|d| !except.contains(d.name()))
+            .filter(|d| !used_set.contains(d.name()))
             .max_by_key(|d| d.config().priority)
-            .map(|d| *d)
+            .copied()
     }
 
     pub fn take(&self, name: &str) -> Option<&'a dyn ThirdPartyDownloader> {
-        self.downloaders
-            .iter()
-            .find(|d| d.name() == name)
-            .map(|d| *d)
+        let latest = name.split(',').last().unwrap();
+        self.inner.iter().find(|d| d.name() == latest).copied()
     }
 
     pub fn must_take(&self, name: &str) -> Result<&'a dyn ThirdPartyDownloader> {
@@ -39,7 +38,7 @@ impl<'a> Dlrs<'a> {
     }
 
     pub fn info(&self) -> Vec<DownloaderInfo> {
-        self.downloaders
+        self.inner
             .iter()
             .map(|d| DownloaderInfo {
                 name: d.name().to_string(),
@@ -52,7 +51,7 @@ impl<'a> Dlrs<'a> {
 impl<'a> From<&'a [Arc<Box<dyn ThirdPartyDownloader>>]> for Dlrs<'a> {
     fn from(downloaders: &'a [Arc<Box<dyn ThirdPartyDownloader>>]) -> Self {
         let downloaders = downloaders.iter().map(|d| &***d).collect::<Vec<_>>();
-        Self { downloaders }
+        Self { inner: downloaders }
     }
 }
 

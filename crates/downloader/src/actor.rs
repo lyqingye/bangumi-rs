@@ -7,7 +7,7 @@ use crate::{
     errors::{Error, Result},
     metrics,
     resource::Resource,
-    stm::{Context, Event, TaskStm},
+    stm::{Context, Event, TaskDL},
 };
 use async_trait::async_trait;
 use chrono::Local;
@@ -83,13 +83,7 @@ impl Actor {
                 let mut ticker = actor.config.sync_tick();
                 loop {
                     ticker.tick().await;
-                    actor
-                        .sync_all()
-                        .await
-                        .inspect_err(|e| {
-                            error!("同步远程任务状态失败: {}", e);
-                        })
-                        .ok();
+                    actor.sync_all().await;
                 }
             });
         }
@@ -99,7 +93,7 @@ impl Actor {
 
     pub async fn run_loop(&self, mut tx_rx: mpsc::UnboundedReceiver<Tx>) {
         let mut ctx = Context::uninit(self.dlrs().best());
-        let mut stm = TaskStm::new(&**self.store, &self.dlrs, &mut ctx).await;
+        let mut stm = TaskDL::new(&**self.store, &self.dlrs, &mut ctx).await;
         let dlrs = Dlrs::from(&self.dlrs);
         while let Some(tx) = tx_rx.recv().await {
             if let Event::Shutdown(tx) = tx.1 {
@@ -118,7 +112,7 @@ impl Actor {
 
     async fn execute(
         &self,
-        stm: &mut InitializedStateMachine<TaskStm<'_>>,
+        stm: &mut InitializedStateMachine<TaskDL<'_>>,
         tx: Tx,
         dlrs: &Dlrs<'_>,
     ) -> Result<()> {
@@ -201,11 +195,15 @@ impl Actor {
         Ok(())
     }
 
-    pub async fn sync_all(&self) -> Result<()> {
+    pub async fn sync_all(&self) {
         for dlr in self.dlrs.iter() {
-            self.sync_single(&***dlr).await?;
+            self.sync_single(&***dlr)
+                .await
+                .inspect_err(|e| {
+                    error!("同步下载器:({}) 任务状态失败: {}", dlr.name(), e);
+                })
+                .ok();
         }
-        Ok(())
     }
 
     pub async fn sync_single(&self, downloader: &dyn ThirdPartyDownloader) -> Result<()> {
@@ -338,8 +336,8 @@ impl Downloader for Actor {
         allow_fallback: bool,
     ) -> Result<()> {
         let info_hash = resource.info_hash();
-        let downloader = if let Some(downloader_name) = downloader {
-            self.dlrs().must_take(&downloader_name)?
+        let downloader = if let Some(name) = downloader {
+            self.dlrs().must_take(&name)?
         } else {
             self.dlrs().best()
         };

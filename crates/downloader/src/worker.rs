@@ -229,6 +229,15 @@ impl Worker {
         }
         Ok(())
     }
+
+    // NOTE: 这个方法需要是 pub(crate) 才能在 syncer.rs 中调用
+    pub(crate) fn take_downloader_by_name(&self, name: &str) -> Result<&dyn ThirdPartyDownloader> {
+        self.downloaders
+            .iter()
+            .find(|d| d.name() == name)
+            .map(|d| &***d)
+            .ok_or_else(|| Error::DownloaderNotFound(name.to_string()))
+    }
 }
 
 /// External Function
@@ -249,7 +258,7 @@ impl Worker {
             allow_fallback
         );
         let downloader = if let Some(downloader_name) = downloader {
-            self.take_downloader(&downloader_name)?
+            self.take_downloader_by_name(&downloader_name)?
         } else {
             self.best_downloader()
         };
@@ -309,7 +318,7 @@ impl Worker {
         let (downloader_name, file_id) = file_id
             .split_once('-')
             .ok_or_else(|| Error::InvalidFileId(file_id.to_string()))?;
-        let downloader = self.take_downloader(downloader_name)?;
+        let downloader = self.take_downloader_by_name(downloader_name)?;
         let result = downloader.dl_file(file_id, ua).await;
 
         if let Err(ref e) = result {
