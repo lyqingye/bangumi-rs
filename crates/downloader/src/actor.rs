@@ -4,7 +4,7 @@ use crate::{
     DownloadInfo, Downloader, DownloaderInfo, FileInfo, RemoteTaskStatus, Store,
     ThirdPartyDownloader, Tid,
     config::Config,
-    dlrs::Dlrs,
+    dlrs::{Dlrs, assigned_dlr},
     errors::{Error, Result},
     metrics,
     resource::Resource,
@@ -120,6 +120,7 @@ impl Actor {
     ) -> Result<()> {
         let (info_hash, mut event) = tx;
 
+        let mut init = true;
         loop {
             let task = self
                 .store
@@ -138,6 +139,14 @@ impl Actor {
                 tdl,
                 next_event: None,
             };
+
+            // 这里是为了复用状态机，避免状态机在处理事件时，状态发生变化
+            // 所以需要先初始化状态机
+            if init {
+                stm.handle_with_context(&Event::Init(task.download_status.clone()), &mut ctx)
+                    .await;
+                init = false;
+            }
 
             stm.handle_with_context(&event, &mut ctx).await;
 
@@ -211,30 +220,49 @@ impl Actor {
 /// 同步所有下载器任务状态
 impl Actor {
     pub async fn sync_all(&self) {
-        for dlr in self.dlrs.iter() {
-            self.sync_single(&***dlr)
-                .await
-                .inspect_err(|e| {
-                    error!("同步下载器:({}) 任务状态失败: {}", dlr.name(), e);
-                })
-                .ok();
-        }
-    }
-
-    async fn sync_single(&self, dlr: &dyn ThirdPartyDownloader) -> Result<()> {
         let tstats = [
             DownloadStatus::Downloading,
             DownloadStatus::Pending,
             DownloadStatus::Paused,
         ];
 
-        let ltasks = self
-            .store
-            .list_by_dlr_and_status(dlr.name(), &tstats)
-            .await?;
+        let tasks = match self.store.list_by_status(&tstats).await {
+            Ok(tasks) => tasks,
+            Err(e) => {
+                error!("无法获取需要同步的任务状态: {}", e);
+                return;
+            }
+        };
 
-        debug!("需要同步的下载任务数量: {}", ltasks.len());
+        if tasks.is_empty() {
+            return;
+        }
 
+        info!("需要同步状态的任务数量: {}", tasks.len());
+
+        // 根据下载器分组
+        let mut dlr_with_tasks = HashMap::new();
+        for task in tasks.iter() {
+            let dlr = assigned_dlr(&task.downloader);
+            dlr_with_tasks
+                .entry(dlr)
+                .or_insert_with(Vec::new)
+                .push(task);
+        }
+
+        // 同步每个下载器
+        for (dlr, tasks) in dlr_with_tasks.iter() {
+            self.sync_single(dlr, tasks)
+                .await
+                .inspect_err(|e| {
+                    error!("同步下载器:({}) 任务状态失败: {}", dlr, e);
+                })
+                .ok();
+        }
+    }
+
+    async fn sync_single(&self, dlr_name: &str, ltasks: &[&Model]) -> Result<()> {
+        let dlr = self.dlrs().must_take(dlr_name)?;
         if ltasks.is_empty() {
             return Ok(());
         }

@@ -1272,6 +1272,7 @@ dependencies = [
  "notify",
  "pan-115",
  "qbittorrent",
+ "rand 0.9.0",
  "regex",
  "reqwest",
  "sea-orm",

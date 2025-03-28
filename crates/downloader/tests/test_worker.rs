@@ -38,6 +38,14 @@ fn create_test_resource() -> Resource {
     Resource::from_info_hash("f6ebf8a1f26d01f317c8e94ec40ebb3dd1a75d40").unwrap()
 }
 
+fn create_random_resource() -> Resource {
+    let mut random_hash = String::new();
+    for _ in 0..40 {
+        random_hash.push_str(&format!("{:x}", rand::random::<u8>() & 0x0F));
+    }
+    Resource::from_info_hash(random_hash).unwrap()
+}
+
 // 创建模拟下载器，可自定义任务状态
 fn create_mock_downloader(config: GenericConfig) -> MockThirdPartyDownloader {
     let mut mock_downloader = MockThirdPartyDownloader::new();
@@ -685,14 +693,14 @@ async fn test_worker_fallback_task() {
     let mut success_downloader = MockThirdPartyDownloader::new();
     success_downloader
         .expect_add_task()
-        .returning(|_, _| Ok((Some(Tid::from("success".to_string())), None)));
+        .returning(|resource, _| Ok((Some(Tid::from(resource.info_hash())), None)));
     success_downloader.expect_name().returning(|| "success");
     success_downloader.expect_list_tasks().returning(|_| {
         let mut tasks = HashMap::new();
         tasks.insert(
             Tid::from("f6ebf8a1f26d01f317c8e94ec40ebb3dd1a75d40"),
             RemoteTaskStatus {
-                status: DownloadStatus::Downloading,
+                status: DownloadStatus::Completed,
                 err_msg: None,
                 result: None,
             },
@@ -746,10 +754,10 @@ async fn test_worker_fallback_task() {
         "应该切换到成功的下载器"
     );
     assert_eq!(task.retry_count, 0, "切换下载器后重试次数应该重置");
-    assert_eq!(task.download_status, DownloadStatus::Downloading);
     assert_eq!(task.resource_type, resource.get_type());
     assert_eq!(task.magnet, resource.magnet());
     assert_eq!(task.downloader, "failed,success");
+    assert_eq!(task.download_status, DownloadStatus::Completed);
 
     // 关闭工作者
     worker.shutdown().await.unwrap();
@@ -794,7 +802,7 @@ async fn test_worker_fallback_task_with_allow_fallback_false() {
     let mut success_downloader = MockThirdPartyDownloader::new();
     success_downloader
         .expect_add_task()
-        .returning(|_, _| Ok((Some(Tid::from("success".to_string())), None)));
+        .returning(|resource, _| Ok((Some(Tid::from(resource.info_hash())), None)));
     success_downloader.expect_name().returning(|| "success");
     success_downloader.expect_list_tasks().returning(|_| {
         let mut tasks = HashMap::new();
@@ -949,4 +957,77 @@ async fn test_notify_subscriber() {
     assert_eq!(tasks.len(), 1);
     assert_eq!(tasks[0].info_hash, resource.info_hash());
     assert_eq!(tasks[0].context, Some("completed".to_string()));
+}
+
+#[tokio::test]
+async fn test_reset_stm_state() {
+    // 初始化测试环境
+    init_test_env();
+
+    // 创建自定义状态的任务
+    let resource = create_test_resource();
+    let mut downloading_task = HashMap::new();
+    downloading_task.insert(
+        Tid::from(resource.info_hash()),
+        RemoteTaskStatus {
+            status: DownloadStatus::Completed,
+            err_msg: None,
+            result: None,
+        },
+    );
+
+    let resource2 = create_random_resource();
+    let mut downloading_task2 = HashMap::new();
+    downloading_task2.insert(
+        Tid::from(resource2.info_hash()),
+        RemoteTaskStatus {
+            status: DownloadStatus::Downloading,
+            err_msg: None,
+            result: None,
+        },
+    );
+
+    // 创建存储和配置
+    let store = MockStore::new();
+    let mut mock_downloader = create_mock_downloader(create_test_config());
+    mock_downloader
+        .expect_list_tasks()
+        .returning(move |_| Ok(downloading_task.clone()));
+
+    // 创建并启动worker
+    let mut worker = create_test_worker(store.clone(), mock_downloader);
+    worker.spawn().await.unwrap();
+
+    // 添加任务并同步
+    worker
+        .add_task(resource.clone(), PathBuf::from("test2"), None, true)
+        .await
+        .unwrap();
+
+    // 等待同步完成
+    tokio::time::sleep(Duration::from_secs(1)).await;
+    worker.sync_all().await;
+
+    // 验证数据库状态
+    let tasks = store
+        .list_by_status(&[DownloadStatus::Completed])
+        .await
+        .unwrap();
+    assert_eq!(tasks.len(), 1);
+    assert_eq!(tasks[0].info_hash, resource.info_hash());
+    worker
+        .add_task(resource2.clone(), PathBuf::from("test2"), None, true)
+        .await
+        .unwrap();
+    tokio::time::sleep(Duration::from_secs(1)).await;
+    worker.sync_all().await;
+
+    let tasks = store
+        .list_by_status(&[DownloadStatus::Downloading])
+        .await
+        .unwrap();
+    assert_eq!(tasks.len(), 1);
+    assert_eq!(tasks[0].info_hash, resource2.info_hash());
+
+    worker.shutdown().await.unwrap();
 }
