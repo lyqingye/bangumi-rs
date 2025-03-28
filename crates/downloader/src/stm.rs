@@ -8,7 +8,7 @@ use statig::awaitable::InitializedStateMachine;
 use statig::prelude::*;
 use std::sync::Arc;
 use tokio::sync::{broadcast, oneshot};
-use tracing::warn;
+use tracing::{info, warn};
 
 macro_rules! run_action {
     ($action:expr) => {
@@ -83,6 +83,8 @@ pub enum Event {
     context_identifier = "ctx",
     state(derive(Debug))
 )]
+
+/// 状态机 State Transition Table
 #[allow(clippy::needless_lifetimes)]
 impl<'a> TaskDL<'a> {
     #[state]
@@ -161,11 +163,14 @@ impl<'a> TaskDL<'a> {
     }
 }
 
+/// 状态机Actions
 #[allow(clippy::needless_lifetimes)]
 impl<'a> TaskDL<'a> {
     async fn start(&self, ctx: &mut Context<'_>, resource: &Resource) -> Result<Response<State>> {
         let info_hash = resource.info_hash();
         let dir = ctx.task.dir.clone();
+
+        info!("开始任务: info_hash={} dir={}", info_hash, dir);
 
         match ctx.tdl.add_task(resource.clone(), dir.into()).await {
             Ok((tid, result)) => {
@@ -186,6 +191,8 @@ impl<'a> TaskDL<'a> {
     }
 
     async fn fail(&self, ctx: &mut Context<'_>, err_msg: &str) -> Result<Response<State>> {
+        warn!("任务失败: info_hash={} err_msg={}", ctx.info_hash, err_msg);
+
         ctx.tdl
             .remove_task(&ctx.tid, true)
             .await
@@ -226,11 +233,13 @@ impl<'a> TaskDL<'a> {
     }
 
     async fn cancel(&self, ctx: &mut Context<'_>) -> Result<Response<State>> {
+        info!("取消任务: info_hash={}", ctx.info_hash);
+
         ctx.tdl
             .cancel_task(&ctx.tid)
             .await
             .inspect_err(|e| {
-                warn!("取消任务出错: tid={}, 错误: {}", ctx.tid, e);
+                warn!("取消任务出错: tid={} 错误: {}", ctx.tid, e);
             })
             .ok();
 
@@ -241,11 +250,13 @@ impl<'a> TaskDL<'a> {
     }
 
     async fn pause(&self, ctx: &mut Context<'_>) -> Result<Response<State>> {
+        info!("暂停任务: info_hash={}", ctx.info_hash);
+
         ctx.tdl
             .pause_task(&ctx.tid)
             .await
             .inspect_err(|e| {
-                warn!("暂停任务出错: tid={}, 错误: {}", ctx.tid, e);
+                warn!("暂停任务出错: tid={} 错误: {}", ctx.tid, e);
             })
             .ok();
 
@@ -256,6 +267,8 @@ impl<'a> TaskDL<'a> {
     }
 
     async fn resume(&self, ctx: &mut Context<'_>) -> Result<Response<State>> {
+        info!("恢复任务: info_hash={}", ctx.info_hash);
+
         ctx.tdl
             .resume_task(&ctx.tid)
             .await
@@ -275,6 +288,8 @@ impl<'a> TaskDL<'a> {
         ctx: &mut Context<'_>,
         result: Option<String>,
     ) -> Result<Response<State>> {
+        info!("任务完成: info_hash={} result={:?}", ctx.info_hash, result);
+
         if ctx.tdl.config().delete_task_on_completion {
             ctx.tdl
                 .remove_task(&ctx.tid, false)
@@ -292,6 +307,8 @@ impl<'a> TaskDL<'a> {
     }
 
     async fn retry(&self, ctx: &mut Context<'_>) -> Result<Response<State>> {
+        info!("重试任务: info_hash={}", ctx.info_hash);
+
         let resource = self
             .store
             .load_resource(ctx.info_hash)
@@ -318,6 +335,11 @@ impl<'a> TaskDL<'a> {
         ctx: &mut Context<'_>,
         status: &DownloadStatus,
     ) -> Result<Response<State>> {
+        info!(
+            "任务状态同步: info_hash={}, status={:?}",
+            ctx.info_hash, status
+        );
+
         self.update_status(ctx.info_hash, status.clone(), None, None)
             .await?;
 
@@ -338,6 +360,12 @@ impl<'a> TaskDL<'a> {
 
         match fallback {
             Some(dlr) => {
+                info!(
+                    "自动降级: info_hash={}, 使用下载器: {}",
+                    ctx.info_hash,
+                    dlr.name()
+                );
+
                 let mut new_dlr = ctx.task.downloader.to_string();
                 new_dlr.push(',');
                 new_dlr.push_str(dlr.name());
@@ -354,6 +382,11 @@ impl<'a> TaskDL<'a> {
                 Ok(Transition(State::pending()))
             }
             None => {
+                warn!(
+                    "自动降级失败,没有可用的备选下载器: info_hash={}",
+                    ctx.info_hash
+                );
+
                 self.update_status(
                     ctx.info_hash,
                     DownloadStatus::Failed,
@@ -364,12 +397,18 @@ impl<'a> TaskDL<'a> {
                     None,
                 )
                 .await?;
+
                 Ok(Transition(State::failed()))
             }
         }
     }
 
     async fn remove(&self, ctx: &mut Context<'_>, remove_files: bool) -> Result<Response<State>> {
+        info!(
+            "移除任务: info_hash={}, remove_files={}",
+            ctx.info_hash, remove_files
+        );
+
         ctx.tdl
             .remove_task(&ctx.tid, remove_files)
             .await
@@ -382,6 +421,25 @@ impl<'a> TaskDL<'a> {
             .await?;
 
         Ok(Transition(State::cancelled()))
+    }
+}
+
+#[allow(clippy::needless_lifetimes)]
+impl<'a> TaskDL<'a> {
+    pub async fn new(
+        store: &'a dyn Store,
+        dlrs: &'a [Arc<Box<dyn ThirdPartyDownloader>>],
+        ctx: &mut Context<'_>,
+        notify_tx: &'a broadcast::Sender<crate::Event>,
+    ) -> InitializedStateMachine<Self> {
+        Self {
+            store,
+            dlrs: dlrs.into(),
+            notify_tx,
+        }
+        .uninitialized_state_machine()
+        .init_with_context(ctx)
+        .await
     }
 
     async fn update_status(
@@ -418,24 +476,5 @@ impl<'a> TaskDL<'a> {
             err_msg,
         )));
         Ok(())
-    }
-}
-
-#[allow(clippy::needless_lifetimes)]
-impl<'a> TaskDL<'a> {
-    pub async fn new(
-        store: &'a dyn Store,
-        dlrs: &'a [Arc<Box<dyn ThirdPartyDownloader>>],
-        ctx: &mut Context<'_>,
-        notify_tx: &'a broadcast::Sender<crate::Event>,
-    ) -> InitializedStateMachine<Self> {
-        Self {
-            store,
-            dlrs: dlrs.into(),
-            notify_tx,
-        }
-        .uninitialized_state_machine()
-        .init_with_context(ctx)
-        .await
     }
 }
