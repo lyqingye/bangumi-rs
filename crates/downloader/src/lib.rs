@@ -3,6 +3,7 @@ pub mod actor;
 pub mod config;
 pub mod context;
 pub mod db;
+pub mod dlrs;
 pub mod errors;
 pub mod metrics;
 pub mod resource;
@@ -68,7 +69,7 @@ pub trait Downloader: Send + Sync {
     async fn resume_task(&self, info_hash: &str) -> Result<()>;
     fn supports_resource_type(&self, resource_type: ResourceType) -> bool;
     fn recommended_resource_type(&self) -> ResourceType;
-    fn get_dlr(&self, downloader: &str) -> Option<&dyn ThirdPartyDownloader>;
+    fn take_dlr(&self, downloader: &str) -> Option<&dyn ThirdPartyDownloader>;
     fn dlrs(&self) -> Vec<DownloaderInfo>;
 }
 

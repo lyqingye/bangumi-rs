@@ -174,7 +174,7 @@ impl TaskManager {
         let mut use_preferred_downloader = false;
         // 如果指定了下载器，则使用指定的下载器
         if let Some(ref preferred_downloader) = subscribe.preferred_downloader {
-            if let Some(downloader) = self.downloader.get_dlr(preferred_downloader) {
+            if let Some(downloader) = self.downloader.take_dlr(preferred_downloader) {
                 using_torrent = matches!(
                     downloader.recommended_resource_type(),
                     ResourceType::Torrent | ResourceType::TorrentURL

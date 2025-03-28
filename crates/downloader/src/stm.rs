@@ -1,3 +1,4 @@
+use crate::dlrs::Dlrs;
 use crate::errors::{Error, Result};
 use crate::{Store, ThirdPartyDownloader, Tid, resource::Resource};
 use model::sea_orm_active_enums::DownloadStatus;
@@ -20,9 +21,9 @@ macro_rules! run_action {
     };
 }
 
-pub struct TaskStm {
-    pub store: Arc<Box<dyn Store>>,
-    pub dlrs: Vec<Arc<Box<dyn ThirdPartyDownloader>>>,
+pub struct TaskStm<'a> {
+    pub store: &'a dyn Store,
+    pub dlrs: Dlrs<'a>,
 }
 
 pub struct Context<'a> {
@@ -73,7 +74,7 @@ pub enum Event {
 }
 
 #[state_machine(initial = "State::pending()", context_identifier = "ctx")]
-impl TaskStm {
+impl<'a> TaskStm<'a> {
     #[state]
     async fn pending(&self, ctx: &mut Context<'_>, event: &Event) -> Response<State> {
         match event {
@@ -150,7 +151,7 @@ impl TaskStm {
     }
 }
 
-impl TaskStm {
+impl<'a> TaskStm<'a> {
     async fn act_start(
         &self,
         ctx: &mut Context<'_>,
@@ -311,18 +312,13 @@ impl TaskStm {
 
     async fn act_fallback(&self, ctx: &mut Context<'_>) -> Result<Response<State>> {
         // 找到优先级最高的未使用下载器
-        let fallback_dlr = self
-            .dlrs
-            .iter()
-            .filter(|d| !ctx.task.downloader.contains(d.name()))
-            .max_by_key(|d| d.config().priority)
-            .map(|d| d.name());
+        let fallback_dlr = self.dlrs.best_except(&ctx.task.downloader);
 
         match fallback_dlr {
             Some(dlr) => {
                 let mut new_dlr = ctx.task.downloader.to_string();
                 new_dlr.push(',');
-                new_dlr.push_str(dlr);
+                new_dlr.push_str(dlr.name());
 
                 self.store.assign_dlr(ctx.info_hash, new_dlr).await?;
 
@@ -369,15 +365,15 @@ impl TaskStm {
     }
 }
 
-impl TaskStm {
+impl<'a> TaskStm<'a> {
     pub async fn new(
-        store: Arc<Box<dyn Store>>,
-        downloaders: Vec<Arc<Box<dyn ThirdPartyDownloader>>>,
+        store: &'a dyn Store,
+        dlrs: &'a [Arc<Box<dyn ThirdPartyDownloader>>],
         ctx: &mut Context<'_>,
     ) -> InitializedStateMachine<Self> {
         Self {
-            store,
-            dlrs: downloaders,
+            store: &*store,
+            dlrs: dlrs.into(),
         }
         .uninitialized_state_machine()
         .init_with_context(ctx)

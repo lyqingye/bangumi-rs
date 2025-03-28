@@ -3,6 +3,7 @@ use std::{path::PathBuf, sync::Arc, time::Duration};
 use crate::{
     DownloadInfo, Downloader, DownloaderInfo, FileInfo, Store, ThirdPartyDownloader, Tid,
     config::Config,
+    dlrs::Dlrs,
     errors::{Error, Result},
     metrics,
     resource::Resource,
@@ -97,25 +98,30 @@ impl Actor {
     }
 
     pub async fn run_loop(&self, mut tx_rx: mpsc::UnboundedReceiver<Tx>) {
-        let mut ctx = Context::uninit(self.best_dlr());
-        let mut stm = TaskStm::new(self.store.clone(), self.dlrs.clone(), &mut ctx).await;
-
+        let mut ctx = Context::uninit(self.dlrs().best());
+        let mut stm = TaskStm::new(&**self.store, &self.dlrs, &mut ctx).await;
+        let dlrs = Dlrs::from(&self.dlrs);
         while let Some(tx) = tx_rx.recv().await {
-            if let Event::Shutdown(shutdown_tx) = tx.1 {
-                let _ = shutdown_tx.send(());
+            if let Event::Shutdown(tx) = tx.1 {
+                let _ = tx.send(());
                 break;
             }
 
-            match self.execute(&mut stm, tx).await {
-                Ok(_) => {}
-                Err(e) => {
+            self.execute(&mut stm, tx, &dlrs)
+                .await
+                .inspect_err(|e| {
                     error!("处理事件失败: {}", e);
-                }
-            }
+                })
+                .ok();
         }
     }
 
-    async fn execute(&self, stm: &mut InitializedStateMachine<TaskStm>, tx: Tx) -> Result<()> {
+    async fn execute(
+        &self,
+        stm: &mut InitializedStateMachine<TaskStm<'_>>,
+        tx: Tx,
+        dlrs: &Dlrs<'_>,
+    ) -> Result<()> {
         let (info_hash, mut event) = tx;
 
         loop {
@@ -127,7 +133,7 @@ impl Actor {
                 .cloned()
                 .ok_or(Error::TaskNotFound(info_hash.clone()))?;
 
-            let tdl = self.take_dlr(&task.downloader)?;
+            let tdl = dlrs.must_take(&task.downloader)?;
 
             let mut ctx = Context {
                 tid: Tid::from(task.tid()),
@@ -136,11 +142,14 @@ impl Actor {
                 tdl,
                 next_event: None,
             };
+
             stm.handle_with_context(&event, &mut ctx).await;
-            if ctx.next_event.is_none() {
+
+            if let Some(next) = ctx.next_event {
+                event = next;
+            } else {
                 break;
             }
-            event = ctx.next_event.unwrap();
         }
 
         Ok(())
@@ -158,6 +167,7 @@ impl Actor {
                 .load_resource(&task.info_hash)
                 .await?
                 .ok_or(Error::ResourceNotFound(task.info_hash.to_string()))?;
+
             if let Err(e) = self
                 .tx
                 .send((task.info_hash.clone(), Event::Start(resource)))
@@ -312,17 +322,9 @@ impl Actor {
             .map_err(|_| Error::ShutdownTimeout)?;
         Ok(())
     }
-}
 
-impl Actor {
-    fn take_dlr(&self, assigned_downloader: &str) -> Result<&dyn ThirdPartyDownloader> {
-        let latest = assigned_downloader.split(',').last().unwrap();
-        let downloader = &***self
-            .dlrs
-            .iter()
-            .find(|d| d.name() == latest)
-            .ok_or(Error::DownloaderNotFound(latest.to_string()))?;
-        Ok(downloader)
+    pub fn dlrs(&self) -> Dlrs<'_> {
+        Dlrs::from(&self.dlrs)
     }
 }
 
@@ -337,9 +339,9 @@ impl Downloader for Actor {
     ) -> Result<()> {
         let info_hash = resource.info_hash();
         let downloader = if let Some(downloader_name) = downloader {
-            self.take_dlr(&downloader_name)?
+            self.dlrs().must_take(&downloader_name)?
         } else {
-            self.best_dlr()
+            self.dlrs().best()
         };
         self.store
             .create(
@@ -393,7 +395,7 @@ impl Downloader for Actor {
             .cloned()
             .ok_or_else(|| Error::TaskNotFound(info_hash.to_string()))?;
         let tid = Tid::from(task.tid());
-        let downloader = self.take_dlr(&task.downloader)?;
+        let downloader = self.dlrs().must_take(&task.downloader)?;
         let mut result = downloader.list_files(&tid, task.context.clone()).await?;
         for file in result.iter_mut() {
             file.file_id = format!("{}-{}", downloader.name(), file.file_id);
@@ -406,7 +408,7 @@ impl Downloader for Actor {
         let (dlr_name, file_id) = file_id
             .split_once('-')
             .ok_or_else(|| Error::InvalidFileId(file_id.to_string()))?;
-        let dlr = self.take_dlr(dlr_name)?;
+        let dlr = self.dlrs().must_take(dlr_name)?;
         let result = dlr.dl_file(file_id, ua).await;
 
         if let Err(ref e) = result {
@@ -438,35 +440,14 @@ impl Downloader for Actor {
     }
 
     fn recommended_resource_type(&self) -> ResourceType {
-        self.best_dlr().recommended_resource_type()
-    }
-
-    fn get_dlr(&self, dlr: &str) -> Option<&dyn ThirdPartyDownloader> {
-        self.dlrs.iter().find(|d| d.name() == dlr).map(|d| &***d)
+        self.dlrs().best().recommended_resource_type()
     }
 
     fn dlrs(&self) -> Vec<DownloaderInfo> {
-        let mut dlrs: Vec<DownloaderInfo> = self
-            .dlrs
-            .iter()
-            .map(|d| DownloaderInfo {
-                name: d.name().to_string(),
-                priority: d.config().priority,
-            })
-            .collect();
-
-        dlrs.sort_by(|a, b| b.priority.cmp(&a.priority));
-
-        dlrs
+        self.dlrs().info()
     }
-}
 
-impl Actor {
-    fn best_dlr(&self) -> &dyn ThirdPartyDownloader {
-        &***self
-            .dlrs
-            .iter()
-            .max_by_key(|d| d.config().priority)
-            .unwrap()
+    fn take_dlr(&self, dlr: &str) -> Option<&dyn ThirdPartyDownloader> {
+        self.dlrs().take(dlr)
     }
 }

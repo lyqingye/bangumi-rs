@@ -851,7 +851,7 @@ impl Downloader for Worker {
         self.best_downloader().recommended_resource_type()
     }
 
-    fn get_dlr(&self, downloader: &str) -> Option<&dyn ThirdPartyDownloader> {
+    fn take_dlr(&self, downloader: &str) -> Option<&dyn ThirdPartyDownloader> {
         self.downloaders
             .iter()
             .find(|d| d.name() == downloader)
