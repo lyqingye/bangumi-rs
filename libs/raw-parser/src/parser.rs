@@ -54,6 +54,11 @@ lazy_static! {
 
     // 匹配技术规格的正则表达式，需要去掉，免得影响匹配集数
     static ref TECHNICAL_SPECS_PATTERN: Regex = Regex::new(r"\d+(?:-)?(?:fps|bit|kHz|Hz)").unwrap();
+
+    // 匹配所有标点符号、括号、特殊字符
+    static ref PUNCTUATION_PATTERN: Regex = Regex::new(r"[^\w\u4e00-\u9fff\u3040-\u309f\u30a0-\u30ff]").unwrap();
+    // 匹配连续的空格
+    static ref MULTIPLE_SPACES_PATTERN: Regex = Regex::new(r"\s{2,}").unwrap();
 }
 
 /// 动画文件名解析器
@@ -113,16 +118,6 @@ impl Parser {
         result
     }
 
-    fn remove_season(name: &str) -> (String, String) {
-        let mut result = name.to_string();
-        let mut season_info = "";
-        for ele in SEASON_PATTERN.find_iter(name) {
-            season_info = ele.as_str();
-            result = result.replace(season_info, "");
-        }
-        (result, season_info.to_string())
-    }
-
     /// 处理季度信息，返回处理后的名称、原始季度文本和季度数字
     fn season_process(season_info: &str) -> Option<i32> {
         let name_season = BRACKET_PATTERN.replace_all(season_info, " ").into_owned();
@@ -172,31 +167,11 @@ impl Parser {
             .replace("（仅限港澳台地区）", "");
 
         // 分割标题
-        let mut splits: Vec<String> = name
-            .split(['/', '-', '_'])
+        let splits: Vec<String> = name
+            .split(['/', '_'])
             .map(|s| s.trim().to_string())
             .filter(|s| !s.is_empty())
             .collect();
-
-        // 处理单个标题的情况
-        if splits.len() == 1 {
-            let split_space: Vec<String> = splits[0]
-                .split_whitespace()
-                .map(|s| s.to_string())
-                .collect();
-
-            if !split_space.is_empty() {
-                for &idx in &[0, split_space.len() - 1] {
-                    if let Some(word) = split_space.get(idx) {
-                        if CHS_PATTERN.is_match(word) {
-                            let joined_space = split_space.join(" ");
-                            splits = vec![word.clone(), joined_space];
-                            break;
-                        }
-                    }
-                }
-            }
-        }
 
         let mut name_en = None;
         let mut name_zh = None;
@@ -205,15 +180,28 @@ impl Parser {
         // 识别不同语言的标题
         for item in &splits {
             if JP_PATTERN.is_match(item) && name_jp.is_none() {
-                name_jp = Some(item.clone());
+                name_jp = Some(Self::clean_name(item));
             } else if CHS_PATTERN.is_match(item) && name_zh.is_none() {
-                name_zh = Some(item.clone());
+                name_zh = Some(Self::clean_name(item));
             } else if EN_PATTERN.is_match(item) && name_en.is_none() {
-                name_en = Some(item.clone());
+                name_en = Some(Self::clean_name(item));
             }
         }
 
         (name_en, name_zh, name_jp)
+    }
+
+    fn clean_name(name: &str) -> String {
+        // 使用正则表达式替换所有标点符号、括号等为空格
+        let result = PUNCTUATION_PATTERN.replace_all(name, " ").into_owned();
+
+        // 处理连续的空格，替换为单个空格
+        let result = MULTIPLE_SPACES_PATTERN
+            .replace_all(&result, " ")
+            .into_owned();
+
+        // 去除首尾空格
+        result.trim().to_string()
     }
 
     /// 从其他信息中提取字幕类型和分辨率
@@ -262,18 +250,29 @@ impl Parser {
             .collect()
     }
 
+    #[allow(dead_code)]
+    /// 用于移除标题上的 Season 信息，以及其它信息，用于搜索
+    pub fn remove_season(name: &str) -> (String, Option<i32>) {
+        let mut result = name.to_string();
+        let mut season_info = "";
+        for ele in SEASON_PATTERN.find_iter(name) {
+            season_info = ele.as_str();
+            result = result.replace(season_info, "");
+        }
+        (Self::clean_name(&result), Self::season_process(season_info))
+    }
+
     /// 解析动画文件名，提取所有相关信息
     pub fn parse(&self, file_name: &str) -> Result<ParseResult> {
         let raw_title = file_name.trim().replace('\n', " ");
         let content_title = Self::pre_process(&raw_title);
-        let (content_title_without_season, season_info) = Self::remove_season(&content_title);
 
         // 获取字幕组信息
         let group = Self::get_group(&content_title);
 
         // 解析标题格式
         let captures = TITLE_PATTERN
-            .captures(&content_title_without_season)
+            .captures(&content_title)
             .ok_or_else(|| anyhow!("无法解析标题格式"))?;
 
         let title_info = captures.get(2).map(|m| m.as_str().trim()).unwrap_or("");
@@ -286,7 +285,7 @@ impl Parser {
         let process_raw = Self::prefix_process(title_info, &group);
 
         // 处理季度信息
-        let season = Self::season_process(&season_info);
+        let season = Self::season_process(&process_raw);
 
         // 处理名称
         let (name_en, name_zh, name_jp) = Self::name_process(&process_raw);

@@ -34,7 +34,13 @@ mod tests {
     #[test]
     fn test_example() {
         let parser = Parser::new();
-        let result = parser.parse("[ANi]  超超超超超喜欢你的 100 个女朋友 - 21 [1080P][Baha][WEB-DL][AAC AVC][CHT][MP4]").unwrap();
+        let result = parser.parse("[TOC] 最弱技能《果实大师》 ～关于能无限食用技能果实（吃了就会死）这件事～ 01 [1080P][AVC AAC][CHT][MP4]").unwrap();
+        println!("Result: {:?}", result);
+    }
+
+    #[test]
+    fn test_remove_season() {
+        let result = Parser::remove_season("我独自升级 第二季 -起于暗影-");
         println!("Result: {:?}", result);
     }
 

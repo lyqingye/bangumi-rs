@@ -18,7 +18,7 @@
       "description": "带季度的格式测试",
       "input": "[ANi] Spy x Family S2 - 01 [1080P][Baha][WEB-DL][AAC AVC][CHT].mp4",
       "expected": {
-        "name_en": "Spy x Family",
+        "name_en": "Spy x Family S2",
         "name_zh": null,
         "name_jp": null,
         "episode": 1,
@@ -74,8 +74,8 @@
       "description": "带有 Season 的格式测试",
       "input": "[Lilith-Raws] 盾之勇者成名录 Season 3 / Tate no Yuusha no Nariagari S3 - 01 [Baha][WEB-DL][1080p][AVC AAC][CHT][MP4].mp4",
       "expected": {
-        "name_en": "Tate no Yuusha no Nariagari",
-        "name_zh": "盾之勇者成名录",
+        "name_en": "Tate no Yuusha no Nariagari S3",
+        "name_zh": "盾之勇者成名录 Season 3",
         "name_jp": null,
         "episode": 1,
         "season": 3,
@@ -88,8 +88,8 @@
       "description": "带有中文季度的格式测试",
       "input": "[喵萌Production&LoliHouse] 无职转生 ～在异世界认真地活下去～ 第二季 / Mushoku Tensei S2 - 00 [WebRip 1080p HEVC-10bit AAC][简繁内封字幕].mp4",
       "expected": {
-        "name_en": "Mushoku Tensei",
-        "name_zh": "无职转生 ~在异世界认真地活下去~",
+        "name_en": "Mushoku Tensei S2",
+        "name_zh": "无职转生 在异世界认真地活下去 第二季",
         "name_jp": null,
         "episode": 0,
         "season": 2,
@@ -116,8 +116,8 @@
       "description": "带有多种分辨率的格式测试",
       "input": "[NC-Raws] 咒术回战 第二季 / Jujutsu Kaisen S2 - 21 [B-Global][WEB-DL][2160p][HDR][HEVC-10bit][AAC][Multi-Audio][Multi-Subs].mp4",
       "expected": {
-        "name_en": "Jujutsu Kaisen",
-        "name_zh": "咒术回战",
+        "name_en": "Jujutsu Kaisen S2",
+        "name_zh": "咒术回战 第二季",
         "name_jp": null,
         "episode": 21,
         "season": 2,
@@ -130,8 +130,8 @@
       "description": "Example1",
       "input": "[Strange-Raw] 战队红战士在异世界当冒险者 第一季 / Sentai Red Isekai de Boukensha ni Naru S01 [06] [Bilibili] [WEB-DL] [1080P AVC-8Bits AAC 2.0] [简日内嵌字幕]",
       "expected": {
-        "name_en": "Sentai Red Isekai de Boukensha ni Naru",
-        "name_zh": "战队红战士在异世界当冒险者",
+        "name_en": "Sentai Red Isekai de Boukensha ni Naru S01",
+        "name_zh": "战队红战士在异世界当冒险者 第一季",
         "name_jp": null,
         "episode": 6,
         "season": 1,
@@ -144,8 +144,8 @@
       "description": "Example2",
       "input": "[Skymoon-Raws] 我独自升级 第二季 -起于暗影- / Ore dake Level Up na Ken Season 2 -10 [ViuTV][WEB-DL][1080p][AVC AAC]",
       "expected": {
-        "name_en": "Ore dake Level Up na Ken",
-        "name_zh": "我独自升级",
+        "name_en": "Ore dake Level Up na Ken Season 2",
+        "name_zh": "我独自升级 第二季 起于暗影",
         "name_jp": null,
         "episode": 10,
         "season": 2,
@@ -173,7 +173,7 @@
       "input": "[ANi]  超超超超超喜欢你的 100 个女朋友 - 21 [1080P][Baha][WEB-DL][AAC AVC][CHT][MP4]",
       "expected": {
         "name_en": null,
-        "name_zh": "超超超超超喜欢你的",
+        "name_zh": "超超超超超喜欢你的 100 个女朋友",
         "name_jp": null,
         "episode": 21,
         "season": null,
@@ -215,7 +215,7 @@
       "input": "[TOC] 最弱技能《果实大师》 ～关于能无限食用技能果实（吃了就会死）这件事～ 01 [1080P][AVC AAC][CHT][MP4]",
       "expected": {
         "name_en": null,
-        "name_zh": "最弱技能《果实大师》",
+        "name_zh": "最弱技能 果实大师 关于能无限食用技能果实 吃了就会死 这件事",
         "name_jp": null,
         "episode": 1,
         "season": null,
@@ -310,6 +310,7 @@
     }
   ]
 }
+
 
 
 
