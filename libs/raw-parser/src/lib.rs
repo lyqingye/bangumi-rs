@@ -34,7 +34,7 @@ mod tests {
     #[test]
     fn test_example() {
         let parser = Parser::new();
-        let result = parser.parse("[TOC] 最弱技能《果实大师》 ～关于能无限食用技能果实（吃了就会死）这件事～ 01 [1080P][AVC AAC][CHT][MP4]").unwrap();
+        let result = parser.parse("【喵萌奶茶屋】★07月新番★[我的青春戀愛物語果然有問題 完/Yahari Ore no Seishun Love Come wa Machigatteiru Kan][01][1080p][繁日双语]").unwrap();
         println!("Result: {:?}", result);
     }
 

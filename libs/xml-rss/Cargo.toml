@@ -1,5 +1,5 @@
 [package]
-name = "acgrip"
+name = "xml-rss"
 version = "0.1.0"
 edition = "2024"
 
@@ -22,3 +22,4 @@ utils = { path = "../utils" }
 regex = { workspace = true }
 [dev-dependencies]
 dotenv = { workspace = true }
+raw-parser = { path = "../raw-parser" }
