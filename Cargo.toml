@@ -13,12 +13,12 @@ members = [
     "crates/scheduler",
     "crates/metadata",
     "crates/dict",
-    "libs/acgrip",
     "libs/utils",
     "libs/torrent",
     "libs/raw-parser",
     "libs/qbittorrent",
     "libs/alist",
+    "libs/xml-rss",
 ]
 resolver = "2"
 

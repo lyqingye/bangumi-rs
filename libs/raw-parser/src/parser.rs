@@ -44,10 +44,10 @@ lazy_static! {
     static ref BRACKET_PATTERN: Regex = Regex::new(r"[\[\]]").unwrap();
 
     // 匹配中文字符的正则表达式
-    static ref CHS_PATTERN: Regex = Regex::new(r"^[\u4e00-\u9fa5]{2,}").unwrap();
+    static ref CHS_PATTERN: Regex = Regex::new(r"[\u4e00-\u9fff]{2,}").unwrap();
 
     // 匹配日文字符的正则表达式
-    static ref JP_PATTERN: Regex = Regex::new(r"[\u0800-\u4e00]{2,}").unwrap();
+    static ref JP_PATTERN: Regex = Regex::new(r"[\u3040-\u309f\u30a0-\u30ff]{2,}").unwrap();
 
     // 匹配英文字符的正则表达式
     static ref EN_PATTERN: Regex = Regex::new(r"[a-zA-Z]{3,}").unwrap();

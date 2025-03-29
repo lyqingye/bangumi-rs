@@ -7,7 +7,7 @@ pub struct RssChannel {
     pub title: String,
     pub description: String,
     pub link: String,
-    pub ttl: i32,
+    pub ttl: Option<i32>,
     #[serde(default)]
     pub item: Vec<RssItem>,
 }

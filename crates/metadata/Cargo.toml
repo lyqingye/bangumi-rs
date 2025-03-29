@@ -16,7 +16,6 @@ reqwest = {workspace = true, features = ["rustls-tls"], default-features = false
 
 mikan = {path = "../../libs/mikan" }
 tmdb = { path = "../../libs/tmdb" }
-acgrip = {path = "../../libs/acgrip"}
 bangumi-tv = { path = "../../libs/bangumi-tv" }
 model = {path = "../../crates/model"}
 notify = {path = "../notify"}
