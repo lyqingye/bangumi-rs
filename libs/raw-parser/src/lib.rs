@@ -39,6 +39,12 @@ mod tests {
     }
 
     #[test]
+    fn test_remove_season() {
+        let result = Parser::remove_season("我独自升级 第二季 -起于暗影-");
+        println!("Result: {:?}", result);
+    }
+
+    #[test]
     fn test_parser() {
         let parser = Parser::new();
 

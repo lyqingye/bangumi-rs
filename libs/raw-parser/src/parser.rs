@@ -250,6 +250,18 @@ impl Parser {
             .collect()
     }
 
+    #[allow(dead_code)]
+    /// 用于移除标题上的 Season 信息，以及其它信息，用于搜索
+    pub fn remove_season(name: &str) -> (String, Option<i32>) {
+        let mut result = name.to_string();
+        let mut season_info = "";
+        for ele in SEASON_PATTERN.find_iter(name) {
+            season_info = ele.as_str();
+            result = result.replace(season_info, "");
+        }
+        (Self::clean_name(&result), Self::season_process(season_info))
+    }
+
     /// 解析动画文件名，提取所有相关信息
     pub fn parse(&self, file_name: &str) -> Result<ParseResult> {
         let raw_title = file_name.trim().replace('\n', " ");
