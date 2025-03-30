@@ -18,7 +18,6 @@ members = [
     "libs/raw-parser",
     "libs/qbittorrent",
     "libs/alist",
-    "libs/xml-rss",
 ]
 resolver = "2"
 
