@@ -5900,27 +5900,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "xml-rss"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "chrono",
- "dotenv",
- "lazy_static",
- "quick-xml",
- "raw-parser",
- "regex",
- "reqwest",
- "serde",
- "serde_json",
- "serde_repr",
- "thiserror 2.0.12",
- "tokio",
- "tracing",
- "utils",
-]
-
-[[package]]
 name = "yansi"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
