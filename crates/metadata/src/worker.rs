@@ -385,11 +385,11 @@ impl Worker {
         );
 
         // 更新当前放送季
-        if season.is_none() {
+        if calendar.season.is_some() {
             self.dict
                 .set_value(
                     DictCode::CurrentSeasonSchedule,
-                    calendar.season.clone().unwrap_or_default(),
+                    calendar.season.clone().unwrap(),
                 )
                 .await?;
         }
