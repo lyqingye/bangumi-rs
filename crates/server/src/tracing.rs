@@ -54,7 +54,7 @@ struct StringVisitor(String);
 impl tracing::field::Visit for StringVisitor {
     fn record_debug(&mut self, field: &tracing::field::Field, value: &dyn std::fmt::Debug) {
         if field.name() == "message" {
-            write!(&mut self.0, "{:?}", value).ok();
+            write!(&mut self.0, "{value:?}").ok();
         }
     }
 

@@ -80,7 +80,7 @@ mod tests {
         "【幻樱字幕组】【1月新番】【魔法制造者 ~异世界魔法的制作方法~ Magic Maker ~Isekai Mahou no Tsukurikata~】【04】【BIG5】【1920X1080】".to_string()
         ]).await?;
         for result in resp {
-            println!("{:?}", result);
+            println!("{result:?}");
         }
         Ok(())
     }

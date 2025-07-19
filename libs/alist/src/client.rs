@@ -110,7 +110,7 @@ impl AListClient {
         debug!("响应内容: {}", body);
 
         let response: Response<T> = serde_json::from_str(&body)
-            .map_err(|e| Error::ResponseError(format!("解析响应内容失败: {}", e)))?;
+            .map_err(|e| Error::ResponseError(format!("解析响应内容失败: {e}")))?;
 
         if response.code != 200 {
             if response.code == 404 {
@@ -223,7 +223,7 @@ mod tests {
             delete_policy: DeletePolicy::DeleteOnUploadSucceed,
         };
         let result = client.add_offline_download_task(request).await;
-        println!("{:?}", result);
+        println!("{result:?}");
     }
 
     #[ignore]
@@ -234,7 +234,7 @@ mod tests {
             .get_task_info(TaskType::OfflineDownload, "10qBec17CKlmyGRYTbylM")
             .await
             .unwrap();
-        println!("{:?}", result);
+        println!("{result:?}");
     }
 
     #[ignore]
@@ -244,7 +244,7 @@ mod tests {
         let result = client
             .retry_task(TaskType::OfflineDownload, "AlrGbn-0MApAwnM8r2KLI")
             .await;
-        println!("{:?}", result);
+        println!("{result:?}");
     }
 
     #[ignore]
@@ -254,7 +254,7 @@ mod tests {
         let result = client
             .cancel_task(TaskType::OfflineDownload, "WQEK-I_VIiMBf7LwGO1iL")
             .await;
-        println!("{:?}", result);
+        println!("{result:?}");
     }
 
     #[ignore]

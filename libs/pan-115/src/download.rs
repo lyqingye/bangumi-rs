@@ -143,7 +143,7 @@ mod test {
                     file.write_all(&item).await.unwrap();
                 }
                 Err(e) => {
-                    println!("error: {:?}", e);
+                    println!("error: {e:?}");
                 }
             }
         }
@@ -158,7 +158,7 @@ mod test {
         let download_info = client
             .download_file("3082935494472892045", Some(USER_AGENT))
             .await?;
-        print!("{:?}", download_info);
+        print!("{download_info:?}");
         Ok(())
     }
 }

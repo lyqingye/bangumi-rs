@@ -33,8 +33,6 @@ pub async fn main() -> Result<()> {
     let cli = Cli::parse();
     let (config, writer) = load_from_file(cli.config)?;
 
-    setup_panic_hook();
-
     match cli.commands {
         Commands::Start => match server::Server::new(config, writer).await?.serve().await {
             Ok(_) => {}
@@ -77,7 +75,7 @@ fn setup_panic_hook() {
             location.line(),
             message
         );
-        eprintln!("调用栈:\n{}", backtrace);
+        eprintln!("调用栈:\n{backtrace}");
 
         // 在输出错误信息后结束进程
         eprintln!("程序因严重错误终止运行");

@@ -117,11 +117,11 @@ impl MessageProcessor {
         let cache = self
             .message_caches
             .get(topic)
-            .with_context(|| format!("未找到主题缓存: {:?}", topic))?;
+            .with_context(|| format!("未找到主题缓存: {topic:?}"))?;
         let config = self
             .topic_configs
             .get(topic)
-            .with_context(|| format!("未找到主题配置: {:?}", topic))?;
+            .with_context(|| format!("未找到主题配置: {topic:?}"))?;
 
         let key = Self::generate_message_key(topic, title, content);
         let mut cache = cache.lock().await;
@@ -298,7 +298,7 @@ impl Worker {
         title: impl Into<String>,
         error: impl std::fmt::Display,
     ) -> Result<()> {
-        self.notify(Topic::Error, title, format!("错误信息: {}", error))
+        self.notify(Topic::Error, title, format!("错误信息: {error}"))
             .await
     }
 

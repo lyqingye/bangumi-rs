@@ -35,7 +35,7 @@ impl TryFrom<String> for BgmKind {
         match s.as_str() {
             "anime" => Ok(Self::Anime),
             "movie" => Ok(Self::Movie),
-            _ => Err(format!("invalid bgm kind: {}", s)),
+            _ => Err(format!("invalid bgm kind: {s}")),
         }
     }
 }

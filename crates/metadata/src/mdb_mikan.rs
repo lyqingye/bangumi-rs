@@ -81,10 +81,10 @@ impl MdbMikan {
         let ext = url
             .split('?')
             .next()
-            .and_then(|path| path.split('.').last())
+            .and_then(|path| path.split('.').next_back())
             .unwrap_or("jpg");
-        let filename = format!("{}.{}", file_name, ext);
-        let filepath = format!("{}/{}", &self.assets_path, filename);
+        let filename = format!("{file_name}.{ext}");
+        let filepath = format!("{}/{filename}", &self.assets_path);
 
         // 下载图片
         let response = self.client.get(url).send().await?;

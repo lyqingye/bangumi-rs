@@ -165,7 +165,7 @@ mod tests {
         dotenv::dotenv().ok();
         let client = Client::new_from_env()?;
         let file_id = client.mkdir("0", "卧槽").await?;
-        println!("file_id: {}", file_id);
+        println!("file_id: {file_id}");
         Ok(())
     }
 
@@ -181,7 +181,7 @@ mod tests {
 
         // 测试相对路径（应该返回错误）
         let result = client.path_to_cid("/test_dir2/test_dir3".into()).await?;
-        println!("result: {:?}", result);
+        println!("result: {result:?}");
 
         Ok(())
     }
@@ -196,7 +196,7 @@ mod tests {
             .init();
         let client = Client::new_from_env()?;
         let cid = client.mkdir_by_path("/animes/11".into()).await?;
-        println!("cid: {}", cid);
+        println!("cid: {cid}");
         Ok(())
     }
 

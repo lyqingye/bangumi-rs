@@ -195,7 +195,7 @@ mod tests {
         let downloads = db
             .query_downloads_info(0, 10, Some(DownloadStatus::Completed))
             .await?;
-        println!("{:?}", downloads);
+        println!("{downloads:?}");
         Ok(())
     }
 }

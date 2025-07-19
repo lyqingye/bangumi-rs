@@ -94,7 +94,7 @@ impl Parser {
         let mut result = raw.to_string();
         // 移除字幕组信息
         if let Some(group) = group {
-            result = result.replace(&format!("[{}]", group), "");
+            result = result.replace(&format!("[{group}]"), "");
         }
 
         // 处理前缀

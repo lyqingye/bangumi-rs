@@ -376,7 +376,7 @@ mod tests {
         client.login(false).await.unwrap();
         let arg = GetTorrentListArg::default();
         let torrents = client.get_torrent_list(arg).await.unwrap();
-        println!("torrents: {:?}", torrents);
+        println!("torrents: {torrents:?}");
         println!("login success: {:?}", client.state().as_cookie());
         client.logout().await.unwrap();
     }
@@ -404,7 +404,7 @@ mod tests {
             ..Default::default()
         };
         let torrents = client.get_torrent_list(list_arg).await.unwrap();
-        println!("torrents: {:?}", torrents);
+        println!("torrents: {torrents:?}");
     }
 
     #[ignore]

@@ -312,7 +312,7 @@ impl Client {
     pub async fn download_image_as_response(&self, file_path: &str) -> Result<reqwest::Response> {
         let base = self.image_base_url.as_str().trim_end_matches('/');
         let file_path = file_path.trim_start_matches('/');
-        let url = format!("{}/{}", base, file_path);
+        let url = format!("{base}/{file_path}");
         let response = self.http_client.get(url).send().await?;
         Ok(response)
     }
@@ -353,9 +353,9 @@ mod tests {
             .init();
         let tmdb = Client::new_from_env()?;
         let rs = tmdb.seach_movie("想变成猫的田万川君", None).await?;
-        println!("rs: {:?}", rs);
+        println!("rs: {rs:?}");
         let movie = tmdb.get_movie(rs[0].inner.id).await?;
-        println!("movie: {:?}", movie);
+        println!("movie: {movie:?}");
         Ok(())
     }
 

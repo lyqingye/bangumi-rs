@@ -496,7 +496,7 @@ mod test {
     ]
         "#;
         let res: Vec<Weekday> = serde_json::from_str(json).unwrap();
-        println!("{:?}", res);
+        println!("{res:?}");
     }
 
     #[test]
@@ -520,7 +520,7 @@ mod test {
                 }
         "#;
         let res: RatingCount = serde_json::from_str(json).unwrap();
-        println!("{:?}", res);
+        println!("{res:?}");
     }
 
     #[test]
@@ -535,7 +535,7 @@ mod test {
                 }
         "#;
         let res: Images = serde_json::from_str(json).unwrap();
-        println!("{:?}", res);
+        println!("{res:?}");
     }
 
     #[test]
@@ -566,7 +566,7 @@ mod test {
             }
         "#;
         let res: LegacySubjectSmall = serde_json::from_str(json).unwrap();
-        println!("{:?}", res);
+        println!("{res:?}");
     }
 
     #[test]
@@ -587,7 +587,7 @@ mod test {
         }
         "#;
         let res: SearchFilter = serde_json::from_str(json).unwrap();
-        println!("{:?}", res);
+        println!("{res:?}");
 
         // 验证反序列化结果
         assert_eq!(res.keyword, "string");
@@ -687,7 +687,7 @@ mod test {
         }
         "#;
         let res: Subject = serde_json::from_str(json).unwrap();
-        println!("{:?}", res);
+        println!("{res:?}");
 
         // 验证反序列化结果
         assert_eq!(res.id, 513314);

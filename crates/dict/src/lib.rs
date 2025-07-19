@@ -50,8 +50,8 @@ impl Dict {
         let value = self.get_value(code).await?;
         match value {
             Some(value) => {
-                let parsed = serde_json::from_str(&value)
-                    .with_context(|| format!("解析值失败: {}", value))?;
+                let parsed =
+                    serde_json::from_str(&value).with_context(|| format!("解析值失败: {value}"))?;
                 Ok(Some(parsed))
             }
             None => Ok(None),

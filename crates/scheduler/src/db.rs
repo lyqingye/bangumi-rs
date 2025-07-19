@@ -491,8 +491,8 @@ mod tests {
         let info_hashes = db
             .list_torrent_download_tasks_by_info_hashes(&info_hashes)
             .await?;
-        println!("torrents: {:?}", torrents);
-        println!("info_hashes: {:?}", info_hashes);
+        println!("torrents: {torrents:?}");
+        println!("info_hashes: {info_hashes:?}");
         Ok(())
     }
 }
