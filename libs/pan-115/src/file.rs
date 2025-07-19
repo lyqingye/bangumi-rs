@@ -25,6 +25,9 @@ impl Client {
         debug!("list_files: {:?} {:?} {:?}", cid, offset, limit);
         self.acquire().await;
 
+        let offset = offset.unwrap_or(0);
+        let limit = limit.unwrap_or(100);
+
         let resp: FileListResp = self
             .cli
             .get(API_LIST_FILES)
@@ -33,9 +36,9 @@ impl Client {
                 ("cid", cid),
                 ("o", "user_ptime"),
                 ("asc", "1"),
-                ("offset", offset.unwrap_or(0).to_string().as_str()),
+                ("offset", offset.to_string().as_str()),
                 ("show_dir", "1"),
-                ("limit", limit.unwrap_or(100).to_string().as_str()),
+                ("limit", limit.to_string().as_str()),
                 ("snap", "0"),
                 ("natsort", "0"),
                 ("record_open_time", "1"),
@@ -48,6 +51,11 @@ impl Client {
             .await?;
 
         resp.basic_resp.is_ok()?;
+
+        // FIXME: 115bug, 越界了会永远返回最后一页
+        if offset + limit >= (resp.count + limit) {
+            return Ok(Vec::new());
+        }
 
         Ok(resp.files)
     }
@@ -255,9 +263,9 @@ mod test {
         let mut client = create_client().await?;
         client.login_check().await?;
         let files = client
-            .list_files("2958258599551302765", Some(0), Some(100))
+            .list_files("3096262138235190897", Some(50), Some(100))
             .await?;
-        println!("{:?}", files);
+        println!("{:?}", files.len());
         Ok(())
     }
 
