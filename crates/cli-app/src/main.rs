@@ -33,8 +33,6 @@ pub async fn main() -> Result<()> {
     let cli = Cli::parse();
     let (config, writer) = load_from_file(cli.config)?;
 
-    setup_panic_hook();
-
     match cli.commands {
         Commands::Start => match server::Server::new(config, writer).await?.serve().await {
             Ok(_) => {}
