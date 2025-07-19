@@ -92,7 +92,7 @@ impl Item {
         // 从链接中提取信息哈希
         // 例如：https://mikanani.me/Home/Episode/8420088902677e8e142b35e2bc325e82c6cafb04
         self.link.as_ref().and_then(|link| {
-            link.split('/').last().and_then(|hash| {
+            link.split('/').next_back().and_then(|hash| {
                 // 验证 info_hash 长度，标准 SHA-1 哈希应为 40 个字符
                 if hash.len() == 40 {
                     Some(hash.to_string())

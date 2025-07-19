@@ -124,7 +124,7 @@ impl Client {
         let mut params = HashMap::new();
 
         for (i, url) in urls.iter().enumerate() {
-            let key = format!("url[{}]", i);
+            let key = format!("url[{i}]");
             params.insert(key, url.as_ref());
         }
         params.insert("ac".to_owned(), "add_task_urls");
@@ -187,7 +187,7 @@ mod tests {
         let mut client = create_client().await?;
         client.login_check().await?;
         let tasks = client.list_offline_tasks_page(1).await?;
-        println!("{:?}", tasks);
+        println!("{tasks:?}");
         Ok(())
     }
 
@@ -224,7 +224,7 @@ mod tests {
         let resp = client
             .list_offline_tasks_by_hashes(&["d64ce4bb6b17a66cabf85ac2fad68bbf9e71abbb"])
             .await?;
-        println!("{:?}", resp);
+        println!("{resp:?}");
         Ok(())
     }
 }

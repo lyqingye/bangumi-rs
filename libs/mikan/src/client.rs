@@ -103,7 +103,7 @@ impl Client {
     pub async fn collect_by_bangumi_id(&self, bangumi_id: i32) -> Result<Vec<EpisodeItem>> {
         let url = self
             .endpoint
-            .join(format!("/RSS/Bangumi?bangumiId={}", bangumi_id).as_str())?;
+            .join(format!("/RSS/Bangumi?bangumiId={bangumi_id}").as_str())?;
         info!("url: {}", url);
 
         // 获取 RSS XML 内容
@@ -132,7 +132,7 @@ impl Client {
             // 设置磁力链接和信息哈希
             if let Some(info_hash) = item.get_info_hash() {
                 episode.info_hash = info_hash.clone();
-                episode.magnet_link = format!("magnet:?xt=urn:btih:{}", info_hash);
+                episode.magnet_link = format!("magnet:?xt=urn:btih:{info_hash}");
             }
 
             // 设置种子下载链接
@@ -155,7 +155,7 @@ impl Client {
     pub async fn get_bangumi_info(&self, bangumi_id: i32) -> Result<BangumiInfo> {
         let url = self
             .endpoint
-            .join(format!("/Home/Bangumi/{}", bangumi_id).as_str())?;
+            .join(format!("/Home/Bangumi/{bangumi_id}").as_str())?;
         info!("url: {}", url);
 
         let search_result_page_html = self
@@ -285,7 +285,7 @@ impl Client {
         let season_str = season_parts[1].replace("季番组", "");
         let base_url = self
             .endpoint
-            .join(format!("Home/BangumiCoverFlowByDayOfWeek/{}", season).as_str())?;
+            .join(format!("Home/BangumiCoverFlowByDayOfWeek/{season}").as_str())?;
         let url = Url::parse_with_params(
             base_url.as_str(),
             &[
@@ -421,7 +421,7 @@ mod test {
     async fn test_search() -> Result<()> {
         let mikan = create_clinet()?;
         let result = mikan.search("我独自升级").await?;
-        println!("搜索结果: {:?}", result);
+        println!("搜索结果: {result:?}");
         assert!(!result.is_empty(), "搜索结果不应为空");
         Ok(())
     }
@@ -431,7 +431,7 @@ mod test {
     async fn test_week_bangumi() -> Result<()> {
         let mikan = create_clinet()?;
         let result = mikan.get_calendar().await?;
-        println!("result: {:?}", result);
+        println!("result: {result:?}");
         Ok(())
     }
 
@@ -440,7 +440,7 @@ mod test {
     async fn test_get_bangumi_info() -> Result<()> {
         let mikan = create_clinet()?;
         let result = mikan.get_bangumi_info(681).await?;
-        println!("result: {:?}", result);
+        println!("result: {result:?}");
         Ok(())
     }
 
@@ -477,7 +477,7 @@ mod test {
     async fn test_get_calendar_by_season() -> Result<()> {
         let mikan = create_clinet()?;
         let result = mikan.get_calendar_by_season("2024 冬季番组").await?;
-        println!("result: {:?}", result);
+        println!("result: {result:?}");
         Ok(())
     }
 

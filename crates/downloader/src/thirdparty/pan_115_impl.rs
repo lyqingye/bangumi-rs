@@ -205,7 +205,7 @@ impl ThirdPartyDownloader for Pan115DownloaderImpl {
 
     async fn dl_file(&self, file_id: &str, ua: &str) -> Result<DownloadInfo> {
         let mut cache = self.download_cache.lock().await;
-        let cache_key = format!("{}-{}", file_id, ua);
+        let cache_key = format!("{file_id}-{ua}");
 
         let now = std::time::Instant::now();
         if let Some((download_info, last_update)) = cache.get(&cache_key) {

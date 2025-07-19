@@ -51,7 +51,7 @@ impl Server {
             let git_verison = crate::built_info::GIT_VERSION.unwrap_or("unknown");
             let commit = crate::built_info::GIT_COMMIT_HASH_SHORT.unwrap_or("unknown");
 
-            let release = format!("{}-{}", git_verison, commit);
+            let release = format!("{git_verison}-{commit}");
 
             Some(sentry::init((
                 config.sentry.dsn.as_str(),

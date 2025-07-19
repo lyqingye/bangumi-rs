@@ -109,10 +109,10 @@ pub async fn calendar(
         .into_iter()
         .map(|mut bangumi| {
             if let Some(image) = &mut bangumi.poster_image_url {
-                *image = format!("{}/{}", ASSETS_MOUNT_PATH, image);
+                *image = format!("{ASSETS_MOUNT_PATH}/{image}");
             }
             if let Some(image) = &mut bangumi.backdrop_image_url {
-                *image = format!("{}/{}", ASSETS_MOUNT_PATH, image);
+                *image = format!("{ASSETS_MOUNT_PATH}/{image}");
             }
             bangumi
         })
@@ -177,10 +177,10 @@ pub async fn get_bangumi_by_id(
     match bangumi {
         Some(mut bgm) => {
             if let Some(image) = &mut bgm.poster_image_url {
-                *image = format!("{}/{}", ASSETS_MOUNT_PATH, image);
+                *image = format!("{ASSETS_MOUNT_PATH}/{image}");
             }
             if let Some(image) = &mut bgm.backdrop_image_url {
-                *image = format!("{}/{}", ASSETS_MOUNT_PATH, image);
+                *image = format!("{ASSETS_MOUNT_PATH}/{image}");
             }
             Ok(Json(Resp::ok(bgm)))
         }
@@ -551,7 +551,7 @@ pub async fn online_watch(
             "max-age=0, no-cache, no-store, must-revalidate",
         ))
         .append_header(("Location", location.clone()))
-        .body(format!(r#"<a href="{url}">Found</a>"#, url = location)))
+        .body(format!(r#"<a href="{location}">Found</a>"#)))
 }
 
 #[get("/api/bangumi/{bangumi_id}/{episode_number}/manual_select_torrent/{info_hash}")]
@@ -829,7 +829,7 @@ pub async fn list_bangumi(
 
     // 添加名称过滤条件
     if let Some(name) = &params.name {
-        condition = condition.add(BangumiColumn::Name.like(format!("%{}%", name)));
+        condition = condition.add(BangumiColumn::Name.like(format!("%{name}%")));
     } else {
         // 添加订阅状态过滤条件
         if let Some(status) = &params.status {
@@ -907,10 +907,10 @@ pub async fn list_bangumi(
         .into_iter()
         .map(|mut bangumi| {
             if let Some(image) = &mut bangumi.poster_image_url {
-                *image = format!("{}/{}", ASSETS_MOUNT_PATH, image);
+                *image = format!("{ASSETS_MOUNT_PATH}/{image}");
             }
             if let Some(image) = &mut bangumi.backdrop_image_url {
-                *image = format!("{}/{}", ASSETS_MOUNT_PATH, image);
+                *image = format!("{ASSETS_MOUNT_PATH}/{image}");
             }
             bangumi
         })

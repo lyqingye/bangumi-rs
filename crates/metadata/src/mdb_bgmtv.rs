@@ -111,8 +111,8 @@ impl MdbBgmTV {
 
         fs::create_dir_all(&self.assets_path).await?;
 
-        let write_file_name = format!("{}.{}", file_name, ext);
-        let write_path = format!("{}/{}", &self.assets_path, write_file_name);
+        let write_file_name = format!("{file_name}.{ext}");
+        let write_path = format!("{}/{write_file_name}", &self.assets_path);
 
         self.bgm_tv
             .download_image(bgm_tv_file_path, &write_path)

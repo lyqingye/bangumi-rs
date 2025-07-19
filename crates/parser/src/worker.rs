@@ -272,19 +272,14 @@ mod tests {
 
         // 测试应该通过的文件名
         for file_name in should_pass {
-            assert!(
-                filter_file_name(file_name),
-                "应该通过但被过滤：{}",
-                file_name
-            );
+            assert!(filter_file_name(file_name), "应该通过但被过滤：{file_name}");
         }
 
         // 测试应该被过滤的文件名
         for file_name in should_filter {
             assert!(
                 !filter_file_name(file_name),
-                "应该被过滤但通过了：{}",
-                file_name
+                "应该被过滤但通过了：{file_name}"
             );
         }
     }
@@ -311,7 +306,7 @@ mod tests {
         ];
 
         let results = worker.parse_file_names(file_names).await?;
-        println!("解析结果: {:#?}", results);
+        println!("解析结果: {results:#?}");
         Ok(())
     }
 
@@ -332,7 +327,7 @@ mod tests {
             let file_name = record.file_name.clone();
             let result = parser.parse_file_names(vec![file_name.clone()]).await?;
             if result.is_empty() {
-                println!("解析失败: {}", file_name);
+                println!("解析失败: {file_name}");
             } else {
                 success_count += 1;
                 if record.episode_number != result[0].episode {
@@ -343,7 +338,7 @@ mod tests {
                 }
             }
         }
-        println!("成功解析: {}", success_count);
+        println!("成功解析: {success_count}");
         Ok(())
     }
 }

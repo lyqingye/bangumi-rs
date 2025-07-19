@@ -58,7 +58,7 @@ mod test {
         ];
         for date in dates {
             let dt = smart_parse_date(date).unwrap();
-            println!("{}: {}", date, dt);
+            println!("{date}: {dt}");
         }
     }
 }

@@ -61,7 +61,7 @@ impl Client {
             .text()
             .await?;
         let resp: PageResponse<Subject> = serde_json::from_str(&response)
-            .with_context(|| format!("解析搜索结果失败: {}", response))?;
+            .with_context(|| format!("解析搜索结果失败: {response}"))?;
         Ok(resp)
     }
 
@@ -103,7 +103,7 @@ impl Client {
             .text()
             .await?;
         let resp: Vec<CalendarResponse> = serde_json::from_str(&response)
-            .with_context(|| format!("解析放送列表失败: {}", response))?;
+            .with_context(|| format!("解析放送列表失败: {response}"))?;
         Ok(resp)
     }
 
@@ -130,7 +130,7 @@ impl Client {
             .text()
             .await?;
         let resp: EpisodeList = serde_json::from_str(&response)
-            .with_context(|| format!("解析剧集信息失败: {}", response))?;
+            .with_context(|| format!("解析剧集信息失败: {response}"))?;
         Ok(resp)
     }
 
@@ -145,7 +145,7 @@ impl Client {
             .text()
             .await?;
         let resp: Subject = serde_json::from_str(&response)
-            .with_context(|| format!("解析番剧信息失败: {}", response))?;
+            .with_context(|| format!("解析番剧信息失败: {response}"))?;
         Ok(Some(resp))
     }
 
@@ -180,7 +180,7 @@ mod test {
     async fn test_calendar() -> Result<()> {
         let cli = create_client().await?;
         let out = cli.get_calendar().await?;
-        println!("{:?}", out);
+        println!("{out:?}");
         Ok(())
     }
 
@@ -189,7 +189,7 @@ mod test {
     async fn test_episodes() -> Result<()> {
         let cli = create_client().await?;
         let resp = cli.episodes(475354, EpisodeType::Normal, 100, 0).await?;
-        println!("{:?}", resp);
+        println!("{resp:?}");
         Ok(())
     }
 
@@ -198,7 +198,7 @@ mod test {
     async fn test_subject() -> Result<()> {
         let cli = create_client().await?;
         let resp = cli.get_subject(425910).await?;
-        println!("{:?}", resp);
+        println!("{resp:?}");
         println!("air_date: {:?}", resp.unwrap().get_air_date());
         Ok(())
     }
@@ -233,7 +233,7 @@ mod test {
                 10,
             )
             .await?;
-        println!("{:?}", resp);
+        println!("{resp:?}");
         Ok(())
     }
 
@@ -247,7 +247,7 @@ mod test {
                 Some(NaiveDate::from_str("2025-01-04").unwrap()),
             )
             .await?;
-        println!("{:?}", resp);
+        println!("{resp:?}");
         Ok(())
     }
 }

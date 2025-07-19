@@ -6,11 +6,11 @@ use crate::{
 };
 
 pub fn assigned_dlr(dlr: &str) -> &str {
-    dlr.split(',').last().unwrap_or(dlr)
+    dlr.split(',').next_back().unwrap_or(dlr)
 }
 
 pub fn assign_dlr(dlr: &str, new_dlr: &str) -> String {
-    format!("{},{}", dlr, new_dlr)
+    format!("{dlr},{new_dlr}")
 }
 
 pub struct Dlrs<'a> {

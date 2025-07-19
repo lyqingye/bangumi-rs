@@ -90,7 +90,7 @@ impl ThirdPartyDownloader for QbittorrentDownloaderImpl {
             }
             Resource::TorrentFileBytes(data, info_hash) => {
                 let torrent = TorrentFile {
-                    filename: format!("{}.torrent", info_hash),
+                    filename: format!("{info_hash}.torrent"),
                     data,
                 };
                 TorrentSource::TorrentFiles {

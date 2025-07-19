@@ -114,7 +114,7 @@ impl Client {
         form.insert("pid".to_owned(), to_cid.as_ref());
 
         for (i, file_id) in file_ids.iter().enumerate() {
-            let key = format!("fid[{}]", i);
+            let key = format!("fid[{i}]");
             form.insert(key, file_id.as_ref());
         }
 
@@ -141,7 +141,7 @@ impl Client {
         let mut form = HashMap::new();
 
         for (i, file_id) in file_ids.iter().enumerate() {
-            let key = format!("fid[{}]", i);
+            let key = format!("fid[{i}]");
             form.insert(key, file_id.as_ref());
         }
 
@@ -278,10 +278,10 @@ mod test {
         while let Some(file) = stream.next().await {
             match file {
                 Ok(file) => {
-                    println!("{:?}", file);
+                    println!("{file:?}");
                 }
                 Err(e) => {
-                    println!("{:?}", e);
+                    println!("{e:?}");
                 }
             }
         }
@@ -323,7 +323,7 @@ mod test {
         let mut client = create_client().await?;
         client.login_check().await?;
         let file_info = client.get_file("3083713467929067080").await?;
-        println!("{:?}", file_info);
+        println!("{file_info:?}");
         Ok(())
     }
 
@@ -333,7 +333,7 @@ mod test {
         let mut client = create_client().await?;
         client.login_check().await?;
         let files = client.list_files_recursive("3119558916535483869").await?;
-        println!("{:?}", files);
+        println!("{files:?}");
         Ok(())
     }
 }

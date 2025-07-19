@@ -264,7 +264,7 @@ mod tests {
         "[LoliHouse] 孤nsingle人的异世界攻略 / Hitoribocchi no Isekai Kouryaku - 12 [WebRip 1080p HEVC-10bit AAC][简日双语]".to_string(),
         "[Skymoon-Raws] 孤nsingle人的异世界攻略 / Hitoribocchi no Isekai Kouryaku - 12 [ViuTV][WEB-DL][1080p][AVC AAC] [BIG5]".to_string(),
         ]).await?;
-        println!("{:?}", resp);
+        println!("{resp:?}");
         println!("{}", now.elapsed().as_millis());
         Ok(())
     }

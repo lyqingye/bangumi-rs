@@ -82,11 +82,10 @@ impl Client {
             let cookie_values = cookie.split("=").collect::<Vec<&str>>();
             if cookie_values.len() != 2 {
                 return Err(Pan115Error::CookieParseFailed(format!(
-                    "cookie parse failed: {}",
-                    cookie
+                    "cookie parse failed: {cookie}"
                 )));
             }
-            cookie_jar.add_cookie_str(format!("{}; Domain=.115.com", cookie).as_str(), &url);
+            cookie_jar.add_cookie_str(format!("{cookie}; Domain=.115.com").as_str(), &url);
         }
 
         Ok(())

@@ -147,7 +147,7 @@ impl Torrent {
         let hex_hash = hex::encode(info_hash);
 
         // 构建基本的 magnet 链接
-        let mut magnet = format!("magnet:?xt=urn:btih:{}", hex_hash);
+        let mut magnet = format!("magnet:?xt=urn:btih:{hex_hash}");
 
         // 添加名称（如果有）
         if let Some(name) = &self.info.name {
@@ -204,9 +204,9 @@ impl Torrent {
                             for key in info_dict.keys() {
                                 let key_str = match str::from_utf8(key) {
                                     Ok(s) => s.to_string(),
-                                    Err(_) => format!("<非 UTF-8 键: {:?}>", key),
+                                    Err(_) => format!("<非 UTF-8 键: {key:?}>"),
                                 };
-                                result.push_str(&format!("{}, ", key_str));
+                                result.push_str(&format!("{key_str}, "));
                             }
                             result.push('\n');
 
@@ -222,8 +222,7 @@ impl Torrent {
                                     }
                                     _ => {
                                         result.push_str(&format!(
-                                            "pieces 不是字节数组，而是 {:?}\n",
-                                            pieces
+                                            "pieces 不是字节数组，而是 {pieces:?}\n"
                                         ));
                                     }
                                 }
@@ -242,9 +241,9 @@ impl Torrent {
                     for key in dict.keys() {
                         let key_str = match str::from_utf8(key) {
                             Ok(s) => s.to_string(),
-                            Err(_) => format!("<非 UTF-8 键: {:?}>", key),
+                            Err(_) => format!("<非 UTF-8 键: {key:?}>"),
                         };
-                        result.push_str(&format!("{}, ", key_str));
+                        result.push_str(&format!("{key_str}, "));
                     }
                     result.push('\n');
                 } else {
@@ -257,12 +256,12 @@ impl Torrent {
                         result.push_str("成功解析为 Torrent 结构体\n");
                     }
                     Err(e) => {
-                        result.push_str(&format!("无法解析为 Torrent 结构体: {}\n", e));
+                        result.push_str(&format!("无法解析为 Torrent 结构体: {e}\n"));
                     }
                 }
             }
             Err(e) => {
-                result.push_str(&format!("无法解析为 bencode 值: {}\n", e));
+                result.push_str(&format!("无法解析为 bencode 值: {e}\n"));
             }
         }
 
@@ -336,7 +335,7 @@ mod tests {
         let torrent = match Torrent::from_file(&torrent_path) {
             Ok(t) => t,
             Err(e) => {
-                println!("无法解析 torrent 文件 {}: {}", torrent_path, e);
+                println!("无法解析 torrent 文件 {torrent_path}: {e}");
                 println!("请确保文件存在且格式正确");
                 return;
             }
@@ -345,11 +344,11 @@ mod tests {
         // 生成 magnet 链接
         match torrent.magnet_link() {
             Ok(magnet) => {
-                println!("成功生成 magnet 链接: {}", magnet);
+                println!("成功生成 magnet 链接: {magnet}");
                 assert!(magnet.starts_with("magnet:?xt=urn:btih:"));
             }
             Err(e) => {
-                println!("无法生成 magnet 链接: {}", e);
+                println!("无法生成 magnet 链接: {e}");
                 panic!("生成 magnet 链接失败");
             }
         }
@@ -370,10 +369,10 @@ mod tests {
         // 尝试诊断 torrent 文件
         match Torrent::diagnose_file(&torrent_path) {
             Ok(diagnosis) => {
-                println!("诊断结果:\n{}", diagnosis);
+                println!("诊断结果:\n{diagnosis}");
             }
             Err(e) => {
-                println!("无法诊断 torrent 文件: {}", e);
+                println!("无法诊断 torrent 文件: {e}");
             }
         }
     }

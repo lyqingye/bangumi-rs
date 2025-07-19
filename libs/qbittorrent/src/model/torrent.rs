@@ -350,7 +350,7 @@ impl<V: Into<Vec<String>>> From<V> for Hashes {
 impl Display for Hashes {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Hashes::Hashes(hashes) => write!(f, "{}", hashes),
+            Hashes::Hashes(hashes) => write!(f, "{hashes}"),
             Hashes::All => write!(f, "all"),
         }
     }

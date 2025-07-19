@@ -152,7 +152,7 @@ impl Display for DeletePolicy {
             DeletePolicy::DeleteNever => "delete_never",
             DeletePolicy::DeleteAlways => "delete_always",
         };
-        write!(f, "{}", str)
+        write!(f, "{str}")
     }
 }
 
@@ -337,7 +337,7 @@ mod tests {
     fn test_deserialize_add_offline_download_task_result() {
         let json = r#"{"code":200,"message":"success","data":{"tasks":[{"id":"yZLkyXOWOSX3-Hsn_-fBc","name":"download https://mikanani.me/Download/20250317/7cbf45178ebe4ee0607fa51b6d630638ebdd7c63.torrent to (/downloads)","creator":"admin","creator_role":2,"state":0,"status":"","progress":0,"start_time":null,"end_time":null,"total_bytes":0,"error":""}]}}"#;
         let result: Response<AddOfflineDownloadTaskResult> = serde_json::from_str(json).unwrap();
-        println!("{:?}", result);
+        println!("{result:?}");
     }
 
     #[test]

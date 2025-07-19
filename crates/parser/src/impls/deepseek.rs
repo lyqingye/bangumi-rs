@@ -333,7 +333,7 @@ mod tests {
                 "[ANBU]_Princess_Lover!_-_01_[2048A39A].mkv".to_string(),
             ])
             .await?;
-        println!("{:?}", resp);
+        println!("{resp:?}");
         println!("{}", now.elapsed().as_millis());
         Ok(())
     }

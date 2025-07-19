@@ -7,30 +7,7 @@ edition = "2024"
 name = "bangumi"
 path = "src/main.rs"
 
-# 二进制特定的rustc编译标志
-[package.metadata.rustc-args]
-release = [
-    "-C",
-    "target-cpu=native",                   # 针对当前CPU架构优化
-    "-C",
-    "inline-threshold=1000",               # 提高内联阈值
-    "-C",
-    "force-frame-pointers=no",             # 禁用帧指针以减少开销
-    "-C",
-    "no-redzone",                          # 提高稳定性
-    "-C",
-    "llvm-args=-vectorize-slp-aggressive", # 激进的向量化
-    "-Z",
-    "trap-unreachable=no",                 # 提高性能
-    "-Z",
-    "merge-functions=disabled",            # 禁用函数合并以提高性能
-]
-dev = [
-    "-C",
-    "inline-threshold=0", # 减少内联以加快编译
-    "-Z",
-    "share-generics=y",   # 共享泛型实例以加快编译
-]
+
 
 [dependencies]
 clap = { workspace = true, features = ["derive"] }
@@ -42,6 +19,3 @@ serde = { workspace = true, features = ["derive"] }
 server = { path = "../server" }
 jemallocator = { workspace = true }
 tracing = { workspace = true }
-
-[build-dependencies]
-toml = { workspace = true }
