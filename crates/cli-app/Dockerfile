@@ -1,12 +1,12 @@
 FROM --platform=$BUILDPLATFORM messense/rust-musl-cross:x86_64-musl AS builder-amd64
 WORKDIR /app
 COPY . .
-RUN cargo build --release -p cli-app
+RUN rustup target add x86_64-unknown-linux-musl && cargo build --release -p cli-app
 
 # FROM --platform=$BUILDPLATFORM messense/rust-musl-cross:aarch64-musl AS builder-arm64
 # WORKDIR /app
 # COPY . .
-# RUN cargo build --release -p cli-app
+# RUN rustup target add aarch64-unknown-linux-musl && cargo build --release -p cli-app
 
 FROM alpine:3.19
 WORKDIR /app
