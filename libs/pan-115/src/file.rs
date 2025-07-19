@@ -53,7 +53,7 @@ impl Client {
         resp.basic_resp.is_ok()?;
 
         // FIXME: 115bug, 越界了会永远返回最后一页
-        if offset + limit >= (resp.count + limit) {
+        if offset >= resp.count {
             return Ok(Vec::new());
         }
 
