@@ -137,7 +137,7 @@ tmdb-api = { git = "https://github.com/lyqingye/tmdb-api.git", rev = "ab729e9a81
 teloxide = { git = "https://github.com/teloxide/teloxide.git", rev = "e6c0e2cb7f1ff44742bb9a8606cb936b55852d4d", default-features = false }
 
 regex = "1.11.0"
-lru = "0.13.0"
+lru = "0.16.3"
 # 限速
 governor = { version = "0.8", features = ["jitter", "std"] }
 
