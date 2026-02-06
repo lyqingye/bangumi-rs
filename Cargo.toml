@@ -126,7 +126,7 @@ dotenv = "0.15"
 
 # 服务端
 actix-web = "4"
-actix-files = "0.6.6"
+actix-files = "0.6.10"
 actix-cors = "0.7.0"
 actix-ws = "0.3.0"
 tracing-actix-web = "0.7.15"
